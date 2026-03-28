@@ -38,6 +38,17 @@ services:
     networks:
       - app-network
 
+  frontend:
+    build: ./campus_voice_frontend
+    command: npm run start -- --hostname 0.0.0.0 --port 3000
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost/api
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
 
   nginx:
     image: nginx:alpine
