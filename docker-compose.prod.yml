@@ -20,7 +20,9 @@ services:
       - app-network
 
   backend:
-    build: ./campus_voice_backend
+    build:
+      context: ./campus_voice_backend
+      target: prod
     command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
@@ -39,7 +41,9 @@ services:
       - app-network
 
   frontend:
-    build: ./campus_voice_frontend
+    build:
+      context: ./campus_voice_frontend
+      target: prod
     command: npm run start -- --hostname 0.0.0.0 --port 3000
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost/api
