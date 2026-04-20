@@ -8,15 +8,15 @@ export const authOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          hd: "paragon.edu.kh",
+          hd: "paragoniu.edu.kh",
         },
       },
     }),
   ],
   callbacks: {
     async signIn({ profile }) {
-      // Only allow @paragon.edu.kh emails
-      return profile?.email?.endsWith("@paragon.edu.kh") ?? false;
+      // Only allow @paragoniu.edu.kh emails
+      return profile?.email?.endsWith("@paragoniu.edu.kh") ?? false;
     },
     async jwt({ token, account }) {
       if (account?.access_token) {
