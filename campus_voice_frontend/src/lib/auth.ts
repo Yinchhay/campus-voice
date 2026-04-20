@@ -8,7 +8,7 @@ export const authOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          hd: "paragon.edu.kh", // Restrict to Paragon Google accounts only
+          hd: "paragon.edu.kh",
         },
       },
     }),

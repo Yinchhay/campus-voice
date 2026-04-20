@@ -7,6 +7,9 @@ import { ArrowRight, ShieldCheck } from "lucide-react";
 
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: "Sign-in failed. Please use your @paragon.edu.kh account.",
+  OAuthSignin: "Could not start Google sign-in. Please try again.",
+  OAuthCallback: "Google sign-in callback failed. Please try again.",
+  Callback: "Sign-in callback failed. Please try again.",
   OAuthAccountNotLinked:
     "This Google account is already linked differently. Try a different account.",
   Configuration: "Authentication is temporarily unavailable. Please try again.",
