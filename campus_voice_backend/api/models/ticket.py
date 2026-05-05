@@ -7,17 +7,16 @@ from .user import User
 
 class Ticket(models.Model):
     
-    STATUS_CHOICES = [
-        ('SUBMITTED', 'Submitted'),
-        ('IN_PROGRESS', 'In Progress'),
-        ('RESOLVED', 'Resolved'),
-    ]
+    class Status(models.TextChoices):
+        SUBMITTED = 'SUBMITTED', 'Submitted'
+        IN_PROGRESS = 'IN_PROGRESS', 'In Progress'
+        RESOLVED = 'RESOLVED', 'Resolved'
 
-    PRIORITY_CHOICES = [
-        ('HIGH', 'High Priority'),
-        ('MEDIUM', 'Medium Priority'),
-        ('LOW', 'Low Priority'),
-    ]
+    class Priority(models.TextChoices):
+        HIGH = 'HIGH', 'High Priority'
+        MEDIUM = 'MEDIUM', 'Medium Priority'
+        LOW = 'LOW', 'Low Priority'
+        
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     category_id = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='tickets')
@@ -26,13 +25,13 @@ class Ticket(models.Model):
     description = models.TextField()
     priority = models.CharField(
         max_length=10,
-        choices=PRIORITY_CHOICES,
-        default='LOW'
+        choices=Priority.choices,
+        default=Priority.LOW
     )
     status = models.CharField(
         max_length=20,
-        choices=STATUS_CHOICES,
-        default='SUBMITTED'
+        choices=Status.choices,
+        default=Status.SUBMITTED
     )
     has_media = models.BooleanField(default=False)
     # Anonymous tracking - displayed on portal
@@ -58,7 +57,6 @@ class Ticket(models.Model):
         if not self.public_ticket_id:
             # Generate a short public ID (e.g., CV-2024-001234)
             import random
-            import string
             self.public_ticket_id = f"CV-{random.randint(100000, 999999)}"
         super().save(*args, **kwargs)
     

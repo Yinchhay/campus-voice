@@ -5,11 +5,11 @@ from django.db import models
 
 class User(AbstractUser):
 
-    ROLE_CHOICES = [
-        ('STUDENT', 'Student'),
-        ('STAFF', 'Staff'),
-        ('ADMIN', 'Admin'),
-    ]
+    class Role(models.TextChoices):
+        STUDENT = 'STUDENT', 'Student'
+        STAFF = 'STAFF', 'Staff'
+        ADMIN = 'ADMIN', 'Admin'
+    
 
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
@@ -17,9 +17,10 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     role = models.CharField(
         max_length=20,
-        choices=ROLE_CHOICES,
-        default='STUDENT'
+        choices=Role.choices,
+        default=Role.STUDENT
     )
+    is_staff = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_login = models.DateTimeField(null=True, blank=True)

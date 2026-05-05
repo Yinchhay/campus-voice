@@ -25,3 +25,6 @@ db-migrate:
 
 db-shell:
 	docker-compose -f docker-compose.dev.yml exec db psql -U admin@admin.com -d campus-voice-db
+
+createsuperuser:
+    docker-compose -f docker-compose.dev.yml exec backend python manage.py createsuperuser
