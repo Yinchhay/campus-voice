@@ -22,28 +22,24 @@ type LoginResponse = {
 	role?: StaffAdminRole;
 };
 
-function buildLoginUrl(role: StaffAdminRole) {
-	const override =
-		role === "staff" ? process.env.STAFF_LOGIN_URL : process.env.ADMIN_LOGIN_URL;
+function buildStaffAdminLoginUrl() {
+	const override = process.env.STAFF_ADMIN_LOGIN_URL ?? process.env.ADMIN_LOGIN_URL;
 
 	if (override) return override;
 
 	const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-	const path =
-		role === "staff"
-			? process.env.STAFF_LOGIN_PATH ?? "/api/staff/login/"
-			: process.env.ADMIN_LOGIN_PATH ?? "/api/admin/login/";
+	const path = process.env.STAFF_ADMIN_LOGIN_PATH ?? process.env.ADMIN_LOGIN_PATH ?? "/api/admin/login/";
 
 	return new URL(path, baseUrl).toString();
 }
 
-async function loginWithCredentials(role: StaffAdminRole, credentials: Partial<Record<string, unknown>>) {
+async function loginWithCredentials(fallbackRole: StaffAdminRole, credentials: Partial<Record<string, unknown>>) {
 	const username = String(credentials.username ?? "").trim();
 	const password = String(credentials.password ?? "");
 
 	if (!username || !password) return null;
 
-	const response = await fetch(buildLoginUrl(role), {
+	const response = await fetch(buildStaffAdminLoginUrl(), {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
@@ -51,7 +47,6 @@ async function loginWithCredentials(role: StaffAdminRole, credentials: Partial<R
 		body: JSON.stringify({
 			username,
 			password,
-			role,
 		}),
 	});
 
@@ -65,7 +60,7 @@ async function loginWithCredentials(role: StaffAdminRole, credentials: Partial<R
 		id: String(user.id ?? data.id ?? username),
 		name: user.name ?? data.name ?? user.username ?? data.username ?? username,
 		email: user.email ?? data.email ?? undefined,
-		role: user.role ?? data.role ?? role,
+		role: user.role ?? data.role ?? fallbackRole,
 		accessToken,
 	};
 }

@@ -1,4 +1,5 @@
 import type { DefaultSession } from "next-auth";
+import type {} from "next-auth/jwt";
 
 type CampusVoiceRole = "student" | "staff" | "admin";
 
