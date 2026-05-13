@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import type { LucideIcon } from "lucide-react";
 import {
 	ArrowRight,
@@ -32,6 +32,12 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 	Configuration: "Authentication is temporarily unavailable.",
 	Default: "Unable to sign in right now. Please try again.",
 };
+
+function dashboardForRole(role?: string, fallbackUrl = "/admin/dashboard") {
+	if (role === "staff") return "/staff/dashboard";
+	if (role === "admin") return "/admin/dashboard";
+	return fallbackUrl;
+}
 
 export function CredentialLoginPage({
 	roleName,
@@ -81,7 +87,8 @@ export function CredentialLoginPage({
 			return;
 		}
 
-		router.push(result?.url ?? callbackUrl);
+		const session = await getSession();
+		router.push(dashboardForRole(session?.user?.role, result?.url ?? callbackUrl));
 		router.refresh();
 	};
 

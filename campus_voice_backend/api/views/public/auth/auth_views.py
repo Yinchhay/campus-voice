@@ -1,23 +1,38 @@
-import jwt
 import requests
 import logging
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
-from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
+from django.contrib.auth import login, logout
+from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.db import transaction
 from api.models import User
-from api.serializers import UserSerializer
 
 logger = logging.getLogger(__name__)
 
+
+class StudentAuthError(Exception):
+    pass
+
+
+def serialize_student_session(user):
+    return {
+        'id': str(user.id),
+        'email': user.email,
+        'role': user.role,
+        'is_active': user.is_active,
+    }
+
+
 class GoogleAuthView(APIView):
     permission_classes = [AllowAny]
-    
+
+    @method_decorator(csrf_protect)
     def post(self, request):
         
         try:
@@ -25,7 +40,7 @@ class GoogleAuthView(APIView):
 
             if not token:
                 return Response(
-                    {'error': 'id_token and email are required'}, 
+                    {'error': 'Google ID token is required'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
@@ -37,11 +52,10 @@ class GoogleAuthView(APIView):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
             
-            print(user_info)
             email = user_info.get('email')
             
             # Validate Paragon email domain
-            if not email or not email.endswith(settings.ALLOWED_EMAIL_DOMAIN):
+            if not email or not email.lower().endswith(settings.ALLOWED_EMAIL_DOMAIN.lower()):
                 logger.warning(f"Unauthorized email domain: {email}")
                 return Response(
                     {'error': f'Only {settings.ALLOWED_EMAIL_DOMAIN} email addresses are allowed'},
@@ -50,14 +64,27 @@ class GoogleAuthView(APIView):
             
             # Get or create user
             user, created = self.get_or_create_user(user_info)
+
+            login(request, user)
             
-            # Generate JWT tokens
-            return self.generate_token_response(user, created)
+            return Response(
+                {
+                    'success': True,
+                    'message': 'User created' if created else 'User logged in',
+                    'user': serialize_student_session(user),
+                },
+                status=status.HTTP_200_OK
+            )
         
+        except StudentAuthError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_403_FORBIDDEN
+            )
         except Exception as e:
             logger.error(f"Google auth error: {str(e)}", exc_info=True)
             return Response(
-                {'error': 'Authentication failed', 'detail': str(e)}, 
+                {'error': 'Authentication failed'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
@@ -81,8 +108,8 @@ class GoogleAuthView(APIView):
         """
         try:
             # Use Google's tokeninfo endpoint to verify the token
-            google_url = f"https://oauth2.googleapis.com/tokeninfo?id_token={token}"
-            response = requests.get(google_url, timeout=10)
+            google_url = "https://oauth2.googleapis.com/tokeninfo"
+            response = requests.get(google_url, params={'id_token': token}, timeout=10)
             
             if response.status_code != 200:
                 logger.warning(f"Google token validation failed: {response.status_code}")
@@ -96,7 +123,7 @@ class GoogleAuthView(APIView):
                 return None
 
             # Verify email is verified by Google
-            if not user_info.get('email_verified'):
+            if user_info.get('email_verified') not in (True, 'true', 'True', '1', 1):
                 logger.warning(f"Email not verified by Google: {user_info.get('email')}")
                 return None
             
@@ -125,9 +152,41 @@ class GoogleAuthView(APIView):
         try:
             user = User.objects.get(email=email)
 
+            update_fields = []
+
+            if user.google_id and user.google_id != google_id:
+                logger.warning(f"Google ID mismatch for email: {email}")
+                raise StudentAuthError('This Google account does not match the existing student account.')
+
             if not user.google_id:
                 user.google_id = google_id
-                user.save(update_fields=['google_id'])
+                update_fields.append('google_id')
+
+            if user.role != User.Role.STUDENT:
+                logger.warning(f"Non-student Google login attempt for email: {email}")
+                raise StudentAuthError('This Google login is only available for students.')
+
+            if user.is_staff:
+                user.is_staff = False
+                update_fields.append('is_staff')
+
+            first_name = user_info.get('first_name', '')
+            last_name = user_info.get('last_name', '')
+            picture = user_info.get('picture', '')
+
+            if first_name and user.first_name != first_name:
+                user.first_name = first_name
+                update_fields.append('first_name')
+            if last_name and user.last_name != last_name:
+                user.last_name = last_name
+                update_fields.append('last_name')
+            if picture and user.google_picture_url != picture:
+                user.google_picture_url = picture
+                update_fields.append('google_picture_url')
+
+            if update_fields:
+                user.save(update_fields=update_fields)
+
             logger.info(f"User logged in: {email}")
             return user, False
 
@@ -149,27 +208,49 @@ class GoogleAuthView(APIView):
                 google_id=google_id,
                 first_name=user_info.get('first_name', ''),
                 last_name=user_info.get('last_name', ''),
+                google_picture_url=user_info.get('picture', ''),
                 is_active=True,
+                is_staff=False,
                 role=User.Role.STUDENT, 
             )
 
             logger.info(f"New user created: {email}")
             return user, True
-    
-    def generate_token_response(self, user, created):
-        """Generate JWT response"""
-        refresh = RefreshToken.for_user(user)
-        access_token = refresh.access_token
-        
-        user_serializer = UserSerializer(user)
-        
+
+
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if user.role != User.Role.STUDENT:
+            return Response(
+                {'error': 'Student session required'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         return Response(
-            {
-                'success': True,
-                'message': 'User created' if created else 'User logged in',
-                'access_token': str(access_token),
-                'refresh_token': str(refresh),
-                'user': user_serializer.data
-            },
+            {'success': True, 'user': serialize_student_session(user)},
+            status=status.HTTP_200_OK
+        )
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @method_decorator(csrf_protect)
+    def post(self, request):
+        logout(request)
+        return Response({'success': True}, status=status.HTTP_200_OK)
+
+
+class CsrfTokenView(APIView):
+    permission_classes = [AllowAny]
+
+    @method_decorator(ensure_csrf_cookie)
+    def get(self, request):
+        return Response(
+            {'success': True, 'csrfToken': get_token(request)},
             status=status.HTTP_200_OK
         )

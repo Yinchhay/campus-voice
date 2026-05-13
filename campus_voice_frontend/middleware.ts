@@ -1,7 +1,24 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default auth((req) => {
+async function hasStudentSession(req: NextRequest) {
+  try {
+    const apiBaseUrl = process.env.SERVER_API_URL ?? new URL("/api", req.nextUrl.origin).toString();
+    const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/v1/auth/me`, {
+      headers: {
+        Cookie: req.headers.get("cookie") ?? "",
+      },
+      cache: "no-store",
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export default auth(async (req) => {
   const isLoggedIn = !!req.auth;
   const role = req.auth?.user?.role;
   const pathname = req.nextUrl.pathname;
@@ -14,6 +31,7 @@ export default auth((req) => {
   const isStaff = pathname.startsWith("/staff");
   const isAdmin = pathname.startsWith("/admin");
   const isProtected = (isStudent || isStaff || isAdmin) && !isAuthPage;
+  const hasDjangoStudentSession = isStudent || isStudentAuthPage ? await hasStudentSession(req) : false;
 
   const roleHome =
     role === "admin"
@@ -21,6 +39,18 @@ export default auth((req) => {
       : role === "staff"
         ? "/staff/dashboard"
         : "/student/dashboard";
+
+  if (isStudent && isProtected) {
+    if (role && role !== "student") {
+      return NextResponse.redirect(new URL(roleHome, req.nextUrl));
+    }
+
+    if (!hasDjangoStudentSession) {
+      return NextResponse.redirect(new URL("/login", req.nextUrl));
+    }
+
+    return NextResponse.next();
+  }
 
   if (!isLoggedIn && isProtected) {
     if (isStaff) {
@@ -30,8 +60,6 @@ export default auth((req) => {
     if (isAdmin) {
       return NextResponse.redirect(new URL("/admin/login", req.nextUrl));
     }
-
-    return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
   if (isLoggedIn && isProtected) {
@@ -40,10 +68,6 @@ export default auth((req) => {
     }
 
     if (isAdmin && role !== "admin") {
-      return NextResponse.redirect(new URL(roleHome, req.nextUrl));
-    }
-
-    if (isStudent && role && role !== "student") {
       return NextResponse.redirect(new URL(roleHome, req.nextUrl));
     }
   }
@@ -58,6 +82,10 @@ export default auth((req) => {
     }
 
     return NextResponse.redirect(new URL(roleHome, req.nextUrl));
+  }
+
+  if (isStudentAuthPage && hasDjangoStudentSession) {
+    return NextResponse.redirect(new URL("/student/dashboard", req.nextUrl));
   }
 
   return NextResponse.next();

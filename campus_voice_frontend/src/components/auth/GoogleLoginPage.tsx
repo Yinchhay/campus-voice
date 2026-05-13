@@ -1,16 +1,41 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
-	ArrowRight,
 	ClipboardCheck,
 	LayoutDashboard,
 	ShieldCheck,
 	UsersRound,
 } from "lucide-react";
+
+declare global {
+	interface Window {
+		google?: {
+			accounts: {
+				id: {
+					initialize: (options: {
+						client_id: string;
+						callback: (response: { credential?: string }) => void;
+						hd?: string;
+					}) => void;
+					renderButton: (
+						parent: HTMLElement,
+						options: {
+							theme?: "outline" | "filled_blue" | "filled_black";
+							size?: "large" | "medium" | "small";
+							type?: "standard" | "icon";
+							text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+							shape?: "rectangular" | "pill" | "circle" | "square";
+							width?: number;
+						},
+					) => void;
+				};
+			};
+		};
+	}
+}
 
 const ERROR_MESSAGES: Record<string, string> = {
 	AccessDenied: "Sign-in failed. Please use your @paragoniu.edu.kh account.",
@@ -22,6 +47,14 @@ const ERROR_MESSAGES: Record<string, string> = {
 	Configuration: "Authentication is temporarily unavailable. Please try again.",
 	Default: "Unable to sign in right now. Please try again.",
 };
+
+function getCookie(name: string) {
+	const cookie = document.cookie
+		.split("; ")
+		.find((row) => row.startsWith(`${name}=`));
+
+	return cookie ? decodeURIComponent(cookie.split("=")[1] ?? "") : "";
+}
 
 type RoleLoginPageProps = {
 	roleName: string;
@@ -36,7 +69,6 @@ type RoleLoginPageProps = {
 };
 
 export function RoleLoginPage({
-	roleName,
 	badge,
 	title,
 	description,
@@ -47,22 +79,112 @@ export function RoleLoginPage({
 	Icon = ShieldCheck,
 }: RoleLoginPageProps) {
 	const [isLoading, setIsLoading] = useState(false);
+	const [localError, setLocalError] = useState<string | null>(null);
+	const googleButtonRef = useRef<HTMLDivElement>(null);
+	const router = useRouter();
 	const searchParams = useSearchParams();
 
 	const errorMessage = useMemo(() => {
+		if (localError) return localError;
 		const code = searchParams.get("error");
 		if (!code) return null;
 		return ERROR_MESSAGES[code] ?? ERROR_MESSAGES.Default;
-	}, [searchParams]);
+	}, [localError, searchParams]);
 
-	const handleGoogleSignIn = async () => {
+	const handleGoogleCredential = useCallback(async (credential?: string) => {
+		if (!credential) {
+			setLocalError("Google sign-in did not return a valid credential. Please try again.");
+			return;
+		}
+
 		try {
 			setIsLoading(true);
-			await signIn("google", { callbackUrl });
+			setLocalError(null);
+
+			await fetch("/api/v1/auth/csrf", {
+				method: "GET",
+				credentials: "include",
+			});
+
+			const response = await fetch("/api/v1/auth/google", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"X-CSRFToken": getCookie("csrftoken"),
+				},
+				credentials: "include",
+				body: JSON.stringify({ token: credential }),
+			});
+
+			if (!response.ok) {
+				const data = (await response.json().catch(() => null)) as { error?: string } | null;
+				setLocalError(data?.error ?? "Unable to sign in right now. Please try again.");
+				return;
+			}
+
+			router.push(callbackUrl);
+			router.refresh();
+		} catch {
+			setLocalError("Unable to reach the authentication server. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [callbackUrl, router]);
+
+	useEffect(() => {
+		const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+		if (!clientId) {
+			setLocalError("Google sign-in is not configured.");
+			return;
+		}
+
+		const renderGoogleButton = () => {
+			if (!window.google || !googleButtonRef.current) return;
+
+			googleButtonRef.current.innerHTML = "";
+			window.google.accounts.id.initialize({
+				client_id: clientId,
+				callback: ({ credential }) => handleGoogleCredential(credential),
+				hd: "paragoniu.edu.kh",
+			});
+			window.google.accounts.id.renderButton(googleButtonRef.current, {
+				theme: "outline",
+				size: "large",
+				type: "standard",
+				text: "continue_with",
+				shape: "rectangular",
+				width: Math.min(360, googleButtonRef.current.clientWidth || 360),
+			});
+		};
+
+		if (window.google) {
+			renderGoogleButton();
+			return;
+		}
+
+		const existingScript = document.querySelector<HTMLScriptElement>(
+			'script[src="https://accounts.google.com/gsi/client"]',
+		);
+
+		if (existingScript) {
+			existingScript.addEventListener("load", renderGoogleButton, { once: true });
+			return () => existingScript.removeEventListener("load", renderGoogleButton);
+		}
+
+		const script = document.createElement("script");
+		script.src = "https://accounts.google.com/gsi/client";
+		script.async = true;
+		script.defer = true;
+		script.onload = renderGoogleButton;
+		script.onerror = () => setLocalError("Could not load Google sign-in. Please try again.");
+		document.head.appendChild(script);
+
+		return () => {
+			script.onload = null;
+			script.onerror = null;
+		};
+	}, [handleGoogleCredential]);
 
 	return (
 		<main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
@@ -103,15 +225,13 @@ export function RoleLoginPage({
 							</div>
 						) : null}
 
-						<button
-							type="button"
-							onClick={handleGoogleSignIn}
-							disabled={isLoading}
-							className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-500 px-4 py-3 font-medium text-white transition hover:bg-teal-600 disabled:cursor-not-allowed disabled:opacity-70"
-						>
-							{isLoading ? "Redirecting..." : `Continue as ${roleName}`}
-							<ArrowRight className="h-4 w-4" />
-						</button>
+						<div className="mt-8 flex min-h-11 w-full items-center justify-center rounded-xl bg-white px-4 py-2">
+							{isLoading ? (
+								<p className="text-sm font-medium text-slate-700">Signing in...</p>
+							) : (
+								<div ref={googleButtonRef} className="flex w-full justify-center" />
+							)}
+						</div>
 
 						<p className="mt-4 text-xs text-blue-100/90">
 							Use your @paragoniu.edu.kh account. Access permissions are checked after
