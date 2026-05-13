@@ -14,6 +14,7 @@ class User(AbstractUser):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     google_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    google_picture_url = models.URLField(max_length=500, blank=True)
     email = models.EmailField(unique=True)
     role = models.CharField(
         max_length=20,
