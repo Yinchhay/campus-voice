@@ -1,5 +1,4 @@
 import NextAuth, { type NextAuthConfig } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 type StaffAdminRole = "staff" | "admin";
@@ -27,10 +26,22 @@ function buildStaffAdminLoginUrl() {
 
 	if (override) return override;
 
-	const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+	const baseUrl =
+		process.env.STAFF_ADMIN_API_URL ??
+		process.env.SERVER_API_URL ??
+		process.env.NEXT_PUBLIC_API_URL ??
+		"http://localhost:8000/api";
 	const path = process.env.STAFF_ADMIN_LOGIN_PATH ?? process.env.ADMIN_LOGIN_PATH ?? "/api/admin/login/";
 
-	return new URL(path, baseUrl).toString();
+	if (/^https?:\/\//.test(path)) return path;
+	if (/^https?:\/\//.test(baseUrl)) {
+		const normalizedPath = baseUrl.endsWith("/api") && path.startsWith("/api/")
+			? path.slice(5)
+			: path.replace(/^\//, "");
+		return new URL(normalizedPath, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
+	}
+
+	return path;
 }
 
 async function loginWithCredentials(fallbackRole: StaffAdminRole, credentials: Partial<Record<string, unknown>>) {
@@ -67,15 +78,6 @@ async function loginWithCredentials(fallbackRole: StaffAdminRole, credentials: P
 
 export const authOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          hd: "paragoniu.edu.kh",
-        },
-      },
-    }),
     CredentialsProvider({
       id: "staff-credentials",
       name: "Staff Credentials",
@@ -100,18 +102,9 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ account, profile }) {
-      if (account?.provider !== "google") return true;
-
-      // Only allow @paragoniu.edu.kh emails
-      return profile?.email?.endsWith("@paragoniu.edu.kh") ?? false;
-    },
     async jwt({ token, account, user }) {
       if (account?.access_token) {
         token.accessToken = account.access_token;
-      }
-      if (account?.provider === "google") {
-        token.role = "student";
       }
       if (user?.accessToken) {
         token.accessToken = user.accessToken;

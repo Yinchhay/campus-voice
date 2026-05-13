@@ -30,6 +30,8 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - DEBUG=True
       - SECRET_KEY=${SECRET_KEY}
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
+      - ALLOWED_EMAIL_DOMAIN=@paragoniu.edu.kh
     volumes:
       - ./campus_voice_backend:/app
     depends_on:
@@ -50,7 +52,9 @@ services:
       target: dev
     command: npm run dev
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost/api
+      - NEXT_PUBLIC_API_URL=/api
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
+      - SERVER_API_URL=http://backend:8000/api
     volumes:
       - ./campus_voice_frontend:/app
       - /app/node_modules
