@@ -7,5 +7,6 @@ urlpatterns = [
     # your admin routes will go here
     path('login', AdminLoginView.as_view(), name='admin_login')
     
+    path('me', name='admin_me')
     
 ]

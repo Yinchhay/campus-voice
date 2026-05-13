@@ -38,7 +38,6 @@ class Command(BaseCommand):
             {'name': "Instructor's pedagogy", 'priority': 'MEDIUM'},
             {'name': "Instructor's Attitude", 'priority': 'MEDIUM'},
             {'name': 'Academic results', 'priority': 'HIGH'},
-            {'name': 'Other', 'priority': 'LOW'},
         ]
 
         # Seed Service Categories
