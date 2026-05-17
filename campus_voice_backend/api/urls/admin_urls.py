@@ -1,12 +1,12 @@
 from django.urls import path
-from api.views import AdminLoginView
+from api.views import AdminLoginView, AdminGetMeView
 
 app_name = 'admin'
 
 urlpatterns = [
     # your admin routes will go here
-    path('login', AdminLoginView.as_view(), name='admin_login')
+    path('login', AdminLoginView.as_view(), name='admin_login'),
     
-    path('me', name='admin_me')
+    path('me', AdminGetMeView.as_view(), name='admin_me')
     
 ]

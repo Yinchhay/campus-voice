@@ -144,7 +144,6 @@ SIMPLE_JWT = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.SessionAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
@@ -160,10 +159,8 @@ CSRF_TRUSTED_ORIGINS = config(
     default='http://localhost,http://localhost:3000,http://127.0.0.1:3000',
     cast=Csv()
 )
-SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+
+
 
 
 # Logging Configuration

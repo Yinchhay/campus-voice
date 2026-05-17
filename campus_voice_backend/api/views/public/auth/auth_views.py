@@ -4,13 +4,12 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from django.conf import settings
-from django.contrib.auth import login, logout
-from django.middleware.csrf import get_token
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.utils import timezone
 from django.db import transaction
+from api.serializers import UserSerializer
 from api.models import User
 
 logger = logging.getLogger(__name__)
@@ -20,21 +19,10 @@ class StudentAuthError(Exception):
     pass
 
 
-def serialize_student_session(user):
-    return {
-        'id': str(user.id),
-        'email': user.email,
-        'role': user.role,
-        'is_active': user.is_active,
-    }
-
-
 class GoogleAuthView(APIView):
     permission_classes = [AllowAny]
 
-    @method_decorator(csrf_protect)
     def post(self, request):
-        
         try:
             token = request.data.get('token')
 
@@ -65,13 +53,32 @@ class GoogleAuthView(APIView):
             # Get or create user
             user, created = self.get_or_create_user(user_info)
 
-            login(request, user)
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            
+            refresh_token_lifetime = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
+            access_token_lifetime = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
+            
+            now = timezone.now()
+            refresh_token_expiry = now + refresh_token_lifetime
+            access_token_expiry = now + access_token_lifetime
+            
+            # Update last login
+            user.last_login = now
+            user.save(update_fields=['last_login'])
+            
+            serializer = UserSerializer(user)
             
             return Response(
                 {
                     'success': True,
                     'message': 'User created' if created else 'User logged in',
-                    'user': serialize_student_session(user),
+                    'access_token': access_token,
+                    'refresh_token': str(refresh),
+                    'access_token_expires_at': access_token_expiry.isoformat(),
+                    'refresh_token_expires_at': refresh_token_expiry.isoformat(),
+                    'user': serializer.data
                 },
                 status=status.HTTP_200_OK
             )
@@ -217,40 +224,3 @@ class GoogleAuthView(APIView):
             logger.info(f"New user created: {email}")
             return user, True
 
-
-class CurrentUserView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        user = request.user
-
-        if user.role != User.Role.STUDENT:
-            return Response(
-                {'error': 'Student session required'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        return Response(
-            {'success': True, 'user': serialize_student_session(user)},
-            status=status.HTTP_200_OK
-        )
-
-
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    @method_decorator(csrf_protect)
-    def post(self, request):
-        logout(request)
-        return Response({'success': True}, status=status.HTTP_200_OK)
-
-
-class CsrfTokenView(APIView):
-    permission_classes = [AllowAny]
-
-    @method_decorator(ensure_csrf_cookie)
-    def get(self, request):
-        return Response(
-            {'success': True, 'csrfToken': get_token(request)},
-            status=status.HTTP_200_OK
-        )
