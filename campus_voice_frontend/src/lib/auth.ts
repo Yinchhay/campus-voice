@@ -5,21 +5,7 @@ import { normalizeCampusVoiceRole, type CampusVoiceRole } from "@/lib/auth-route
 
 type StaffAdminRole = "staff" | "admin";
 
-type LoginResponse = {
-  access?: string;
-  accessToken?: string;
-  access_token?: string;
-  refresh_token?: string;
-  access_token_expires_at?: string;
-  refresh_token_expires_at?: string;
-  token?: string;
-  user?: {
-    id?: string | number;
-    email?: string;
-    name?: string;
-    username?: string;
-    role?: CampusVoiceRole | Uppercase<CampusVoiceRole>;
-  };
+type UserFields = {
   id?: string | number;
   email?: string;
   name?: string;
@@ -27,48 +13,73 @@ type LoginResponse = {
   role?: CampusVoiceRole | Uppercase<CampusVoiceRole>;
 };
 
-function buildApiUrl(path: string) {
-  const publicApiUrl = process.env.NEXT_PUBLIC_API_URL;
+type LoginResponse = UserFields & {
+  access?: string;
+  accessToken?: string;
+  access_token?: string;
+  refresh_token?: string;
+  access_token_expires_at?: string;
+  refresh_token_expires_at?: string;
+  token?: string;
+  user?: UserFields;
+};
+
+// Resolves a relative API path against the server-side or public base URL.
+function buildApiUrl(path: string): string {
+  if (/^https?:\/\//.test(path)) return path;
+
   const baseUrl =
     process.env.SERVER_API_URL ??
-    (publicApiUrl && /^https?:\/\//.test(publicApiUrl) ? publicApiUrl : undefined) ??
+    (process.env.NEXT_PUBLIC_API_URL && /^https?:\/\//.test(process.env.NEXT_PUBLIC_API_URL)
+      ? process.env.NEXT_PUBLIC_API_URL
+      : undefined) ??
     "http://localhost:8000/api";
 
-  if (/^https?:\/\//.test(path)) return path;
-  if (/^https?:\/\//.test(baseUrl)) {
-    const normalizedPath = baseUrl.endsWith("/api") && path.startsWith("/api/")
+  if (!/^https?:\/\//.test(baseUrl)) return path;
+
+  const normalizedPath =
+    baseUrl.endsWith("/api") && path.startsWith("/api/")
       ? path.slice(5)
       : path.replace(/^\//, "");
-    return new URL(normalizedPath, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
-  }
 
-  return path;
+  return new URL(normalizedPath, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
 }
 
-function buildStaffAdminLoginUrl() {
+function buildStaffAdminLoginUrl(): string {
   const override = process.env.STAFF_ADMIN_LOGIN_URL ?? process.env.ADMIN_LOGIN_URL;
-
   if (override) return override;
 
-  const baseUrl =
-    process.env.STAFF_ADMIN_API_URL ??
-    process.env.SERVER_API_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    "http://localhost:8000/api";
+  // Allow a separate base URL for the staff/admin API (e.g. internal service URL).
+  const staffBase = process.env.STAFF_ADMIN_API_URL;
   const path = process.env.STAFF_ADMIN_LOGIN_PATH ?? process.env.ADMIN_LOGIN_PATH ?? "/api/admin/login/";
 
-  if (/^https?:\/\//.test(path)) return path;
-  if (/^https?:\/\//.test(baseUrl)) {
-    const normalizedPath = baseUrl.endsWith("/api") && path.startsWith("/api/")
-      ? path.slice(5)
-      : path.replace(/^\//, "");
-    return new URL(normalizedPath, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
+  if (staffBase) {
+    // Temporarily override SERVER_API_URL by constructing the URL inline.
+    if (!/^https?:\/\//.test(path)) {
+      const normalizedPath =
+        staffBase.endsWith("/api") && path.startsWith("/api/")
+          ? path.slice(5)
+          : path.replace(/^\//, "");
+      return new URL(normalizedPath, staffBase.endsWith("/") ? staffBase : `${staffBase}/`).toString();
+    }
+    return path;
   }
 
-  return path;
+  return buildApiUrl(path);
 }
 
-async function loginWithCredentials(fallbackRole: StaffAdminRole, credentials: Partial<Record<string, unknown>>) {
+function extractToken(data: LoginResponse): string | undefined {
+  return data.access_token ?? data.accessToken ?? data.access ?? data.token;
+}
+
+function extractUser(data: LoginResponse): UserFields {
+  return data.user ?? data;
+}
+
+async function loginWithCredentials(
+  fallbackRole: StaffAdminRole,
+  credentials: Partial<Record<string, unknown>>,
+) {
   const username = String(credentials.username ?? "").trim();
   const password = String(credentials.password ?? "");
 
@@ -76,20 +87,15 @@ async function loginWithCredentials(fallbackRole: StaffAdminRole, credentials: P
 
   const response = await fetch(buildStaffAdminLoginUrl(), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      username,
-      password,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
   });
 
   if (!response.ok) return null;
 
   const data = (await response.json()) as LoginResponse;
-  const user = data.user ?? data;
-  const accessToken = data.accessToken ?? data.access_token ?? data.access ?? data.token;
+  const user = extractUser(data);
+  const accessToken = extractToken(data);
   const role = normalizeCampusVoiceRole(user.role ?? data.role) ?? fallbackRole;
 
   if (!accessToken) return null;
@@ -106,19 +112,15 @@ async function loginWithCredentials(fallbackRole: StaffAdminRole, credentials: P
 async function exchangeGoogleIdToken(idToken: string) {
   const response = await fetch(buildApiUrl("/api/v1/auth/google"), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      token: idToken,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: idToken }),
   });
 
   if (!response.ok) return null;
 
   const data = (await response.json()) as LoginResponse;
-  const user = data.user ?? data;
-  const djangoAccessToken = data.access_token ?? data.accessToken ?? data.access ?? data.token;
+  const user = extractUser(data);
+  const djangoAccessToken = extractToken(data);
   const role = normalizeCampusVoiceRole(user.role ?? data.role);
 
   if (!djangoAccessToken || role !== "student") return null;
@@ -136,26 +138,12 @@ async function exchangeGoogleIdToken(idToken: string) {
 }
 
 export const authOptions = {
-  session: {
-    strategy: "jwt",
-    maxAge: 365 * 24 * 60 * 60,
-  },
-  jwt: {
-    maxAge: 365 * 24 * 60 * 60,
-  },
+  session: { strategy: "jwt", maxAge: 365 * 24 * 60 * 60 },
+  jwt: { maxAge: 365 * 24 * 60 * 60 },
   providers: [
     GoogleProvider({
-      clientId:
-        process.env.GOOGLE_OAUTH_CLIENT_ID ??
-        process.env.GOOGLE_CLIENT_ID ??
-        process.env.AUTH_GOOGLE_ID ??
-        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ??
-        "",
-      clientSecret:
-        process.env.GOOGLE_OAUTH_CLIENT_SECRET ??
-        process.env.GOOGLE_CLIENT_SECRET ??
-        process.env.AUTH_GOOGLE_SECRET ??
-        "",
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? "",
       authorization: {
         params: {
           scope: "openid email profile",
@@ -164,88 +152,55 @@ export const authOptions = {
         },
       },
     }),
-    CredentialsProvider({
-      id: "staff-credentials",
-      name: "Staff Credentials",
-      credentials: {
-        username: { label: "Username", type: "text" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        return loginWithCredentials("staff", credentials ?? {});
-      },
-    }),
-    CredentialsProvider({
-      id: "admin-credentials",
-      name: "Admin Credentials",
-      credentials: {
-        username: { label: "Username", type: "text" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        return loginWithCredentials("admin", credentials ?? {});
-      },
-    }),
+    // Collapse the two identical CredentialsProviders into a single map.
+    ...(["staff", "admin"] as const).map((role) =>
+      CredentialsProvider({
+        id: `${role}-credentials`,
+        name: `${role.charAt(0).toUpperCase() + role.slice(1)} Credentials`,
+        credentials: {
+          username: { label: "Username", type: "text" },
+          password: { label: "Password", type: "password" },
+        },
+        async authorize(credentials) {
+          return loginWithCredentials(role, credentials ?? {});
+        },
+      }),
+    ),
   ],
   callbacks: {
     async signIn({ account, user }) {
       if (account?.provider !== "google") return true;
       if (!account.id_token) return false;
 
-
       const exchangedUser = await exchangeGoogleIdToken(account.id_token);
       if (!exchangedUser) return false;
 
-      user.id = exchangedUser.id;
-      user.name = exchangedUser.name;
-      user.email = exchangedUser.email;
-      user.role = exchangedUser.role;
-      user.accessToken = exchangedUser.accessToken;
-      user.refreshToken = exchangedUser.refreshToken;
-      user.accessTokenExpiresAt = exchangedUser.accessTokenExpiresAt;
-      user.refreshTokenExpiresAt = exchangedUser.refreshTokenExpiresAt;
+      // Mutate the user object so the jwt callback receives the Django tokens.
+      Object.assign(user, exchangedUser);
       return true;
     },
-    async jwt({ token, account, user }) {
-      const exchangedUser =
-        account?.provider === "google" && account.id_token && !user?.accessToken
-          ? await exchangeGoogleIdToken(account.id_token)
-          : null;
-      const sessionUser = exchangedUser ?? user;
 
-      if (sessionUser?.accessToken) {
-        token.accessToken = sessionUser.accessToken;
-      }
-      if (sessionUser?.role) {
-        token.role = sessionUser.role;
-      }
-      if (sessionUser?.refreshToken) {
-        token.refreshToken = sessionUser.refreshToken;
-      }
-      if (sessionUser?.accessTokenExpiresAt) {
-        token.accessTokenExpiresAt = sessionUser.accessTokenExpiresAt;
-      }
-      if (sessionUser?.refreshTokenExpiresAt) {
-        token.refreshTokenExpiresAt = sessionUser.refreshTokenExpiresAt;
-      }
-      if (sessionUser?.id) {
-        token.sub = sessionUser.id;
+    // signIn already enriches `user` for Google; jwt just persists it to the token.
+    async jwt({ token, user }) {
+      if (user) {
+        if (user.id) token.sub = user.id;
+        if (user.role) token.role = user.role;
+        if (user.accessToken) token.accessToken = user.accessToken;
+        if (user.refreshToken) token.refreshToken = user.refreshToken;
+        if (user.accessTokenExpiresAt) token.accessTokenExpiresAt = user.accessTokenExpiresAt;
+        if (user.refreshTokenExpiresAt) token.refreshTokenExpiresAt = user.refreshTokenExpiresAt;
       }
       return token;
     },
+
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub ?? "";
-        if (token.role === "student" || token.role === "staff" || token.role === "admin") {
-          session.user.role = token.role;
-        }
+        const role = normalizeCampusVoiceRole(token.role);
+        if (role) session.user.role = role;
       }
-      if (typeof token.accessToken === "string") {
-        session.accessToken = token.accessToken;
-      }
-      if (typeof token.accessTokenExpiresAt === "string") {
-        session.accessTokenExpiresAt = token.accessTokenExpiresAt;
-      }
+      if (typeof token.accessToken === "string") session.accessToken = token.accessToken;
+      if (typeof token.accessTokenExpiresAt === "string") session.accessTokenExpiresAt = token.accessTokenExpiresAt;
       return session;
     },
   },

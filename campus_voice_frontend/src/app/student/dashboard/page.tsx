@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
 	ArrowRight,
@@ -112,6 +112,16 @@ const filterTabs: Array<{ key: TicketStatus | "all"; label: string }> = [
 	{ key: "resolved", label: "Resolved" },
 ];
 
+/**
+ * Renders a date string only on the client to avoid SSR/client timezone mismatches.
+ * The server renders nothing; the client renders after first mount.
+ */
+function ClientDate({ iso, formatter }: { iso: string; formatter: (d: Date) => string }) {
+	const [text, setText] = useState("");
+	useEffect(() => { setText(formatter(new Date(iso))); }, [iso, formatter]);
+	return <>{text}</>;
+}
+
 function normalizeCategory(category: string): string {
 	const normalized = categoryLabel[category.toLowerCase()];
 	return normalized ?? category.replace(/(^\w)|(-\w)/g, (chunk) => chunk.replace("-", " ").toUpperCase());
@@ -128,11 +138,10 @@ function TicketFlow({ status }: { status: TicketStatus }) {
 				return (
 					<li
 						key={step}
-						className={`rounded-lg border px-3 py-2 ${
-							isDone
-								? "border-emerald-200 bg-emerald-50 text-emerald-700"
-								: "border-slate-200 bg-white text-slate-500"
-						}`}
+						className={`rounded-lg border px-3 py-2 ${isDone
+							? "border-emerald-200 bg-emerald-50 text-emerald-700"
+							: "border-slate-200 bg-white text-slate-500"
+							}`}
 					>
 						{statusLabel[step]}
 					</li>
@@ -179,6 +188,13 @@ export default function StudentDashboardPage() {
 						</div>
 
 						<div className="flex flex-wrap gap-2">
+							<Link
+								href="/student/submit"
+								className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-500 px-4 py-3 font-medium text-white transition hover:bg-teal-600"
+							>
+								<Plus className="h-4 w-4" />
+								Submit New Report
+							</Link>
 							<button
 								type="button"
 								onClick={() => signOut({ callbackUrl: "/login" })}
@@ -187,13 +203,6 @@ export default function StudentDashboardPage() {
 								<LogOut className="h-4 w-4" />
 								Sign out
 							</button>
-							<Link
-								href="/student/submit"
-								className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-500 px-4 py-3 font-medium text-white transition hover:bg-teal-600"
-							>
-								<Plus className="h-4 w-4" />
-								Submit New Report
-							</Link>
 						</div>
 					</div>
 
@@ -229,11 +238,10 @@ export default function StudentDashboardPage() {
 								key={tab.key}
 								type="button"
 								onClick={() => setActiveFilter(tab.key)}
-								className={`rounded-full border px-3 py-1.5 text-sm transition ${
-									isActive
-										? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
-										: "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-								}`}
+								className={`rounded-full border px-3 py-1.5 text-sm transition ${isActive
+									? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
+									: "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+									}`}
 							>
 								{tab.label}
 							</button>
@@ -277,10 +285,18 @@ export default function StudentDashboardPage() {
 									<div className="min-w-fit text-sm text-slate-600">
 										<p className="inline-flex items-center gap-1.5">
 											<Clock3 className="h-4 w-4" />
-											Updated {formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true })}
+											Updated{" "}
+											<ClientDate
+												iso={ticket.updatedAt}
+												formatter={(d) => formatDistanceToNow(d, { addSuffix: true })}
+											/>
 										</p>
 										<p className="mt-1 text-xs text-slate-500">
-											Submitted on {format(new Date(ticket.createdAt), "PPP")}
+											Submitted on{" "}
+											<ClientDate
+												iso={ticket.createdAt}
+												formatter={(d) => format(d, "PPP")}
+											/>
 										</p>
 									</div>
 								</div>
