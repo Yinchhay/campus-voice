@@ -32,5 +32,5 @@ export default auth(async (req) => {
 });
 
 export const config = {
-  matcher: ["/login", "/student/:path*", "/staff/:path*", "/admin/:path*"],
+  matcher: ["/", "/login", "/student/:path*", "/staff/:path*", "/admin/:path*"],
 };

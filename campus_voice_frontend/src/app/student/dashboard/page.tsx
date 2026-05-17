@@ -282,7 +282,7 @@ export default function StudentDashboardPage() {
 										</p>
 									</div>
 
-									<div className="min-w-fit text-sm text-slate-600">
+									{/* <div className="min-w-fit text-sm text-slate-600">
 										<p className="inline-flex items-center gap-1.5">
 											<Clock3 className="h-4 w-4" />
 											Updated{" "}
@@ -298,7 +298,7 @@ export default function StudentDashboardPage() {
 												formatter={(d) => format(d, "PPP")}
 											/>
 										</p>
-									</div>
+									</div> */}
 								</div>
 
 								<TicketFlow status={ticket.status} />

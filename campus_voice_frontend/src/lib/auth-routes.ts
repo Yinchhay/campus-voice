@@ -31,5 +31,5 @@ export function roleForProtectedPath(pathname: string): CampusVoiceRole | undefi
 }
 
 export function isAuthPagePath(pathname: string) {
-	return pathname === "/login" || pathname === "/staff/login" || pathname === "/admin/login";
+	return pathname === "/" || pathname === "/login" || pathname === "/staff/login" || pathname === "/admin/login";
 }
