@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { format, formatDistanceToNow } from "date-fns";
 import {
 	ArrowRight,
 	CheckCircle2,
-	Clock3,
 	ListFilter,
+	LogOut,
 	Plus,
 	ShieldCheck,
 	TriangleAlert,
 } from "lucide-react";
+import { signOut } from "next-auth/react";
 
 type TicketPriority = "low" | "medium" | "high";
 type TicketStatus = "submitted" | "in_review" | "in_progress" | "resolved";
@@ -126,11 +126,10 @@ function TicketFlow({ status }: { status: TicketStatus }) {
 				return (
 					<li
 						key={step}
-						className={`rounded-lg border px-3 py-2 ${
-							isDone
-								? "border-emerald-200 bg-emerald-50 text-emerald-700"
-								: "border-slate-200 bg-white text-slate-500"
-						}`}
+						className={`rounded-lg border px-3 py-2 ${isDone
+							? "border-emerald-200 bg-emerald-50 text-emerald-700"
+							: "border-slate-200 bg-white text-slate-500"
+							}`}
 					>
 						{statusLabel[step]}
 					</li>
@@ -176,13 +175,23 @@ export default function StudentDashboardPage() {
 							</p>
 						</div>
 
-						<Link
-							href="/student/submit"
-							className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-500 px-4 py-3 font-medium text-white transition hover:bg-teal-600"
-						>
-							<Plus className="h-4 w-4" />
-							Submit New Report
-						</Link>
+						<div className="flex flex-wrap gap-2">
+							<Link
+								href="/student/submit"
+								className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-500 px-4 py-3 font-medium text-white transition hover:bg-teal-600"
+							>
+								<Plus className="h-4 w-4" />
+								Submit New Report
+							</Link>
+							<button
+								type="button"
+								onClick={() => signOut({ callbackUrl: "/login" })}
+								className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+							>
+								<LogOut className="h-4 w-4" />
+								Sign out
+							</button>
+						</div>
 					</div>
 
 					<div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -217,11 +226,10 @@ export default function StudentDashboardPage() {
 								key={tab.key}
 								type="button"
 								onClick={() => setActiveFilter(tab.key)}
-								className={`rounded-full border px-3 py-1.5 text-sm transition ${
-									isActive
-										? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
-										: "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-								}`}
+								className={`rounded-full border px-3 py-1.5 text-sm transition ${isActive
+									? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
+									: "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+									}`}
 							>
 								{tab.label}
 							</button>
@@ -262,15 +270,23 @@ export default function StudentDashboardPage() {
 										</p>
 									</div>
 
-									<div className="min-w-fit text-sm text-slate-600">
+									{/* <div className="min-w-fit text-sm text-slate-600">
 										<p className="inline-flex items-center gap-1.5">
 											<Clock3 className="h-4 w-4" />
-											Updated {formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true })}
+											Updated{" "}
+											<ClientDate
+												iso={ticket.updatedAt}
+												formatter={(d) => formatDistanceToNow(d, { addSuffix: true })}
+											/>
 										</p>
 										<p className="mt-1 text-xs text-slate-500">
-											Submitted on {format(new Date(ticket.createdAt), "PPP")}
+											Submitted on{" "}
+											<ClientDate
+												iso={ticket.createdAt}
+												formatter={(d) => format(d, "PPP")}
+											/>
 										</p>
-									</div>
+									</div> */}
 								</div>
 
 								<TicketFlow status={ticket.status} />

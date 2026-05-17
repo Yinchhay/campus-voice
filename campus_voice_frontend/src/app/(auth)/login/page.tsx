@@ -1,10 +1,17 @@
-"use client";
-
 import { RoleLoginPage } from "@/components/auth/GoogleLoginPage";
-import { ShieldCheck } from "lucide-react";
+import { auth } from "@/lib/auth";
+import { dashboardPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+	const session = await auth();
+	const role = normalizeCampusVoiceRole(session?.user?.role);
+
+	if (session?.accessToken && role) {
+		redirect(dashboardPathForRole(role));
+	}
+
 	return (
 		<Suspense fallback={null}>
 			<RoleLoginPage
@@ -20,7 +27,6 @@ export default function LoginPage() {
 				]}
 				panelTitle="Sign in with Google"
 				panelDescription="Use your @paragoniu.edu.kh account to continue."
-				Icon={ShieldCheck}
 			/>
 		</Suspense>
 	);

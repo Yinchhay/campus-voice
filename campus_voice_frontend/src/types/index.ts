@@ -1,11 +1,11 @@
 import type { DefaultSession } from "next-auth";
+import type { CampusVoiceRole } from "@/lib/auth-routes";
 import type {} from "next-auth/jwt";
-
-type CampusVoiceRole = "student" | "staff" | "admin";
 
 declare module "next-auth" {
 	interface Session {
 		accessToken?: string;
+		accessTokenExpiresAt?: string;
 		user: {
 			id: string;
 			role?: CampusVoiceRole;
@@ -14,6 +14,9 @@ declare module "next-auth" {
 
 	interface User {
 		accessToken?: string;
+		refreshToken?: string;
+		accessTokenExpiresAt?: string;
+		refreshTokenExpiresAt?: string;
 		role?: CampusVoiceRole;
 	}
 }
@@ -21,6 +24,9 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
 	interface JWT {
 		accessToken?: string;
+		refreshToken?: string;
+		accessTokenExpiresAt?: string;
+		refreshTokenExpiresAt?: string;
 		role?: CampusVoiceRole;
 	}
 }

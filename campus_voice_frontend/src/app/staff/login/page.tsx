@@ -1,10 +1,17 @@
-"use client";
-
 import { CredentialLoginPage } from "@/components/auth/CredentialLoginPage";
-import { UsersRound } from "lucide-react";
+import { auth } from "@/lib/auth";
+import { dashboardPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-export default function StaffLoginPage() {
+export default async function StaffLoginPage() {
+	const session = await auth();
+	const role = normalizeCampusVoiceRole(session?.user?.role);
+
+	if (session?.accessToken && role) {
+		redirect(dashboardPathForRole(role));
+	}
+
 	return (
 		<Suspense fallback={null}>
 			<CredentialLoginPage
@@ -21,7 +28,6 @@ export default function StaffLoginPage() {
 				]}
 				panelTitle="Staff Login"
 				panelDescription="Use the username and password assigned to your staff account."
-				Icon={UsersRound}
 			/>
 		</Suspense>
 	);

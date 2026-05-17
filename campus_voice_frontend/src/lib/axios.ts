@@ -1,5 +1,6 @@
 import axios from "axios";
-import { getSession } from "next-auth/react";
+import { getSession, signOut } from "next-auth/react";
+import { dashboardPathForRole, loginPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "/api",
@@ -10,9 +11,6 @@ const api = axios.create({
 
 export const studentApi = axios.create({
   baseURL: "/api",
-  withCredentials: true,
-  xsrfCookieName: "csrftoken",
-  xsrfHeaderName: "X-CSRFToken",
   headers: {
     "Content-Type": "application/json",
   },
@@ -26,5 +24,38 @@ api.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+studentApi.interceptors.request.use(async (config) => {
+  const session = await getSession();
+  if (session?.accessToken) {
+    config.headers.Authorization = `Bearer ${session.accessToken}`;
+  }
+  return config;
+});
+
+const handleAuthError = async (error: unknown) => {
+  if (!axios.isAxiosError(error) || typeof window === "undefined") {
+    return Promise.reject(error);
+  }
+
+  const status = error.response?.status;
+  if (status !== 401 && status !== 403) {
+    return Promise.reject(error);
+  }
+
+  const session = await getSession();
+  const role = normalizeCampusVoiceRole(session?.user?.role);
+
+  if (status === 401) {
+    await signOut({ callbackUrl: loginPathForRole(role) });
+    return Promise.reject(error);
+  }
+
+  window.location.assign(dashboardPathForRole(role));
+  return Promise.reject(error);
+};
+
+api.interceptors.response.use((response) => response, handleAuthError);
+studentApi.interceptors.response.use((response) => response, handleAuthError);
 
 export default api;
