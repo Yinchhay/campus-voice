@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { format, formatDistanceToNow } from "date-fns";
+import { useMemo, useState } from "react";
 import {
 	ArrowRight,
 	CheckCircle2,
-	Clock3,
 	ListFilter,
 	LogOut,
 	Plus,
@@ -111,16 +109,6 @@ const filterTabs: Array<{ key: TicketStatus | "all"; label: string }> = [
 	{ key: "in_progress", label: "In Progress" },
 	{ key: "resolved", label: "Resolved" },
 ];
-
-/**
- * Renders a date string only on the client to avoid SSR/client timezone mismatches.
- * The server renders nothing; the client renders after first mount.
- */
-function ClientDate({ iso, formatter }: { iso: string; formatter: (d: Date) => string }) {
-	const [text, setText] = useState("");
-	useEffect(() => { setText(formatter(new Date(iso))); }, [iso, formatter]);
-	return <>{text}</>;
-}
 
 function normalizeCategory(category: string): string {
 	const normalized = categoryLabel[category.toLowerCase()];
