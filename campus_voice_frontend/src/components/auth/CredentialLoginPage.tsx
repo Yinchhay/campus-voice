@@ -12,6 +12,7 @@ import {
 	ShieldCheck,
 	UserRound,
 } from "lucide-react";
+import { dashboardPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
 
 type CredentialLoginPageProps = {
 	roleName: "Staff" | "Admin";
@@ -32,12 +33,6 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 	Configuration: "Authentication is temporarily unavailable.",
 	Default: "Unable to sign in right now. Please try again.",
 };
-
-function dashboardForRole(role?: string, fallbackUrl = "/admin/dashboard") {
-	if (role === "staff") return "/staff/dashboard";
-	if (role === "admin") return "/admin/dashboard";
-	return fallbackUrl;
-}
 
 export function CredentialLoginPage({
 	roleName,
@@ -88,7 +83,8 @@ export function CredentialLoginPage({
 		}
 
 		const session = await getSession();
-		router.push(dashboardForRole(session?.user?.role, result?.url ?? callbackUrl));
+		const role = normalizeCampusVoiceRole(session?.user?.role);
+		router.push(role ? dashboardPathForRole(role) : result?.url ?? callbackUrl);
 		router.refresh();
 	};
 

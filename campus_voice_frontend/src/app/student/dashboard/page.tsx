@@ -8,10 +8,12 @@ import {
 	CheckCircle2,
 	Clock3,
 	ListFilter,
+	LogOut,
 	Plus,
 	ShieldCheck,
 	TriangleAlert,
 } from "lucide-react";
+import { signOut } from "next-auth/react";
 
 type TicketPriority = "low" | "medium" | "high";
 type TicketStatus = "submitted" | "in_review" | "in_progress" | "resolved";
@@ -176,13 +178,23 @@ export default function StudentDashboardPage() {
 							</p>
 						</div>
 
-						<Link
-							href="/student/submit"
-							className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-500 px-4 py-3 font-medium text-white transition hover:bg-teal-600"
-						>
-							<Plus className="h-4 w-4" />
-							Submit New Report
-						</Link>
+						<div className="flex flex-wrap gap-2">
+							<button
+								type="button"
+								onClick={() => signOut({ callbackUrl: "/login" })}
+								className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+							>
+								<LogOut className="h-4 w-4" />
+								Sign out
+							</button>
+							<Link
+								href="/student/submit"
+								className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-500 px-4 py-3 font-medium text-white transition hover:bg-teal-600"
+							>
+								<Plus className="h-4 w-4" />
+								Submit New Report
+							</Link>
+						</div>
 					</div>
 
 					<div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

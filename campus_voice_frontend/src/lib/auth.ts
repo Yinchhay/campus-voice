@@ -1,142 +1,148 @@
 import NextAuth, { type NextAuthConfig } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { normalizeCampusVoiceRole, type CampusVoiceRole } from "@/lib/auth-routes";
 
 type StaffAdminRole = "staff" | "admin";
-type CampusVoiceRole = "student" | StaffAdminRole;
 
 type LoginResponse = {
-	access?: string;
-	accessToken?: string;
-	access_token?: string;
-	refresh_token?: string;
-	token?: string;
-	user?: {
-		id?: string | number;
-		email?: string;
-		name?: string;
-		username?: string;
-		role?: CampusVoiceRole | Uppercase<CampusVoiceRole>;
-	};
-	id?: string | number;
-	email?: string;
-	name?: string;
-	username?: string;
-	role?: CampusVoiceRole | Uppercase<CampusVoiceRole>;
+  access?: string;
+  accessToken?: string;
+  access_token?: string;
+  refresh_token?: string;
+  access_token_expires_at?: string;
+  refresh_token_expires_at?: string;
+  token?: string;
+  user?: {
+    id?: string | number;
+    email?: string;
+    name?: string;
+    username?: string;
+    role?: CampusVoiceRole | Uppercase<CampusVoiceRole>;
+  };
+  id?: string | number;
+  email?: string;
+  name?: string;
+  username?: string;
+  role?: CampusVoiceRole | Uppercase<CampusVoiceRole>;
 };
 
-function normalizeRole(role?: string): CampusVoiceRole | undefined {
-	const normalized = role?.toLowerCase();
-	if (normalized === "student" || normalized === "staff" || normalized === "admin") {
-		return normalized;
-	}
-	return undefined;
-}
-
 function buildApiUrl(path: string) {
-	const publicApiUrl = process.env.NEXT_PUBLIC_API_URL;
-	const baseUrl =
-		process.env.SERVER_API_URL ??
-		(publicApiUrl && /^https?:\/\//.test(publicApiUrl) ? publicApiUrl : undefined) ??
-		"http://localhost:8000/api";
+  const publicApiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const baseUrl =
+    process.env.SERVER_API_URL ??
+    (publicApiUrl && /^https?:\/\//.test(publicApiUrl) ? publicApiUrl : undefined) ??
+    "http://localhost:8000/api";
 
-	if (/^https?:\/\//.test(path)) return path;
-	if (/^https?:\/\//.test(baseUrl)) {
-		const normalizedPath = baseUrl.endsWith("/api") && path.startsWith("/api/")
-			? path.slice(5)
-			: path.replace(/^\//, "");
-		return new URL(normalizedPath, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
-	}
+  if (/^https?:\/\//.test(path)) return path;
+  if (/^https?:\/\//.test(baseUrl)) {
+    const normalizedPath = baseUrl.endsWith("/api") && path.startsWith("/api/")
+      ? path.slice(5)
+      : path.replace(/^\//, "");
+    return new URL(normalizedPath, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
+  }
 
-	return path;
+  return path;
 }
 
 function buildStaffAdminLoginUrl() {
-	const override = process.env.STAFF_ADMIN_LOGIN_URL ?? process.env.ADMIN_LOGIN_URL;
+  const override = process.env.STAFF_ADMIN_LOGIN_URL ?? process.env.ADMIN_LOGIN_URL;
 
-	if (override) return override;
+  if (override) return override;
 
-	const baseUrl =
-		process.env.STAFF_ADMIN_API_URL ??
-		process.env.SERVER_API_URL ??
-		process.env.NEXT_PUBLIC_API_URL ??
-		"http://localhost:8000/api";
-	const path = process.env.STAFF_ADMIN_LOGIN_PATH ?? process.env.ADMIN_LOGIN_PATH ?? "/api/admin/login/";
+  const baseUrl =
+    process.env.STAFF_ADMIN_API_URL ??
+    process.env.SERVER_API_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    "http://localhost:8000/api";
+  const path = process.env.STAFF_ADMIN_LOGIN_PATH ?? process.env.ADMIN_LOGIN_PATH ?? "/api/admin/login/";
 
-	if (/^https?:\/\//.test(path)) return path;
-	if (/^https?:\/\//.test(baseUrl)) {
-		const normalizedPath = baseUrl.endsWith("/api") && path.startsWith("/api/")
-			? path.slice(5)
-			: path.replace(/^\//, "");
-		return new URL(normalizedPath, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
-	}
+  if (/^https?:\/\//.test(path)) return path;
+  if (/^https?:\/\//.test(baseUrl)) {
+    const normalizedPath = baseUrl.endsWith("/api") && path.startsWith("/api/")
+      ? path.slice(5)
+      : path.replace(/^\//, "");
+    return new URL(normalizedPath, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
+  }
 
-	return path;
+  return path;
 }
 
 async function loginWithCredentials(fallbackRole: StaffAdminRole, credentials: Partial<Record<string, unknown>>) {
-	const username = String(credentials.username ?? "").trim();
-	const password = String(credentials.password ?? "");
+  const username = String(credentials.username ?? "").trim();
+  const password = String(credentials.password ?? "");
 
-	if (!username || !password) return null;
+  if (!username || !password) return null;
 
-	const response = await fetch(buildStaffAdminLoginUrl(), {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
-			username,
-			password,
-		}),
-	});
+  const response = await fetch(buildStaffAdminLoginUrl(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      username,
+      password,
+    }),
+  });
 
-	if (!response.ok) return null;
+  if (!response.ok) return null;
 
-	const data = (await response.json()) as LoginResponse;
-	const user = data.user ?? data;
-	const accessToken = data.accessToken ?? data.access_token ?? data.access ?? data.token;
-	const role = normalizeRole(user.role ?? data.role) ?? fallbackRole;
+  const data = (await response.json()) as LoginResponse;
+  const user = data.user ?? data;
+  const accessToken = data.accessToken ?? data.access_token ?? data.access ?? data.token;
+  const role = normalizeCampusVoiceRole(user.role ?? data.role) ?? fallbackRole;
 
-	return {
-		id: String(user.id ?? data.id ?? username),
-		name: user.name ?? data.name ?? user.username ?? data.username ?? username,
-		email: user.email ?? data.email ?? undefined,
-		role,
-		accessToken,
-	};
+  if (!accessToken) return null;
+
+  return {
+    id: String(user.id ?? data.id ?? username),
+    name: user.name ?? data.name ?? user.username ?? data.username ?? username,
+    email: user.email ?? data.email ?? undefined,
+    role,
+    accessToken,
+  };
 }
 
-async function exchangeGoogleToken(accessToken: string) {
-	const response = await fetch(buildApiUrl("/api/v1/auth/google"), {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify({
-			access_token: accessToken,
-		}),
-	});
+async function exchangeGoogleIdToken(idToken: string) {
+  const response = await fetch(buildApiUrl("/api/v1/auth/google"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      token: idToken,
+    }),
+  });
 
-	if (!response.ok) return null;
+  if (!response.ok) return null;
 
-	const data = (await response.json()) as LoginResponse;
-	const user = data.user ?? data;
-	const djangoAccessToken = data.access_token ?? data.accessToken ?? data.access ?? data.token;
-	const role = normalizeRole(user.role ?? data.role);
+  const data = (await response.json()) as LoginResponse;
+  const user = data.user ?? data;
+  const djangoAccessToken = data.access_token ?? data.accessToken ?? data.access ?? data.token;
+  const role = normalizeCampusVoiceRole(user.role ?? data.role);
 
-	if (!djangoAccessToken || role !== "student") return null;
+  if (!djangoAccessToken || role !== "student") return null;
 
-	return {
-		id: String(user.id ?? data.id ?? user.email ?? ""),
-		name: user.name ?? data.name ?? user.username ?? data.username ?? user.email ?? undefined,
-		email: user.email ?? data.email ?? undefined,
-		role,
-		accessToken: djangoAccessToken,
-	};
+  return {
+    id: String(user.id ?? data.id ?? user.email ?? ""),
+    name: user.name ?? data.name ?? user.username ?? data.username ?? user.email ?? undefined,
+    email: user.email ?? data.email ?? undefined,
+    role,
+    accessToken: djangoAccessToken,
+    refreshToken: data.refresh_token,
+    accessTokenExpiresAt: data.access_token_expires_at,
+    refreshTokenExpiresAt: data.refresh_token_expires_at,
+  };
 }
 
 export const authOptions = {
+  session: {
+    strategy: "jwt",
+    maxAge: 365 * 24 * 60 * 60,
+  },
+  jwt: {
+    maxAge: 365 * 24 * 60 * 60,
+  },
   providers: [
     GoogleProvider({
       clientId:
@@ -152,6 +158,7 @@ export const authOptions = {
         "",
       authorization: {
         params: {
+          scope: "openid email profile",
           hd: "paragoniu.edu.kh",
           prompt: "select_account",
         },
@@ -183,9 +190,10 @@ export const authOptions = {
   callbacks: {
     async signIn({ account, user }) {
       if (account?.provider !== "google") return true;
-      if (!account.access_token) return false;
+      if (!account.id_token) return false;
 
-      const exchangedUser = await exchangeGoogleToken(account.access_token);
+
+      const exchangedUser = await exchangeGoogleIdToken(account.id_token);
       if (!exchangedUser) return false;
 
       user.id = exchangedUser.id;
@@ -193,12 +201,15 @@ export const authOptions = {
       user.email = exchangedUser.email;
       user.role = exchangedUser.role;
       user.accessToken = exchangedUser.accessToken;
+      user.refreshToken = exchangedUser.refreshToken;
+      user.accessTokenExpiresAt = exchangedUser.accessTokenExpiresAt;
+      user.refreshTokenExpiresAt = exchangedUser.refreshTokenExpiresAt;
       return true;
     },
     async jwt({ token, account, user }) {
       const exchangedUser =
-        account?.provider === "google" && account.access_token && !user?.accessToken
-          ? await exchangeGoogleToken(account.access_token)
+        account?.provider === "google" && account.id_token && !user?.accessToken
+          ? await exchangeGoogleIdToken(account.id_token)
           : null;
       const sessionUser = exchangedUser ?? user;
 
@@ -207,6 +218,15 @@ export const authOptions = {
       }
       if (sessionUser?.role) {
         token.role = sessionUser.role;
+      }
+      if (sessionUser?.refreshToken) {
+        token.refreshToken = sessionUser.refreshToken;
+      }
+      if (sessionUser?.accessTokenExpiresAt) {
+        token.accessTokenExpiresAt = sessionUser.accessTokenExpiresAt;
+      }
+      if (sessionUser?.refreshTokenExpiresAt) {
+        token.refreshTokenExpiresAt = sessionUser.refreshTokenExpiresAt;
       }
       if (sessionUser?.id) {
         token.sub = sessionUser.id;
@@ -222,6 +242,9 @@ export const authOptions = {
       }
       if (typeof token.accessToken === "string") {
         session.accessToken = token.accessToken;
+      }
+      if (typeof token.accessTokenExpiresAt === "string") {
+        session.accessTokenExpiresAt = token.accessTokenExpiresAt;
       }
       return session;
     },

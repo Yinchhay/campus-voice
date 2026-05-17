@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import { LogOut, ShieldCheck } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { loginPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
 
 type DashboardNavItem = {
 	label: string;
@@ -28,6 +29,7 @@ export function RoleDashboardShell({
 	children,
 }: RoleDashboardShellProps) {
 	const pathname = usePathname();
+	const role = normalizeCampusVoiceRole(roleName);
 
 	return (
 		<main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
@@ -67,7 +69,7 @@ export function RoleDashboardShell({
 
 						<button
 							type="button"
-							onClick={() => signOut({ callbackUrl: roleName === "Admin" ? "/admin/login" : "/staff/login" })}
+							onClick={() => signOut({ callbackUrl: loginPathForRole(role) })}
 							className="mt-6 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 lg:mt-auto"
 						>
 							<LogOut className="h-4 w-4" />

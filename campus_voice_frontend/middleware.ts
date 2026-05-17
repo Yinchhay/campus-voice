@@ -1,69 +1,31 @@
 import { auth } from "@/lib/auth";
+import {
+  dashboardPathForRole,
+  isAuthPagePath,
+  loginPathForRole,
+  normalizeCampusVoiceRole,
+  roleForProtectedPath,
+} from "@/lib/auth-routes";
 import { NextResponse } from "next/server";
 
 export default auth(async (req) => {
   const isLoggedIn = !!req.auth;
-  const role = req.auth?.user?.role;
+  const role = normalizeCampusVoiceRole(req.auth?.user?.role);
   const pathname = req.nextUrl.pathname;
 
-  const isStudentAuthPage = pathname === "/login";
-  const isStaffAuthPage = pathname === "/staff/login";
-  const isAdminAuthPage = pathname === "/admin/login";
-  const isAuthPage = isStudentAuthPage || isStaffAuthPage || isAdminAuthPage;
-  const isStudent = pathname.startsWith("/student");
-  const isStaff = pathname.startsWith("/staff");
-  const isAdmin = pathname.startsWith("/admin");
-  const isProtected = (isStudent || isStaff || isAdmin) && !isAuthPage;
+  const requiredRole = roleForProtectedPath(pathname);
+  const isAuthPage = isAuthPagePath(pathname);
 
-  const roleHome =
-    role === "admin"
-      ? "/admin/dashboard"
-      : role === "staff"
-        ? "/staff/dashboard"
-        : "/student/dashboard";
-
-  if (isStudent && isProtected) {
-    if (!isLoggedIn) {
-      return NextResponse.redirect(new URL("/login", req.nextUrl));
-    }
-
-    if (role !== "student") {
-      return NextResponse.redirect(new URL(roleHome, req.nextUrl));
-    }
-
-    return NextResponse.next();
+  if (requiredRole && (!isLoggedIn || !role)) {
+    return NextResponse.redirect(new URL(loginPathForRole(requiredRole), req.nextUrl));
   }
 
-  if (!isLoggedIn && isProtected) {
-    if (isStaff) {
-      return NextResponse.redirect(new URL("/staff/login", req.nextUrl));
-    }
-
-    if (isAdmin) {
-      return NextResponse.redirect(new URL("/admin/login", req.nextUrl));
-    }
-  }
-
-  if (isLoggedIn && isProtected) {
-    if (isStaff && role !== "staff") {
-      return NextResponse.redirect(new URL(roleHome, req.nextUrl));
-    }
-
-    if (isAdmin && role !== "admin") {
-      return NextResponse.redirect(new URL(roleHome, req.nextUrl));
-    }
+  if (requiredRole && role !== requiredRole) {
+    return NextResponse.redirect(new URL(dashboardPathForRole(role), req.nextUrl));
   }
 
   if (isLoggedIn && isAuthPage) {
-    if (isStaffAuthPage) {
-      return NextResponse.redirect(new URL(role === "staff" ? "/staff/dashboard" : roleHome, req.nextUrl));
-    }
-
-    if (isAdminAuthPage) {
-      return NextResponse.redirect(new URL(role === "admin" ? "/admin/dashboard" : roleHome, req.nextUrl));
-    }
-
-    return NextResponse.redirect(new URL(roleHome, req.nextUrl));
+    return NextResponse.redirect(new URL(dashboardPathForRole(role), req.nextUrl));
   }
 
   return NextResponse.next();
