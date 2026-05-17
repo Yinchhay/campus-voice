@@ -1,22 +1,5 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-
-async function hasStudentSession(req: NextRequest) {
-  try {
-    const apiBaseUrl = process.env.SERVER_API_URL ?? new URL("/api", req.nextUrl.origin).toString();
-    const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/v1/auth/me`, {
-      headers: {
-        Cookie: req.headers.get("cookie") ?? "",
-      },
-      cache: "no-store",
-    });
-
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
 
 export default auth(async (req) => {
   const isLoggedIn = !!req.auth;
@@ -31,7 +14,6 @@ export default auth(async (req) => {
   const isStaff = pathname.startsWith("/staff");
   const isAdmin = pathname.startsWith("/admin");
   const isProtected = (isStudent || isStaff || isAdmin) && !isAuthPage;
-  const hasDjangoStudentSession = isStudent || isStudentAuthPage ? await hasStudentSession(req) : false;
 
   const roleHome =
     role === "admin"
@@ -41,12 +23,12 @@ export default auth(async (req) => {
         : "/student/dashboard";
 
   if (isStudent && isProtected) {
-    if (role && role !== "student") {
-      return NextResponse.redirect(new URL(roleHome, req.nextUrl));
+    if (!isLoggedIn) {
+      return NextResponse.redirect(new URL("/login", req.nextUrl));
     }
 
-    if (!hasDjangoStudentSession) {
-      return NextResponse.redirect(new URL("/login", req.nextUrl));
+    if (role !== "student") {
+      return NextResponse.redirect(new URL(roleHome, req.nextUrl));
     }
 
     return NextResponse.next();
@@ -82,10 +64,6 @@ export default auth(async (req) => {
     }
 
     return NextResponse.redirect(new URL(roleHome, req.nextUrl));
-  }
-
-  if (isStudentAuthPage && hasDjangoStudentSession) {
-    return NextResponse.redirect(new URL("/student/dashboard", req.nextUrl));
   }
 
   return NextResponse.next();

@@ -10,9 +10,6 @@ const api = axios.create({
 
 export const studentApi = axios.create({
   baseURL: "/api",
-  withCredentials: true,
-  xsrfCookieName: "csrftoken",
-  xsrfHeaderName: "X-CSRFToken",
   headers: {
     "Content-Type": "application/json",
   },
@@ -20,6 +17,14 @@ export const studentApi = axios.create({
 
 // Attach auth token to every request
 api.interceptors.request.use(async (config) => {
+  const session = await getSession();
+  if (session?.accessToken) {
+    config.headers.Authorization = `Bearer ${session.accessToken}`;
+  }
+  return config;
+});
+
+studentApi.interceptors.request.use(async (config) => {
   const session = await getSession();
   if (session?.accessToken) {
     config.headers.Authorization = `Bearer ${session.accessToken}`;
