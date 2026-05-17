@@ -1,7 +1,6 @@
 import { CredentialLoginPage } from "@/components/auth/CredentialLoginPage";
 import { auth } from "@/lib/auth";
 import { dashboardPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
-import { ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -29,7 +28,6 @@ export default async function AdminLoginPage() {
 				]}
 				panelTitle="Admin Login"
 				panelDescription="Use the username and password assigned to your admin account."
-				Icon={ShieldCheck}
 			/>
 		</Suspense>
 	);
