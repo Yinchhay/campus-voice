@@ -21,6 +21,14 @@ class User(AbstractUser):
         choices=Role.choices,
         default=Role.STUDENT
     )
+    staff_role = models.ForeignKey(
+        'StaffRole',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='users',
+        help_text="Only used for Staff role"
+    )
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -28,6 +36,7 @@ class User(AbstractUser):
 
     class Meta:
         db_table = 'user'
+        ordering = ['-is_superadmin', 'name']
 
     def __str__(self):
         return f"{self.email} ({self.role})"
