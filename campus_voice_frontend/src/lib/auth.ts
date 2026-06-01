@@ -51,7 +51,7 @@ function buildStaffAdminLoginUrl(): string {
 
   // Allow a separate base URL for the staff/admin API (e.g. internal service URL).
   const staffBase = process.env.STAFF_ADMIN_API_URL;
-  const path = process.env.STAFF_ADMIN_LOGIN_PATH ?? process.env.ADMIN_LOGIN_PATH ?? "/api/admin/login/";
+  const path = process.env.STAFF_ADMIN_LOGIN_PATH ?? process.env.ADMIN_LOGIN_PATH ?? "/api/admin/login";
 
   if (staffBase) {
     // Temporarily override SERVER_API_URL by constructing the URL inline.
@@ -88,7 +88,7 @@ async function loginWithCredentials(
   const response = await fetch(buildStaffAdminLoginUrl(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email: username, username, password }),
   });
 
   if (!response.ok) return null;

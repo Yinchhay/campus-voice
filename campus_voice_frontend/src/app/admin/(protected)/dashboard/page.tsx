@@ -1,85 +1,274 @@
 "use client";
 
+import Link from "next/link";
 import {
-	BarChart3,
-	LayoutDashboard,
-	Settings,
-	ShieldCheck,
-	TicketCheck,
-	UsersRound,
+  ArrowRight,
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  FileText,
+  LayoutDashboard,
+  Settings,
+  ShieldCheck,
+  Tag,
+  TicketCheck,
+  TriangleAlert,
+  UsersRound,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import { mockCategories, mockTickets, mockUsers } from "@/lib/mock-data";
+import type { TicketPriority, TicketStatus } from "@/lib/types";
 
-const adminStats = [
-	{ label: "Total Reports", value: "126", tone: "text-slate-900" },
-	{ label: "Open Cases", value: "32", tone: "text-blue-700" },
-	{ label: "Staff Active", value: "12", tone: "text-teal-700" },
-	{ label: "High Priority", value: "8", tone: "text-red-700" },
+// ---------------------------------------------------------------------------
+// Nav
+// ---------------------------------------------------------------------------
+export const adminNav = [
+  { label: "Dashboard", href: "/admin/dashboard", Icon: LayoutDashboard },
+  { label: "Tickets", href: "/admin/tickets", Icon: TicketCheck },
+  { label: "Users", href: "/admin/users", Icon: UsersRound },
+  { label: "Categories", href: "/admin/categories", Icon: Tag },
+  { label: "Settings", href: "/admin/settings", Icon: Settings },
 ];
 
-const activity = [
-	"Safety reports reviewed by student affairs",
-	"Facility hazards assigned to operations staff",
-	"Resolved cases audited for response quality",
-];
+// ---------------------------------------------------------------------------
+// Badges
+// ---------------------------------------------------------------------------
+const statusBadgeClass: Record<TicketStatus, string> = {
+  SUBMITTED: "bg-slate-100 text-slate-700 border-slate-200",
+  IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
+  RESOLVED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+};
+const statusLabel: Record<TicketStatus, string> = {
+  SUBMITTED: "Submitted",
+  IN_PROGRESS: "In Progress",
+  RESOLVED: "Resolved",
+};
+const priorityBadgeClass: Record<TicketPriority, string> = {
+  HIGH: "bg-red-50 text-red-700 border-red-200",
+  MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
+  LOW: "bg-slate-100 text-slate-600 border-slate-200",
+};
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+function formatRelative(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const hours = Math.floor(diff / 3_600_000);
+  if (hours < 1) return "Just now";
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+function categoryName(id: number) {
+  return mockCategories.find((c) => c.id === id)?.name ?? "Unknown";
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 export default function AdminDashboardPage() {
-	return (
-		<RoleDashboardShell
-			roleName="Admin"
-			title="Admin Dashboard"
-			description="Oversee report volume, staff response coverage, and platform-level campus safety activity."
-			navItems={[
-				{ label: "Dashboard", href: "/admin/dashboard", Icon: LayoutDashboard },
-				{ label: "Reports", href: "/admin/reports", Icon: TicketCheck },
-				{ label: "Staff Accounts", href: "/admin/staff", Icon: UsersRound },
-				{ label: "Analytics", href: "/admin/analytics", Icon: BarChart3 },
-				{ label: "Settings", href: "/admin/settings", Icon: Settings },
-			]}
-		>
-			<div className="space-y-6">
-				<div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-					<div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700">
-						<ShieldCheck className="h-4 w-4 text-emerald-600" />
-						Admin console
-					</div>
-					<div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-						{adminStats.map((stat) => (
-							<div key={stat.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-								<p className="text-sm text-slate-600">{stat.label}</p>
-								<p className={`mt-1 text-2xl font-semibold ${stat.tone}`}>{stat.value}</p>
-							</div>
-						))}
-					</div>
-				</div>
+  const total = mockTickets.length;
+  const open = mockTickets.filter((t) => t.status !== "RESOLVED").length;
+  const resolved = mockTickets.filter((t) => t.status === "RESOLVED").length;
+  const inProgress = mockTickets.filter((t) => t.status === "IN_PROGRESS").length;
+  const highPriority = mockTickets.filter((t) => t.priority === "HIGH" && t.status !== "RESOLVED").length;
+  const activeUsers = mockUsers.filter((u) => u.is_active).length;
+  const activeStaff = mockUsers.filter((u) => u.role === "STAFF" && u.is_active).length;
 
-				<div className="grid gap-6 lg:grid-cols-2">
-					<div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-						<div className="mb-5 flex items-center gap-2 text-slate-900">
-							<BarChart3 className="h-5 w-5 text-teal-600" />
-							<h2 className="text-xl font-semibold">Operational Summary</h2>
-						</div>
-						<div className="space-y-3">
-							{activity.map((item) => (
-								<div key={item} className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-									{item}
-								</div>
-							))}
-						</div>
-					</div>
+  const stats = [
+    { label: "Total Tickets", value: total, tone: "text-slate-900" },
+    { label: "Open Cases", value: open, tone: "text-blue-700" },
+    { label: "In Progress", value: inProgress, tone: "text-amber-700" },
+    { label: "Resolved", value: resolved, tone: "text-emerald-700" },
+    { label: "High Priority", value: highPriority, tone: "text-red-700" },
+    { label: "Active Users", value: activeUsers, tone: "text-slate-900" },
+    { label: "Active Staff", value: activeStaff, tone: "text-teal-700" },
+  ];
 
-					<div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-						<div className="mb-5 flex items-center gap-2 text-slate-900">
-							<UsersRound className="h-5 w-5 text-teal-600" />
-							<h2 className="text-xl font-semibold">Staff Coverage</h2>
-						</div>
-						<p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-							Staff assignment and role management controls can be connected here once the
-							backend permission endpoints are available.
-						</p>
-					</div>
-				</div>
-			</div>
-		</RoleDashboardShell>
-	);
+  // Recent 5 tickets
+  const recentTickets = [...mockTickets]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
+
+  // Category ticket count
+  const categoryBreakdown = mockCategories
+    .filter((c) => c.is_active)
+    .map((c) => ({
+      ...c,
+      count: mockTickets.filter((t) => t.category_id === c.id).length,
+      open: mockTickets.filter((t) => t.category_id === c.id && t.status !== "RESOLVED").length,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const categoryPriorityBadge: Record<string, string> = {
+    HIGH: "bg-red-50 text-red-700 border-red-200",
+    MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
+    LOW: "bg-slate-100 text-slate-600 border-slate-200",
+  };
+
+  return (
+    <RoleDashboardShell
+      roleName="Admin"
+      title="Admin Dashboard"
+      description="Platform-wide overview of report volume, staff coverage, and campus safety activity."
+      navItems={adminNav}
+    >
+      <div className="space-y-6">
+        {/* ── Stats grid ───────────────────────────────────── */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="mb-5 flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Platform Overview</h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-7">
+            {stats.map((s) => (
+              <div key={s.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs text-slate-500">{s.label}</p>
+                <p className={`mt-1 text-2xl font-semibold ${s.tone}`}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* ── Recent tickets ────────────────────────────── */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                <h2 className="text-base font-semibold text-slate-900">Recent Tickets</h2>
+              </div>
+              <Link
+                href="/admin/tickets"
+                className="inline-flex items-center gap-1 text-sm font-medium text-[#1E3A8A] hover:text-blue-700"
+              >
+                View all <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="space-y-2">
+              {recentTickets.map((ticket) => (
+                <Link
+                  key={ticket.id}
+                  href={`/admin/tickets/${ticket.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-blue-200 hover:bg-white"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
+                        {ticket.public_ticket_id}
+                      </span>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-xs ${statusBadgeClass[ticket.status]}`}
+                      >
+                        {statusLabel[ticket.status]}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-xs font-medium text-slate-800">{ticket.title}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-400">
+                    {formatRelative(ticket.created_at)}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Category breakdown ────────────────────────── */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-teal-600" />
+              <h2 className="text-base font-semibold text-slate-900">Category Breakdown</h2>
+            </div>
+
+            <div className="space-y-2">
+              {categoryBreakdown.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="text-sm font-medium text-slate-900">{cat.name}</p>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-xs font-medium ${categoryPriorityBadge[cat.priority_level]}`}
+                      >
+                        {cat.priority_level}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {cat.open} open of {cat.count} total
+                    </p>
+                  </div>
+                  {/* Bar */}
+                  <div className="w-20 shrink-0">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-[#1E3A8A] transition-all"
+                        style={{
+                          width: cat.count ? `${(cat.open / cat.count) * 100}%` : "0%",
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <span className="w-6 shrink-0 text-right text-sm font-semibold text-slate-700">
+                    {cat.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Quick links ───────────────────────────────────── */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              href: "/admin/tickets",
+              icon: <TicketCheck className="h-5 w-5 text-blue-600" />,
+              bg: "bg-blue-50 border-blue-100",
+              label: "Manage Tickets",
+              sub: `${open} open cases`,
+            },
+            {
+              href: "/admin/users",
+              icon: <UsersRound className="h-5 w-5 text-teal-600" />,
+              bg: "bg-teal-50 border-teal-100",
+              label: "Manage Users",
+              sub: `${activeUsers} active accounts`,
+            },
+            {
+              href: "/admin/categories",
+              icon: <Tag className="h-5 w-5 text-violet-600" />,
+              bg: "bg-violet-50 border-violet-100",
+              label: "Manage Categories",
+              sub: `${mockCategories.filter((c) => c.is_active).length} active categories`,
+            },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-4 rounded-2xl border p-5 transition hover:shadow-sm ${item.bg}`}
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                {item.icon}
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">{item.label}</p>
+                <p className="mt-0.5 text-sm text-slate-600">{item.sub}</p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-slate-400" />
+            </Link>
+          ))}
+        </div>
+      </div>
+    </RoleDashboardShell>
+  );
 }
