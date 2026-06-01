@@ -254,7 +254,7 @@ export default function StudentDashboardPage() {
                     </p>
                     <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-400">
                       <FileText className="h-3.5 w-3.5" />
-                      Submitted &quot;add date&quot;
+                      Submitted "add date"
                     </p>
                   </div>
 

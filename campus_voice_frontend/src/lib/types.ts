@@ -1,5 +1,4 @@
 export type UserRole = "STUDENT" | "STAFF" | "ADMIN";
-export type CategoryIssueType = "SERVICE" | "ACADEMIC";
 export type TicketPriority = "HIGH" | "MEDIUM" | "LOW";
 export type TicketStatus = "SUBMITTED" | "IN_PROGRESS" | "RESOLVED";
 export type MeetingType = "IN_PERSON" | "VIRTUAL" | "HYBRID";
@@ -19,7 +18,6 @@ export interface Category {
   id: number; // serial
   name: string;
   description: string;
-  issue_type?: CategoryIssueType;
   priority_level: TicketPriority;
   is_active: boolean;
   created_at: string;
