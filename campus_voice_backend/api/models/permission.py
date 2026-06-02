@@ -18,7 +18,7 @@ class Permission(models.Model):
     )
     action = models.CharField(
         max_length=20, 
-        choice=Action.choices,
+        choices=Action.choices,
         help_text="Action type (view, create, update, delete, export)" 
     )
     description = models.TextField(blank=True)

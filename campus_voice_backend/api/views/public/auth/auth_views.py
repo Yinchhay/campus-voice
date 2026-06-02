@@ -223,16 +223,3 @@ class GoogleAuthView(APIView):
 
             logger.info(f"New user created: {email}")
             return user, True
-
-class RefreshTokenView(APIView):
-    permission_classes = [AllowAny]
-    
-    def post(self, request):
-        refresh = request.data.get('refresh_token')
-        if not refresh:
-            return Response({'error': 'Refresh token required'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            refresh_obj = RefreshToken(refresh)
-            return Response({'access_token': str(refresh_obj.access_token)})
-        except:
-            return Response({'error': 'Invalid refresh token'}, status=status.HTTP_401_UNAUTHORIZED)

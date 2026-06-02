@@ -36,7 +36,7 @@ class User(AbstractUser):
 
     class Meta:
         db_table = 'user'
-        ordering = ['-is_superadmin', 'name']
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.email} ({self.role})"
