@@ -9,7 +9,7 @@ urlpatterns = [
     # ---------------------------------------------------------------------------- #
     #                                   Health                                     #
     # ---------------------------------------------------------------------------- #
-    path('health/', views.api_health, name='api_health'),
+    path('health', views.api_health, name='api_health'),
 
     
     # ---------------------------------------------------------------------------- #
@@ -24,9 +24,14 @@ urlpatterns = [
     path('user/me', views.GetMeView.as_view(), name='me'),
     
     # ---------------------------------------------------------------------------- #
+    #                                  Category                                    #
+    # ---------------------------------------------------------------------------- #
+    path('categories', views.CategoryListView.as_view(), name='category_list'),
+    
+    # ---------------------------------------------------------------------------- #
     #                                   Ticket                                     #
     # ---------------------------------------------------------------------------- #
-    path('tickets/', views.TicketListView.as_view(), name='ticket_list'),
+    path('tickets', views.TicketListView.as_view(), name='ticket_list'),
     path('tickets/<str:ticket_id>', views.TicketDetailView.as_view(), name='ticket_detail'),
     
     

@@ -70,19 +70,19 @@ class GoogleAuthView(APIView):
             
             serializer = UserSerializer(user)
             
-            return Response(
-                {
-                    'success': True,
-                    'message': 'User created' if created else 'User logged in',
-                    'access_token': access_token,
-                    'refresh_token': str(refresh),
-                    'access_token_expires_at': access_token_expiry.isoformat(),
-                    'refresh_token_expires_at': refresh_token_expiry.isoformat(),
-                    'user': serializer.data
-                },
-                status=status.HTTP_200_OK
-            )
-        
+            response_data = {
+                'success': True,
+                'message': 'User created' if created else 'User logged in',
+                'access_token': access_token,
+                'refresh_token': str(refresh),
+                'access_token_expires_at': access_token_expiry.isoformat(),
+                'refresh_token_expires_at': refresh_token_expiry.isoformat(),
+                'user': serializer.data
+            }
+            # Turn this on if you want response data
+            # logger.info(f"Google auth successful: {response_data}")
+            
+            return Response(response_data, status=status.HTTP_200_OK)
         except StudentAuthError as e:
             return Response(
                 {'error': str(e)},

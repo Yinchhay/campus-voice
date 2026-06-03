@@ -6,6 +6,9 @@ from .public.auth.auth_views import GoogleAuthView
 from .public.auth.user_views import GetMeView
 from .public.auth.token_views import RefreshTokenView
 
+# Categories
+from .public.category_views import CategoryListView
+
 # Tickets
 from .public.ticket.ticket_views import TicketListView, TicketDetailView
 
@@ -26,6 +29,9 @@ __all__ = [
     
     # Public User
     'GetMeView',
+    
+    # Public Category
+    'CategoryListView',
     
     # Public Tickets
     'TicketListView',
