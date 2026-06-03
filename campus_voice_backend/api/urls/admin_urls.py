@@ -1,5 +1,12 @@
 from django.urls import path
-from api.views import AdminLoginView, AdminGetMeView, AdminCategoryListView, AdminCategoryDetailView
+from api.views import (
+    AdminLoginView, 
+    AdminGetMeView, 
+    AdminCategoryListView, 
+    AdminCategoryDetailView,
+    AdminTicketListView,
+    AdminTicketDetailView
+)
 
 app_name = 'admin'
 
@@ -18,6 +25,11 @@ urlpatterns = [
     path('categories', AdminCategoryListView.as_view(), name='admin_category_list'),
     path('categories/<int:category_id>', AdminCategoryDetailView.as_view(), name='admin_category_detail'),
     
+    # ---------------------------------------------------------------------------- #
+    #                           Admin Ticket Management                            #
+    # ---------------------------------------------------------------------------- #
+    path('tickets', AdminTicketListView.as_view(), name='admin_ticket_list'),
+    path('tickets/<int:ticket_id>', AdminTicketDetailView.as_view(), name='admin_ticket_detail'),
     
     
 ]

@@ -17,7 +17,7 @@ from .public.ticket.ticket_views import TicketListView, TicketDetailView
 from .admin.admin_login_views import AdminLoginView
 from .admin.admin_getme_views import AdminGetMeView
 from .admin.admin_category_views import AdminCategoryListView, AdminCategoryDetailView
-
+from .admin.admin_ticket_views import AdminTicketListView, AdminTicketDetailView
 
 __all__ = [
 

@@ -53,7 +53,6 @@ class AdminCategoryDetailView(APIView):
             category = Category.objects.get(id=category_id)
             serializer = CategorySerializer(category)
             
-            logger.info(f"Admin retrieved category {category_id}: {serializer.data}")
             return Response(serializer.data, status=status.HTTP_200_OK)
         
         except Category.DoesNotExist:
