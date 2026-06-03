@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAdminUser
 from django.db import transaction
 
 from api.models import Category
-from api.serializers import CategorySerializer
+from api.serializers import CategorySerializer, CategoryDetailSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class AdminCategoryDetailView(APIView):
     def get(self, request, category_id):
         try:
             category = Category.objects.get(id=category_id)
-            serializer = CategorySerializer(category)
+            serializer = CategoryDetailSerializer(category)
             
             return Response(serializer.data, status=status.HTTP_200_OK)
         
@@ -71,7 +71,7 @@ class AdminCategoryDetailView(APIView):
     def patch(self, request, category_id):
         try:
             category = Category.objects.get(id=category_id)
-            serializer = CategorySerializer(category, data=request.data, partial=True)
+            serializer = CategoryDetailSerializer(category, data=request.data, partial=True)
             
             if serializer.is_valid():
                 category = serializer.save()

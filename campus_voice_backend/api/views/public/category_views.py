@@ -12,7 +12,7 @@ class CategoryListView(APIView):
     permission_classes=[IsAuthenticated]
     
     def get(self, request):
-        categories = Category.objects.all()
+        categories = Category.objects.filter(is_active=True)
         serializer = PublicCategoryListSerializer(categories, many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
