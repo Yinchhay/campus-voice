@@ -1,5 +1,5 @@
 from django.urls import path
-from api.views import AdminLoginView, AdminGetMeView
+from api.views import AdminLoginView, AdminGetMeView, AdminCategoryListView, AdminCategoryDetailView
 
 app_name = 'admin'
 
@@ -10,11 +10,13 @@ urlpatterns = [
     # ---------------------------------------------------------------------------- #
     path('login', AdminLoginView.as_view(), name='admin_login'),
     
-    path('me', AdminGetMeView.as_view(), name='admin_me')
+    path('me', AdminGetMeView.as_view(), name='admin_me'),
     
     # ---------------------------------------------------------------------------- #
-    #                                  Admin Category Management                                     #
+    #                          Admin Category Management                           #
     # ---------------------------------------------------------------------------- #
+    path('categories', AdminCategoryListView.as_view(), name='admin_category_list'),
+    path('categories/<int:category_id>', AdminCategoryDetailView.as_view(), name='admin_category_detail'),
     
     
     

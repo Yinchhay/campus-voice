@@ -10,7 +10,7 @@ class PublicCategoryListSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 class CategorySerializer(serializers.ModelSerializer):
-    """Serializer for Category model"""
+    
     class Meta:
         model = Category
         fields = ['id', 'name', 'description', 'priority_level', 'is_active', 'created_at', 'updated_at']
