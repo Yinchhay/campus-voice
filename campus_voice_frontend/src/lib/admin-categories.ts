@@ -1,9 +1,10 @@
 import api from "@/lib/axios";
-import type { Category, TicketPriority } from "@/lib/types";
+import type { Category, CategoryIssueType, TicketPriority } from "@/lib/types";
 
 export type CategoryPayload = {
   name: string;
   description: string;
+  issue_type: CategoryIssueType;
   priority_level: TicketPriority;
   is_active: boolean;
 };

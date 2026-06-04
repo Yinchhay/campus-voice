@@ -2,8 +2,13 @@ import axios from "axios";
 import { getSession, signOut } from "next-auth/react";
 import { dashboardPathForRole, loginPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
 
+const apiBaseURL =
+  process.env.NEXT_PUBLIC_API_URL && /^https?:\/\//.test(process.env.NEXT_PUBLIC_API_URL)
+    ? process.env.NEXT_PUBLIC_API_URL
+    : "http://localhost:8000/api";
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "/api",
+  baseURL: apiBaseURL,
   headers: {
     "Content-Type": "application/json",
   },
