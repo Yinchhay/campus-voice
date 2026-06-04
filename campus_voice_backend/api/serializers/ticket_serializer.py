@@ -3,7 +3,7 @@ from api.models import Ticket, Category
 
 
 class TicketSerializer(serializers.ModelSerializer):
-    """Serializer for Ticket model - used for both list and creation"""
+    """Serializer for Ticket model used for both list and creation"""
     category_name = serializers.CharField(source='category.name', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -26,14 +26,6 @@ class TicketSerializer(serializers.ModelSerializer):
             'updated_at'
         ]
         read_only_fields = ['id', 'public_ticket_id', 'priority', 'created_at', 'updated_at']
-
-    def create(self, validated_data):
-        """Create ticket and assign priority based on category"""
-        ticket = Ticket.objects.create(**validated_data)
-        # Priority is automatically assigned from category
-        ticket.priority = ticket.category.priority_level
-        ticket.save()
-        return ticket
 
 
 class TicketDetailSerializer(TicketSerializer):
@@ -70,8 +62,3 @@ class TicketDetailSerializer(TicketSerializer):
     def get_message_count(self, obj):
         return obj.messages.count()
 
-
-class TicketStaffSerializer(TicketDetailSerializer):
-    """Serializer for staff dashboard - includes all details"""
-    class Meta(TicketDetailSerializer.Meta):
-        fields = TicketDetailSerializer.Meta.fields + []

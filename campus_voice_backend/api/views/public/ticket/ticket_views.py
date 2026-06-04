@@ -24,11 +24,18 @@ class TicketListView(APIView):
     
     
     def post(self, request):
+        category_id = request.data.get('category')
+        if not category_id:
+            return Response(
+                {'error': 'Category is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         serializer = TicketSerializer(data=request.data)
         
         if serializer.is_valid():
             try:
-                category = Category.objects.get(id=request.data.get('category'))
+                category = Category.objects.get(id=category_id)
                 ticket = serializer.save(
                     submitted_by=request.user,
                     priority=category.priority_level
@@ -50,7 +57,12 @@ class TicketDetailView(APIView):
     
     def get(self, request, ticket_id):
         try:
-            ticket = Ticket.objects.get(id=ticket_id, submitted_by=request.user)
+            ticket = Ticket.objects.get(id=ticket_id)
+            if ticket.submitted_by != request.user:
+                return Response(
+                    {'error': 'You do not have permission to view this ticket'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
             serializer = TicketDetailSerializer(ticket)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Ticket.DoesNotExist:

@@ -19,7 +19,7 @@ class Ticket(models.Model):
         
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    category_id = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='tickets')
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='tickets')
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='submitted_tickets')
     title = models.CharField(max_length=255)
     description = models.TextField()
@@ -33,13 +33,12 @@ class Ticket(models.Model):
         choices=Status.choices,
         default=Status.SUBMITTED
     )
-    has_media = models.BooleanField(default=False)
-    # Anonymous tracking - displayed on portal
-    public_ticket_id = models.CharField(max_length=12, unique=True, editable=False)    
+
+    public_ticket_id = models.CharField(max_length=12, unique=True, editable=False)
+    resolved_at = models.DateTimeField(null=True, blank=True)
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    resolved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'ticket'
@@ -47,7 +46,7 @@ class Ticket(models.Model):
         indexes = [
             models.Index(fields=['status', '-created_at']),
             models.Index(fields=['priority', '-created_at']),
-            models.Index(fields=['category_id', '-created_at']),
+            models.Index(fields=['category', '-created_at']),
         ]
 
     def __str__(self):
@@ -60,3 +59,20 @@ class Ticket(models.Model):
             self.public_ticket_id = f"CV-{random.randint(100000, 999999)}"
         super().save(*args, **kwargs)
     
+    
+class TicketAttachment(models.Model):
+    """Attachments for a ticket (PDF, images, etc.)"""
+    
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(
+        upload_to='tickets/%Y/%m/%d/',
+        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])]
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'ticket_attachment'
+        ordering = ['-uploaded_at']
+    
+    def __str__(self):
+        return f"Attachment for {self.ticket.public_ticket_id}"

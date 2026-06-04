@@ -6,8 +6,8 @@ from .user import User
 
 class Message(models.Model):
     
-    ticket_id = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
-    user_id = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_messages')
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_messages')
     content = models.TextField()
     attachment = models.FileField(upload_to='ticket_attachments/%Y/%m/%d/', null=True, blank=True)
     attachment_name = models.CharField(max_length=255, null=True, blank=True)
@@ -19,7 +19,7 @@ class Message(models.Model):
         db_table = 'message'
         ordering = ['created_at']
         indexes = [
-            models.Index(fields=['ticket_id', 'created_at']),
+            models.Index(fields=['ticket', 'created_at']),
         ]
 
     def __str__(self):

@@ -15,7 +15,7 @@ class MeetingSlot(models.Model):
         ('HYBRID', 'Hybrid'),
     ]
 
-    ticket_id = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='meeting_slots')
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='meeting_slots')
     # staff_member = models.ForeignKey(User, on_delete=models.CASCADE, related_name='offered_meeting_slots')
     
     # Meeting details
@@ -43,7 +43,7 @@ class MeetingSlot(models.Model):
         db_table = 'meeting_slot'
         ordering = ['start_time']
         indexes = [
-            models.Index(fields=['ticket_id', 'start_time']),
+            models.Index(fields=['ticket', 'start_time']),
             # models.Index(fields=['staff_member', 'start_time']),
         ]
 
