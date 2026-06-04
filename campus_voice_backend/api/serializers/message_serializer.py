@@ -2,9 +2,10 @@ from rest_framework import serializers
 from api.models import Message
 
 
-class MessageSerializer(serializers.ModelSerializer):
+class PublicMessageSerializer(serializers.ModelSerializer):
     """Serializer for Message model"""
     sender_info = serializers.SerializerMethodField()
+    is_staff_message = serializers.SerializerMethodField()
     
     class Meta:
         model = Message
@@ -23,29 +24,32 @@ class MessageSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'sender', 'is_staff_message', 'created_at', 'updated_at']
 
     def get_sender_info(self, obj):
-        """Return anonymized sender info - only show role and name for staff"""
-        if obj.sender:
-            if obj.is_staff_message:
-                return {
-                    'role': 'Staff',
-                    'name': f"{obj.sender.first_name} {obj.sender.last_name}".strip() or obj.sender.email
-                }
-            else:
-                return {'role': 'Student', 'name': 'You'}
-        return None
+        
+        return obj.sender.get_full_name() or obj.sender.email
 
+    def get_is_staff_message(self, obj):
+        return obj.sender.is_staff
 
-class MessageDetailSerializer(MessageSerializer):
-    """Detailed serializer with full attachment info"""
-    attachment_url = serializers.SerializerMethodField()
+class AdminMessageSerializer(serializers.ModelSerializer):
+    """Staff sees everything including internal notes."""
+    sender_info = serializers.SerializerMethodField()
+    is_staff_message = serializers.SerializerMethodField()
     
-    class Meta(MessageSerializer.Meta):
-        fields = MessageSerializer.Meta.fields + ['attachment_url']
+    class Meta:
+        model = Message
+        fields = [
+            'id',
+            'ticket',
+            'sender',
+            'sender_info',
+            'content',
+            'attachment',
+            'is_staff_message',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'sender', 'created_at', 'updated_at']
 
-    def get_attachment_url(self, obj):
-        if obj.attachment:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.attachment.url)
-            return obj.attachment.url
-        return None
+    def get_sender_info(self, obj):
+        """Return anonymized sender info only show role and name for staff"""
+        return obj.sender.get_full_name() or obj.sender.email

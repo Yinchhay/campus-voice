@@ -7,10 +7,9 @@ from .user import User
 class Message(models.Model):
     
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_messages')
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_messages')
     content = models.TextField()
     attachment = models.FileField(upload_to='ticket_attachments/%Y/%m/%d/', null=True, blank=True)
-    attachment_name = models.CharField(max_length=255, null=True, blank=True)
     is_staff_message = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -23,5 +22,4 @@ class Message(models.Model):
         ]
 
     def __str__(self):
-        sender_role = "Staff" if self.is_staff_message else "Student"
-        return f"{sender_role} message in {self.ticket.public_ticket_id}"
+        return f"Message by {self.sender} on Ticket #{self.ticket.id}"

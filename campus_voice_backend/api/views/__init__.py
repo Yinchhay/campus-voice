@@ -46,4 +46,9 @@ __all__ = [
     # Admin Category
     'AdminCategoryListView',
     'AdminCategoryDetailView',
+
+    # Admin Ticket
+    'AdminTicketListView',
+    'AdminTicketDetailView',
+
 ]

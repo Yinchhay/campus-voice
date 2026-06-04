@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAdminUser
 from django.db import transaction
 
 from api.models import Ticket
-from api.serializers import TicketSerializer
+from api.serializers import TicketSerializer, TicketDetailSerializer
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class AdminTicketDetailView(APIView):
     def get(self, request, ticket_id):
         try:
             ticket = Ticket.objects.get(id=ticket_id)
-            serializer = TicketSerializer(ticket)
+            serializer = TicketDetailSerializer(ticket)
             
             return Response(serializer.data, status=status.HTTP_200_OK)
             

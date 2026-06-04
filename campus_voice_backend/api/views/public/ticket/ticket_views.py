@@ -9,7 +9,7 @@ from rest_framework import status
 from django.utils import timezone
 from api.models import Ticket, Category
 
-from api.serializers import TicketSerializer, TicketDetailSerializer
+from api.serializers import PublicTicketSerializer, PublicTicketDetailSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class TicketListView(APIView):
     
     def get(self, request):
         tickets = Ticket.objects.filter(submitted_by=request.user)
-        serializer = TicketSerializer(tickets, many=True)
+        serializer = PublicTicketSerializer(tickets, many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
     
@@ -31,7 +31,7 @@ class TicketListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        serializer = TicketSerializer(data=request.data)
+        serializer = PublicTicketSerializer(data=request.data)
         
         if serializer.is_valid():
             try:
@@ -42,7 +42,7 @@ class TicketListView(APIView):
                 )
                 logger.info(f"Ticket created by {request.user.email}")
                 return Response(
-                    TicketDetailSerializer(ticket).data,
+                    PublicTicketDetailSerializer(ticket).data,
                     status=status.HTTP_201_CREATED
                 )
             except Category.DoesNotExist:
@@ -63,7 +63,7 @@ class TicketDetailView(APIView):
                     {'error': 'You do not have permission to view this ticket'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            serializer = TicketDetailSerializer(ticket)
+            serializer = PublicTicketDetailSerializer(ticket)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Ticket.DoesNotExist:
             return Response(

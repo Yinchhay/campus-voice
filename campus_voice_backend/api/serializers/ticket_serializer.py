@@ -1,13 +1,14 @@
 from rest_framework import serializers
-from api.models import Ticket, Category
+from api.models import Ticket, Category, Message
+from .message_serializer import PublicMessageSerializer, AdminMessageSerializer
 
 
-class TicketSerializer(serializers.ModelSerializer):
+class PublicTicketSerializer(serializers.ModelSerializer):
     """Serializer for Ticket model used for both list and creation"""
     category_name = serializers.CharField(source='category.name', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    
+
     class Meta:
         model = Ticket
         fields = [
@@ -21,33 +22,118 @@ class TicketSerializer(serializers.ModelSerializer):
             'priority_display',
             'status',
             'status_display',
-            'has_media',
-            'created_at',
-            'updated_at'
+            'resolved_at',
         ]
-        read_only_fields = ['id', 'public_ticket_id', 'priority', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'public_ticket_id', 'priority', 'status', 'resolved_at']
 
 
-class TicketDetailSerializer(TicketSerializer):
-    """Detailed serializer for individual ticket view"""
+class PublicTicketDetailSerializer(serializers.ModelSerializer):
+    """Detailed serializer for individual ticket view (public/student side)"""
     category = serializers.SerializerMethodField()
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
     submitted_by_email = serializers.CharField(source='submitted_by.email', read_only=True, allow_null=True)
-    assigned_to_info = serializers.SerializerMethodField()
-    message_count = serializers.SerializerMethodField()
-    
-    class Meta(TicketSerializer.Meta):
-        fields = TicketSerializer.Meta.fields + [
+    messages = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Ticket
+        fields = [
+            'id',
+            'public_ticket_id',
+            'category',
+            'title',
+            'description',
+            'priority',
+            'priority_display',
+            'status',
+            'status_display',
             'submitted_by_email',
-            'assigned_to',
-            'assigned_to_info',
             'message_count',
-            'resolved_at'
+            'resolution',
+            'resolved_at',
+            'created_at',
+            'updated_at',
+            'messages',
+        ]
+        read_only_fields = [
+            'id', 'public_ticket_id', 'priority', 'status',
+            'resolved_at', 'created_at', 'updated_at',
         ]
 
     def get_category(self, obj):
         return {
             'id': str(obj.category.id),
-            'name': obj.category.name
+            'name': obj.category.name,
+        }
+
+    def get_messages(self, obj):
+        messages = obj.messages.filter(is_staff_message=False).order_by('created_at')
+        return PublicMessageSerializer(messages, many=True).data
+
+
+class TicketSerializer(serializers.ModelSerializer):
+    """Serializer for Ticket model used for both list and creation (admin)"""
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = Ticket
+        fields = [
+            'id',
+            'public_ticket_id',
+            'category',
+            'category_name',
+            'title',
+            'description',
+            'priority',
+            'priority_display',
+            'status',
+            'status_display',
+            'attachment',
+            'resolved_at',
+        ]
+        read_only_fields = ['id', 'public_ticket_id', 'priority']
+
+
+class TicketDetailSerializer(serializers.ModelSerializer):
+    """Full detailed serializer for individual ticket view (admin side)"""
+    category = serializers.SerializerMethodField()
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    submitted_by_email = serializers.CharField(source='submitted_by.email', read_only=True, allow_null=True)
+    assigned_to_info = serializers.SerializerMethodField()
+    messages = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Ticket
+        fields = [
+            'id',
+            'public_ticket_id',
+            'category',
+            'category_name',
+            'title',
+            'description',
+            'priority',
+            'priority_display',
+            'status',
+            'status_display',
+            'attachment',
+            'submitted_by_email',
+            'assigned_to_info',
+            'messages',
+            'resolution',
+            'resolved_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'public_ticket_id', 'priority', 'created_at', 'updated_at']
+
+    def get_category(self, obj):
+        return {
+            'id': str(obj.category.id),
+            'name': obj.category.name,
         }
 
     def get_assigned_to_info(self, obj):
@@ -55,10 +141,9 @@ class TicketDetailSerializer(TicketSerializer):
             return {
                 'id': str(obj.assigned_to.id),
                 'email': obj.assigned_to.email,
-                'name': f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}".strip()
+                'name': f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}".strip(),
             }
         return None
 
-    def get_message_count(self, obj):
-        return obj.messages.count()
-
+    def get_message(self, obj):
+        return AdminMessageSerializer(obj.messages.all(), many=True).data
