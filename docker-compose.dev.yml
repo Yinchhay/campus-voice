@@ -63,13 +63,17 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - AUTH_SECRET=${SECRET_KEY}
+      - NEXTAUTH_URL=http://localhost:3000
+      - AUTH_SECRET=${AUTH_SECRET}
+      # Google OAuth
+      - GOOGLE_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET}
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
       - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
       - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET}
       - NEXT_PUBLIC_API_URL=/api
-      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
-      - BACKEND_ORIGIN=http://backend:8000
       - SERVER_API_URL=http://backend:8000/api
+      - BACKEND_ORIGIN=http://backend:8000
     volumes:
       - ./campus_voice_frontend:/app
       - /app/node_modules
