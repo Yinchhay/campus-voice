@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import axios from "axios";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -14,14 +15,12 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { mockCategories, mockTickets } from "@/lib/mock-data";
+import { listMyTickets, type StudentTicket } from "@/lib/student-api";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Lookups & constants
 // ---------------------------------------------------------------------------
-const STUDENT_ID = "u-001"; // The currently logged-in student (mocked)
-
 const priorityBadgeClass: Record<TicketPriority, string> = {
   HIGH: "bg-red-50 text-red-700 border-red-200",
   MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
@@ -99,10 +98,8 @@ function StatCard({
 
 function TicketCard({
   ticket,
-  categoryName,
 }: {
-  ticket: (typeof mockTickets)[number];
-  categoryName: string;
+  ticket: StudentTicket;
 }) {
   return (
     <article className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
@@ -130,7 +127,7 @@ function TicketCard({
       </h3>
 
       {/* Category */}
-      <p className="mt-0.5 text-xs text-slate-400">{categoryName}</p>
+      <p className="mt-0.5 text-xs text-slate-400">{ticket.category_name}</p>
 
       {/* Description */}
       <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
@@ -155,14 +152,50 @@ function TicketCard({
   );
 }
 
+function extractApiError(error: unknown, fallback: string) {
+  if (!axios.isAxiosError(error)) return fallback;
+
+  const data = error.response?.data;
+  if (typeof data === "string") return data;
+  if (data && typeof data === "object") {
+    if ("error" in data && typeof data.error === "string") return data.error;
+    if ("detail" in data && typeof data.detail === "string") return data.detail;
+  }
+
+  return fallback;
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function StudentDashboardPage() {
-  const myTickets = useMemo(
-    () => mockTickets.filter((t) => t.submitted_by === STUDENT_ID),
-    [],
-  );
+  const [myTickets, setMyTickets] = useState<StudentTicket[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTickets() {
+      setIsLoading(true);
+      setPageError(null);
+
+      try {
+        const tickets = await listMyTickets();
+        if (isMounted) setMyTickets(tickets);
+      } catch (error) {
+        if (isMounted) setPageError(extractApiError(error, "Failed to load your reports."));
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadTickets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const stats = useMemo(() => {
     const total = myTickets.length;
@@ -171,9 +204,6 @@ export default function StudentDashboardPage() {
     const highPriority = myTickets.filter((t) => t.priority === "HIGH").length;
     return { total, open, inProgress, highPriority };
   }, [myTickets]);
-
-  const getCategoryName = (categoryId: number) =>
-    mockCategories.find((c) => c.id === categoryId)?.name ?? "Unknown";
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
@@ -217,15 +247,28 @@ export default function StudentDashboardPage() {
 
           {/* Stats */}
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {/* <StatCard label="Total Reports" value={stats.total} tone="text-slate-900" />
+            <StatCard label="Total Reports" value={stats.total} tone="text-slate-900" />
             <StatCard label="Open Cases" value={stats.open} tone="text-blue-700" />
             <StatCard label="In Progress" value={stats.inProgress} tone="text-amber-700" />
-            <StatCard label="High Priority" value={stats.highPriority} tone="text-red-700" /> */}
+            <StatCard label="High Priority" value={stats.highPriority} tone="text-red-700" />
           </div>
         </div>
 
+        {isLoading && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1E3A8A]" />
+            <p className="mt-4 text-sm text-slate-600">Loading your reports...</p>
+          </div>
+        )}
+
+        {pageError && !isLoading && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+            {pageError}
+          </div>
+        )}
+
         {/* ── Empty state ──────────────────────────────────────── */}
-        {myTickets.length === 0 && (
+        {!isLoading && !pageError && myTickets.length === 0 && (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
               <FileText className="h-6 w-6 text-slate-400" />
@@ -245,7 +288,7 @@ export default function StudentDashboardPage() {
         )}
 
         {/* ── Kanban board ─────────────────────────────────────── */}
-        {myTickets.length > 0 && (
+        {!isLoading && !pageError && myTickets.length > 0 && (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             {columns.map((col) => {
               const tickets = myTickets.filter((t) => t.status === col.status);
@@ -273,7 +316,6 @@ export default function StudentDashboardPage() {
                       <TicketCard
                         key={ticket.id}
                         ticket={ticket}
-                        categoryName={getCategoryName(ticket.category_id)}
                       />
                     ))
                   ) : (

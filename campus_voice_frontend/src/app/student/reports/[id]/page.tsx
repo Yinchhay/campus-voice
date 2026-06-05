@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { use, useMemo, useState } from "react";
+import axios from "axios";
+import { use, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CalendarClock,
@@ -17,13 +18,12 @@ import {
   Video,
   Users,
 } from "lucide-react";
+import { mockBookings, mockMeetingSlots } from "@/lib/mock-data";
 import {
-  mockBookings,
-  mockCategories,
-  mockMeetingSlots,
-  mockMessages,
-  mockTickets,
-} from "@/lib/mock-data";
+  getMyTicket,
+  type StudentTicket,
+  type StudentTicketMessage,
+} from "@/lib/student-api";
 import type {
   MeetingSlot,
   MeetingType,
@@ -101,6 +101,19 @@ function formatChatTime(iso: string) {
   });
 }
 
+function extractApiError(error: unknown, fallback: string) {
+  if (!axios.isAxiosError(error)) return fallback;
+
+  const data = error.response?.data;
+  if (typeof data === "string") return data;
+  if (data && typeof data === "object") {
+    if ("error" in data && typeof data.error === "string") return data.error;
+    if ("detail" in data && typeof data.detail === "string") return data.detail;
+  }
+
+  return fallback;
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -171,7 +184,9 @@ function MeetingSection({
           <div>
             <p className="font-medium">{meetingTypeLabel[slot.meeting_type]}</p>
             {slot.location_or_details && (
-              <p className="mt-0.5 text-slate-500">{slot.location_or_details}</p>
+              <p className="mt-0.5 text-slate-500">
+                {slot.location_or_details}
+              </p>
             )}
           </div>
         </div>
@@ -230,28 +245,48 @@ export default function StudentReportDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const [ticket, setTicket] = useState<StudentTicket | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
-  const [localMessages, setLocalMessages] = useState<
-    Array<{
-      id: number;
-      content: string;
-      is_staff_message: boolean;
-      created_at: string;
-      attachment_name: string | null;
-    }>
-  >([]);
-
-  const ticket = useMemo(() => mockTickets.find((t) => t.id === id), [id]);
-  const category = useMemo(
-    () => mockCategories.find((c) => c.id === ticket?.category_id),
-    [ticket],
+  const [localMessages, setLocalMessages] = useState<StudentTicketMessage[]>(
+    [],
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTicket() {
+      setIsLoading(true);
+      setPageError(null);
+
+      try {
+        const data = await getMyTicket(id);
+        if (isMounted) setTicket(data);
+      } catch (error) {
+        if (isMounted)
+          setPageError(
+            extractApiError(error, "Failed to load report details."),
+          );
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadTicket();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
   const serverMessages = useMemo(
     () =>
-      mockMessages
-        .filter((m) => m.ticket_id === id)
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
-    [id],
+      (ticket?.messages ?? []).sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      ),
+    [ticket?.messages],
   );
   const meetingSlot = useMemo(
     () => mockMeetingSlots.find((s) => s.ticket_id === id) ?? null,
@@ -276,14 +311,30 @@ export default function StudentReportDetailPage({
     setReplyText("");
   }
 
-  if (!ticket) {
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-4 py-12 text-center">
+        <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1E3A8A]" />
+          <p className="mt-4 text-sm text-slate-600">
+            Loading report details...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!ticket || pageError) {
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-12 text-center">
         <div className="mx-auto max-w-md">
           <TriangleAlert className="mx-auto h-10 w-10 text-amber-500" />
-          <h1 className="mt-4 text-xl font-semibold text-slate-900">Report not found</h1>
+          <h1 className="mt-4 text-xl font-semibold text-slate-900">
+            {pageError ? "Unable to load report" : "Report not found"}
+          </h1>
           <p className="mt-2 text-sm text-slate-600">
-            This report doesn&apos;t exist or you don&apos;t have permission to view it.
+            {pageError ||
+              "This report doesn't exist or you don't have permission to view it."}
           </p>
           <Link
             href="/student/dashboard"
@@ -339,14 +390,25 @@ export default function StudentReportDetailPage({
               )}
             </div>
 
-            <h1 className="mt-4 text-xl font-semibold text-slate-900">{ticket.title}</h1>
-            <p className="mt-1 text-sm text-slate-500">{category?.name ?? "Uncategorised"}</p>
+            <h1 className="mt-4 text-xl font-semibold text-slate-900">
+              {ticket.title}
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {ticket.category_name}
+            </p>
 
             <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-400">
-              <span className="flex items-center gap-1">
-                <FileText className="h-3.5 w-3.5" />
-                Submitted {formatDateTime(ticket.created_at)}
-              </span>
+              {ticket.created_at ? (
+                <span className="flex items-center gap-1">
+                  <FileText className="h-3.5 w-3.5" />
+                  Submitted {formatDateTime(ticket.created_at)}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <FileText className="h-3.5 w-3.5" />
+                  Submitted date unavailable
+                </span>
+              )}
               {ticket.resolved_at && (
                 <span className="flex items-center gap-1 text-emerald-600">
                   <CheckCircle2 className="h-3.5 w-3.5" />
@@ -378,16 +440,20 @@ export default function StudentReportDetailPage({
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
               <MessageSquare className="h-5 w-5 text-blue-600" />
-              <h2 className="text-base font-semibold text-slate-900">Conversation</h2>
+              <h2 className="text-base font-semibold text-slate-900">
+                Conversation
+              </h2>
               <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                {allMessages.length} message{allMessages.length !== 1 ? "s" : ""}
+                {allMessages.length} message
+                {allMessages.length !== 1 ? "s" : ""}
               </span>
             </div>
 
             <div className="space-y-1 px-6 py-4">
               {allMessages.length === 0 ? (
                 <div className="py-10 text-center text-sm text-slate-400">
-                  No messages yet. Staff will respond here once they begin reviewing your report.
+                  No messages yet. Staff will respond here once they begin
+                  reviewing your report.
                 </div>
               ) : (
                 allMessages.map((msg) => {
@@ -399,7 +465,9 @@ export default function StudentReportDetailPage({
                     >
                       <div
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                          isStaff ? "bg-[#1E3A8A] text-white" : "bg-teal-500 text-white"
+                          isStaff
+                            ? "bg-[#1E3A8A] text-white"
+                            : "bg-teal-500 text-white"
                         }`}
                       >
                         {isStaff ? "OSS" : "You"}
@@ -467,14 +535,16 @@ export default function StudentReportDetailPage({
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-slate-400">
-                  Messages are anonymous. Do not include personally identifying information.
+                  Messages are anonymous. Do not include personally identifying
+                  information.
                 </p>
               </div>
             ) : (
               <div className="border-t border-slate-100 px-6 py-4">
                 <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  This case has been resolved. The conversation thread is now closed.
+                  This case has been resolved. The conversation thread is now
+                  closed.
                 </div>
               </div>
             )}

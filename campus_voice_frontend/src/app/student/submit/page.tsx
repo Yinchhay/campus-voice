@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import axios from "axios";
+import { useEffect, useRef, useState } from "react";
 import {
 	AlertTriangle,
 	ArrowLeft,
@@ -13,16 +14,16 @@ import {
 	Tag,
 	X,
 } from "lucide-react";
+import {
+	createStudentTicket,
+	listStudentCategories,
+	type StudentCategory,
+	type StudentTicket,
+} from "@/lib/student-api";
+import type { TicketPriority } from "@/lib/types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-type Priority = "LOW" | "MEDIUM" | "HIGH";
-
-type Category = {
-	id: number;
-	name: string;
-	description: string;
-	priority_level: Priority;
-};
+type Priority = TicketPriority;
 
 type FormState = {
 	category_id: string;
@@ -33,20 +34,6 @@ type FormState = {
 };
 
 type FormErrors = Partial<Record<keyof Omit<FormState, "attachments">, string>>;
-
-// ── Mock data (replace with API call later) ────────────────────────────────────
-const MOCK_CATEGORIES: Category[] = [
-	{ id: 1, name: "Safety Threat", description: "Immediate safety or security risks on campus", priority_level: "HIGH" },
-	{ id: 2, name: "Facility Hazard", description: "Broken equipment, hazardous conditions, or infrastructure damage", priority_level: "HIGH" },
-	{ id: 3, name: "Harassment", description: "Verbal, written, or physical harassment between individuals", priority_level: "HIGH" },
-	{ id: 4, name: "Assault", description: "Physical assault or threats of violence", priority_level: "HIGH" },
-	{ id: 5, name: "Health Crisis", description: "Medical emergencies or public health concerns", priority_level: "HIGH" },
-	{ id: 6, name: "Academic Misconduct", description: "Cheating, plagiarism, or unfair academic practices", priority_level: "MEDIUM" },
-	{ id: 7, name: "Instructor Misconduct", description: "Inappropriate behavior or conduct by teaching staff", priority_level: "MEDIUM" },
-	{ id: 8, name: "Service Quality", description: "Complaints about campus services, responsiveness, or quality", priority_level: "MEDIUM" },
-	{ id: 9, name: "Facility Maintenance", description: "Non-urgent repair or upkeep requests", priority_level: "LOW" },
-	{ id: 10, name: "Policy Suggestion", description: "Ideas or feedback for improving campus policies", priority_level: "LOW" },
-];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const PRIORITY_META: Record<Priority, { label: string; color: string; dot: string }> = {
@@ -75,6 +62,23 @@ function validate(form: FormState): FormErrors {
 	return errors;
 }
 
+function extractApiError(error: unknown, fallback: string) {
+	if (!axios.isAxiosError(error)) return fallback;
+
+	const data = error.response?.data;
+	if (typeof data === "string") return data;
+	if (data && typeof data === "object") {
+		if ("error" in data) {
+			const apiError = data.error;
+			if (typeof apiError === "string") return apiError;
+			return JSON.stringify(apiError);
+		}
+		if ("detail" in data && typeof data.detail === "string") return data.detail;
+	}
+
+	return fallback;
+}
+
 // ── Sub-components ─────────────────────────────────────────────────────────────
 function FieldError({ message }: { message?: string }) {
 	if (!message) return null;
@@ -101,6 +105,11 @@ export default function SubmitReportPage() {
 	const [submitted, setSubmitted] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [attachmentError, setAttachmentError] = useState<string | null>(null);
+	const [categories, setCategories] = useState<StudentCategory[]>([]);
+	const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+	const [categoryError, setCategoryError] = useState<string | null>(null);
+	const [submitError, setSubmitError] = useState<string | null>(null);
+	const [createdTicket, setCreatedTicket] = useState<StudentTicket | null>(null);
 
 	const [form, setForm] = useState<FormState>({
 		category_id: "",
@@ -113,11 +122,37 @@ export default function SubmitReportPage() {
 	const [errors, setErrors] = useState<FormErrors>({});
 	const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-	const selectedCategory = MOCK_CATEGORIES.find((c) => c.id === Number(form.category_id));
+	const selectedCategory = categories.find((c) => c.id === Number(form.category_id));
+
+	useEffect(() => {
+		let isMounted = true;
+
+		async function loadCategories() {
+			setIsLoadingCategories(true);
+			setCategoryError(null);
+
+			try {
+				const data = await listStudentCategories();
+				if (!isMounted) return;
+				setCategories(data);
+			} catch (error) {
+				if (!isMounted) return;
+				setCategoryError(extractApiError(error, "Failed to load categories."));
+			} finally {
+				if (isMounted) setIsLoadingCategories(false);
+			}
+		}
+
+		loadCategories();
+
+		return () => {
+			isMounted = false;
+		};
+	}, []);
 
 	// Auto-suggest priority from selected category
 	function handleCategoryChange(id: string) {
-		const cat = MOCK_CATEGORIES.find((c) => c.id === Number(id));
+		const cat = categories.find((c) => c.id === Number(id));
 		setForm((prev) => ({
 			...prev,
 			category_id: id,
@@ -181,10 +216,21 @@ export default function SubmitReportPage() {
 		if (Object.keys(newErrors).length > 0) return;
 
 		setIsSubmitting(true);
-		// TODO: replace with real API call
-		await new Promise((r) => setTimeout(r, 1400));
-		setIsSubmitting(false);
-		setSubmitted(true);
+		setSubmitError(null);
+
+		try {
+			const ticket = await createStudentTicket({
+				category: Number(form.category_id),
+				title: form.title.trim(),
+				description: form.description.trim(),
+			});
+			setCreatedTicket(ticket);
+			setSubmitted(true);
+		} catch (error) {
+			setSubmitError(extractApiError(error, "Failed to submit report."));
+		} finally {
+			setIsSubmitting(false);
+		}
 	}
 
 	// ── Success screen ─────────────────────────────────────────────────────────
@@ -201,7 +247,9 @@ export default function SubmitReportPage() {
 							Your report has been received. You can track its status using the tracking ID on your dashboard.
 						</p>
 						<div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-							<span className="font-medium">Anonymous tracking ID will appear on your dashboard.</span>
+							<span className="font-medium">
+								Tracking ID: {createdTicket?.public_ticket_id ?? "Available on your dashboard"}
+							</span>
 						</div>
 						<div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
 							<Link
@@ -214,9 +262,11 @@ export default function SubmitReportPage() {
 								type="button"
 								onClick={() => {
 									setSubmitted(false);
+									setCreatedTicket(null);
 									setForm({ category_id: "", title: "", description: "", priority: "LOW", attachments: [] });
 									setErrors({});
 									setTouched({});
+									setSubmitError(null);
 								}}
 								className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
 							>
@@ -277,15 +327,16 @@ export default function SubmitReportPage() {
 										value={form.category_id}
 										onChange={(e) => handleCategoryChange(e.target.value)}
 										onBlur={() => handleBlur("category_id")}
+										disabled={isLoadingCategories || Boolean(categoryError)}
 										className={`w-full rounded-xl border px-3.5 py-3 text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-teal-500/40 ${touched.category_id && errors.category_id
 												? "border-red-300 bg-red-50/40"
 												: "border-slate-200 bg-slate-50 hover:border-slate-300 focus:border-teal-400 focus:bg-white"
 											}`}
 									>
 										<option value="" disabled>
-											Select a category…
+											{isLoadingCategories ? "Loading categories..." : "Select a category..."}
 										</option>
-										{MOCK_CATEGORIES.map((cat) => (
+										{categories.map((cat) => (
 											<option key={cat.id} value={cat.id}>
 												{cat.name}
 											</option>
@@ -296,6 +347,12 @@ export default function SubmitReportPage() {
 										<p className="mt-1.5 text-xs text-slate-500">{selectedCategory.description}</p>
 									)}
 									{touched.category_id && <FieldError message={errors.category_id} />}
+									{categoryError && (
+										<p className="mt-1.5 flex items-center gap-1.5 text-xs text-red-600">
+											<AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+											{categoryError}
+										</p>
+									)}
 								</div>
 
 								{/* Priority */}
@@ -458,10 +515,18 @@ export default function SubmitReportPage() {
 
 						{/* ── Footer / Submit ── */}
 						<div className="flex flex-col gap-3 rounded-b-3xl bg-slate-50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-							<p className="flex items-center gap-2 text-xs text-slate-500">
-								<ShieldCheck className="h-4 w-4 flex-shrink-0 text-emerald-600" />
-								Your identity remains anonymous. Report content is not linked to your account by staff.
-							</p>
+							<div className="space-y-1">
+								<p className="flex items-center gap-2 text-xs text-slate-500">
+									<ShieldCheck className="h-4 w-4 flex-shrink-0 text-emerald-600" />
+									Your identity remains anonymous. Report content is not linked to your account by staff.
+								</p>
+								{submitError && (
+									<p className="flex items-center gap-1.5 text-xs text-red-600">
+										<AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+										{submitError}
+									</p>
+								)}
+							</div>
 							<div className="flex gap-2 sm:flex-shrink-0">
 								<Link
 									href="/student/dashboard"
@@ -471,7 +536,7 @@ export default function SubmitReportPage() {
 								</Link>
 								<button
 									type="submit"
-									disabled={isSubmitting}
+									disabled={isSubmitting || isLoadingCategories || Boolean(categoryError)}
 									className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-teal-600 disabled:cursor-not-allowed disabled:opacity-60"
 								>
 									{isSubmitting ? (
