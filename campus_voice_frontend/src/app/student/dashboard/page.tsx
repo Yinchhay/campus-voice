@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ArrowRight,
   CheckCircle2,
   Clock,
   FileText,
-  ListFilter,
   LogOut,
   Paperclip,
   Plus,
@@ -23,20 +22,6 @@ import type { TicketPriority, TicketStatus } from "@/lib/types";
 // ---------------------------------------------------------------------------
 const STUDENT_ID = "u-001"; // The currently logged-in student (mocked)
 
-const statusFlow: TicketStatus[] = ["SUBMITTED", "IN_PROGRESS", "RESOLVED"];
-
-const statusLabel: Record<TicketStatus, string> = {
-  SUBMITTED: "Submitted",
-  IN_PROGRESS: "In Progress",
-  RESOLVED: "Resolved",
-};
-
-const statusBadgeClass: Record<TicketStatus, string> = {
-  SUBMITTED: "bg-slate-100 text-slate-700 border-slate-200",
-  IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
-  RESOLVED: "bg-emerald-50 text-emerald-700 border-emerald-200",
-};
-
 const priorityBadgeClass: Record<TicketPriority, string> = {
   HIGH: "bg-red-50 text-red-700 border-red-200",
   MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
@@ -49,43 +34,52 @@ const priorityLabel: Record<TicketPriority, string> = {
   LOW: "Low",
 };
 
-const filterTabs: Array<{ key: TicketStatus | "ALL"; label: string }> = [
-  { key: "ALL", label: "All" },
-  { key: "SUBMITTED", label: "Submitted" },
-  { key: "IN_PROGRESS", label: "In Progress" },
-  { key: "RESOLVED", label: "Resolved" },
+// ---------------------------------------------------------------------------
+// Column config — one entry per status
+// ---------------------------------------------------------------------------
+type ColumnConfig = {
+  status: TicketStatus;
+  label: string;
+  icon: React.ReactNode;
+  headerBg: string;
+  headerBorder: string;
+  accentText: string;
+  dotColor: string;
+};
+
+const columns: ColumnConfig[] = [
+  {
+    status: "SUBMITTED",
+    label: "Submitted",
+    icon: <Clock className="h-4 w-4" />,
+    headerBg: "bg-slate-50",
+    headerBorder: "border-slate-200",
+    accentText: "text-slate-600",
+    dotColor: "bg-slate-400",
+  },
+  {
+    status: "IN_PROGRESS",
+    label: "In Progress",
+    icon: <TriangleAlert className="h-4 w-4" />,
+    headerBg: "bg-blue-50",
+    headerBorder: "border-blue-200",
+    accentText: "text-blue-700",
+    dotColor: "bg-blue-500",
+  },
+  {
+    status: "RESOLVED",
+    label: "Resolved",
+    icon: <CheckCircle2 className="h-4 w-4" />,
+    headerBg: "bg-emerald-50",
+    headerBorder: "border-emerald-200",
+    accentText: "text-emerald-700",
+    dotColor: "bg-emerald-500",
+  },
 ];
 
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
-function StatusStepper({ status }: { status: TicketStatus }) {
-  const currentStep = statusFlow.indexOf(status);
-  return (
-    <ol className="mt-4 grid grid-cols-3 gap-2 text-xs">
-      {statusFlow.map((step, index) => {
-        const isDone = index <= currentStep;
-        return (
-          <li
-            key={step}
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 transition ${isDone
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-slate-200 bg-white text-slate-400"
-              }`}
-          >
-            {isDone ? (
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-            ) : (
-              <Clock className="h-3.5 w-3.5 shrink-0" />
-            )}
-            {statusLabel[step]}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
 function StatCard({
   label,
   value,
@@ -103,21 +97,72 @@ function StatCard({
   );
 }
 
+function TicketCard({
+  ticket,
+  categoryName,
+}: {
+  ticket: (typeof mockTickets)[number];
+  categoryName: string;
+}) {
+  return (
+    <article className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
+      {/* ID row */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="rounded-md bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
+          {ticket.public_ticket_id}
+        </span>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${priorityBadgeClass[ticket.priority]}`}
+        >
+          {priorityLabel[ticket.priority]} Priority
+        </span>
+        {ticket.has_media && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">
+            <Paperclip className="h-3 w-3" />
+            Attachment
+          </span>
+        )}
+      </div>
+
+      {/* Title */}
+      <h3 className="mt-2.5 line-clamp-2 text-sm font-semibold leading-snug text-slate-900 transition group-hover:text-[#1E3A8A]">
+        {ticket.title}
+      </h3>
+
+      {/* Category */}
+      <p className="mt-0.5 text-xs text-slate-400">{categoryName}</p>
+
+      {/* Description */}
+      <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
+        {ticket.description}
+      </p>
+
+      {/* Footer */}
+      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+          <FileText className="h-3 w-3" />
+          Submitted
+        </span>
+        <Link
+          href={`/student/reports/${ticket.id}`}
+          className="inline-flex items-center gap-1 text-xs font-medium text-[#1E3A8A] hover:text-blue-700"
+        >
+          View details
+          <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function StudentDashboardPage() {
-  const [activeFilter, setActiveFilter] = useState<TicketStatus | "ALL">("ALL");
-
   const myTickets = useMemo(
     () => mockTickets.filter((t) => t.submitted_by === STUDENT_ID),
     [],
   );
-
-  const filteredTickets = useMemo(() => {
-    if (activeFilter === "ALL") return myTickets;
-    return myTickets.filter((t) => t.status === activeFilter);
-  }, [activeFilter, myTickets]);
 
   const stats = useMemo(() => {
     const total = myTickets.length;
@@ -127,19 +172,13 @@ export default function StudentDashboardPage() {
     return { total, open, inProgress, highPriority };
   }, [myTickets]);
 
-  const categoryName = (categoryId: number) =>
+  const getCategoryName = (categoryId: number) =>
     mockCategories.find((c) => c.id === categoryId)?.name ?? "Unknown";
-
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
-      <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+
         {/* ── Header ──────────────────────────────────────────── */}
         <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -178,131 +217,75 @@ export default function StudentDashboardPage() {
 
           {/* Stats */}
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Total Reports" value={stats.total} tone="text-slate-900" />
+            {/* <StatCard label="Total Reports" value={stats.total} tone="text-slate-900" />
             <StatCard label="Open Cases" value={stats.open} tone="text-blue-700" />
             <StatCard label="In Progress" value={stats.inProgress} tone="text-amber-700" />
-            <StatCard label="High Priority" value={stats.highPriority} tone="text-red-700" />
+            <StatCard label="High Priority" value={stats.highPriority} tone="text-red-700" /> */}
           </div>
         </div>
 
-        {/* ── Filters ─────────────────────────────────────────── */}
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600">
-            <ListFilter className="h-4 w-4" />
-            Filter
-          </div>
-          {filterTabs.map((tab) => {
-            const isActive = activeFilter === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveFilter(tab.key)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition ${isActive
-                  ? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                  }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── Ticket list ─────────────────────────────────────── */}
-        <div className="space-y-4">
-          {filteredTickets.length ? (
-            filteredTickets.map((ticket) => (
-              <article
-                key={ticket.id}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-              >
-                <div className="flex flex-col gap-4">
-                  {/* Top row: badges */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-md bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
-                      {ticket.public_ticket_id}
-                    </span>
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass[ticket.status]}`}
-                    >
-                      {statusLabel[ticket.status]}
-                    </span>
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${priorityBadgeClass[ticket.priority]}`}
-                    >
-                      {priorityLabel[ticket.priority]} Priority
-                    </span>
-                    {ticket.has_media && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
-                        <Paperclip className="h-3 w-3" />
-                        Attachment
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Title + category + date */}
-                  <div>
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <h2 className="text-base font-semibold text-slate-900">{ticket.title}</h2>
-                      <span className="text-xs text-slate-500">
-                        {categoryName(ticket.category_id)}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-slate-600">
-                      {ticket.description}
-                    </p>
-                    <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-400">
-                      <FileText className="h-3.5 w-3.5" />
-                      Submitted &quot;add date&quot;
-                    </p>
-                  </div>
-
-                  {/* Status stepper */}
-                  <StatusStepper status={ticket.status} />
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                    <p className="inline-flex items-center gap-2 text-sm text-slate-600">
-                      {ticket.status === "RESOLVED" ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                      ) : (
-                        <TriangleAlert className="h-4 w-4 text-amber-600" />
-                      )}
-                      {ticket.status === "RESOLVED"
-                        ? "Case closed and recorded."
-                        : "Your report is being handled by OSS."}
-                    </p>
-                    <Link
-                      href={`/student/reports/${ticket.id}`}
-                      className="inline-flex items-center gap-1 text-sm font-medium text-[#1E3A8A] hover:text-blue-700"
-                    >
-                      View details
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ))
-          ) : (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
-                <FileText className="h-6 w-6 text-slate-400" />
-              </div>
-              <h3 className="mt-4 text-base font-semibold text-slate-900">No reports in this stage</h3>
-              <p className="mt-2 text-sm text-slate-600">
-                Switch filters or submit a new report to start tracking its progress.
-              </p>
-              <Link
-                href="/student/submit"
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900"
-              >
-                <Plus className="h-4 w-4" />
-                Submit your first report
-              </Link>
+        {/* ── Empty state ──────────────────────────────────────── */}
+        {myTickets.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+              <FileText className="h-6 w-6 text-slate-400" />
             </div>
-          )}
-        </div>
+            <h3 className="mt-4 text-base font-semibold text-slate-900">No reports yet</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Submit a new report to start tracking its progress.
+            </p>
+            <Link
+              href="/student/submit"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900"
+            >
+              <Plus className="h-4 w-4" />
+              Submit your first report
+            </Link>
+          </div>
+        )}
+
+        {/* ── Kanban board ─────────────────────────────────────── */}
+        {myTickets.length > 0 && (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {columns.map((col) => {
+              const tickets = myTickets.filter((t) => t.status === col.status);
+              return (
+                <div key={col.status} className="flex flex-col gap-3">
+                  {/* Column header */}
+                  <div
+                    className={`flex items-center justify-between rounded-xl border px-4 py-3 ${col.headerBg} ${col.headerBorder}`}
+                  >
+                    <div className={`flex items-center gap-2 text-sm font-semibold ${col.accentText}`}>
+                      <span className={`h-2 w-2 rounded-full ${col.dotColor}`} />
+                      {col.icon}
+                      {col.label}
+                    </div>
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-xs font-bold ${col.headerBg} ${col.headerBorder} ${col.accentText}`}
+                    >
+                      {tickets.length}
+                    </span>
+                  </div>
+
+                  {/* Cards */}
+                  {tickets.length > 0 ? (
+                    tickets.map((ticket) => (
+                      <TicketCard
+                        key={ticket.id}
+                        ticket={ticket}
+                        categoryName={getCategoryName(ticket.category_id)}
+                      />
+                    ))
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center">
+                      <p className="text-xs text-slate-400">No tickets in this stage</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </main>
   );
