@@ -5,7 +5,8 @@ from api.views import (
     AdminCategoryListView, 
     AdminCategoryDetailView,
     AdminTicketListView,
-    AdminTicketDetailView
+    AdminTicketDetailView,
+    AdminMessageView
 )
 
 app_name = 'admin'
@@ -30,6 +31,11 @@ urlpatterns = [
     # ---------------------------------------------------------------------------- #
     path('tickets', AdminTicketListView.as_view(), name='admin_ticket_list'),
     path('tickets/<int:ticket_id>', AdminTicketDetailView.as_view(), name='admin_ticket_detail'),
+    
+    # ---------------------------------------------------------------------------- #
+    #                                   Message                                    #
+    # ---------------------------------------------------------------------------- #
+    path('tickets/<str:ticket_id>/messages', AdminMessageView.as_view(), name='admin_message_list'),
     
     
 ]

@@ -12,12 +12,15 @@ from .public.category_views import CategoryListView
 # Tickets
 from .public.ticket.ticket_views import TicketListView, TicketDetailView
 
+# Messages
+from .public.message.message_views import MessageView
 
 # Admin
 from .admin.admin_login_views import AdminLoginView
 from .admin.admin_getme_views import AdminGetMeView
 from .admin.admin_category_views import AdminCategoryListView, AdminCategoryDetailView
 from .admin.admin_ticket_views import AdminTicketListView, AdminTicketDetailView
+from .admin.admin_message_views import AdminMessageView
 
 __all__ = [
 
@@ -38,6 +41,8 @@ __all__ = [
     'TicketListView',
     'TicketDetailView',
     
+    # Public Message
+    'MessageView',
     
     # Admin
     'AdminLoginView',
@@ -50,5 +55,8 @@ __all__ = [
     # Admin Ticket
     'AdminTicketListView',
     'AdminTicketDetailView',
+    
+    # Admin Message
+    'AdminMessageView',
 
 ]

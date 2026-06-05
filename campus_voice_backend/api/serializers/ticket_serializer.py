@@ -33,8 +33,10 @@ class PublicTicketDetailSerializer(serializers.ModelSerializer):
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     submitted_by_email = serializers.CharField(source='submitted_by.email', read_only=True, allow_null=True)
+    message_count = serializers.SerializerMethodField()  
     messages = serializers.SerializerMethodField()
-
+    resolution = serializers.SerializerMethodField()
+     
     class Meta:
         model = Ticket
         fields = [
@@ -48,11 +50,11 @@ class PublicTicketDetailSerializer(serializers.ModelSerializer):
             'status',
             'status_display',
             'submitted_by_email',
-            'message_count',
             'resolution',
             'resolved_at',
             'created_at',
             'updated_at',
+            'message_count',
             'messages',
         ]
         read_only_fields = [
@@ -66,9 +68,23 @@ class PublicTicketDetailSerializer(serializers.ModelSerializer):
             'name': obj.category.name,
         }
 
+    def get_message_count(self, obj):
+        return obj.messages.count()
+
     def get_messages(self, obj):
-        messages = obj.messages.filter(is_staff_message=False).order_by('created_at')
-        return PublicMessageSerializer(messages, many=True).data
+        return PublicMessageSerializer(obj.messages.all(), many=True).data
+    
+    def get_resolution(self, obj):
+        try:
+            r = obj.resolution
+            return {
+                'note':        r.note,
+                'attachment':  r.attachment.url if r.attachment else None,
+                'resolved_by': r.resolved_by.get_full_name() or r.resolved_by.email if r.resolved_by else None,
+                'created_at':  r.created_at,
+            }
+        except Exception:
+            return None
 
 
 class TicketSerializer(serializers.ModelSerializer):
@@ -103,8 +119,8 @@ class TicketDetailSerializer(serializers.ModelSerializer):
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     submitted_by_email = serializers.CharField(source='submitted_by.email', read_only=True, allow_null=True)
-    assigned_to_info = serializers.SerializerMethodField()
     messages = serializers.SerializerMethodField()
+    resolution = serializers.SerializerMethodField()
 
     class Meta:
         model = Ticket
@@ -121,12 +137,11 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             'status_display',
             'attachment',
             'submitted_by_email',
-            'assigned_to_info',
-            'messages',
             'resolution',
             'resolved_at',
             'created_at',
             'updated_at',
+            'messages',
         ]
         read_only_fields = ['id', 'public_ticket_id', 'priority', 'created_at', 'updated_at']
 
@@ -136,14 +151,19 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             'name': obj.category.name,
         }
 
-    def get_assigned_to_info(self, obj):
-        if obj.assigned_to:
-            return {
-                'id': str(obj.assigned_to.id),
-                'email': obj.assigned_to.email,
-                'name': f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}".strip(),
-            }
-        return None
-
-    def get_message(self, obj):
+    def get_messages(self, obj):
         return AdminMessageSerializer(obj.messages.all(), many=True).data
+
+    def get_resolution(self, obj):
+        # Bug 2 fix: resolution is a reverse OneToOne, must handle manually
+        try:
+            r = obj.resolution
+            return {
+                'note':        r.note,
+                'attachment':  r.attachment.url if r.attachment else None,
+                'resolved_by': r.resolved_by.get_full_name() or r.resolved_by.email if r.resolved_by else None,
+                'created_at':  r.created_at,
+                'updated_at':  r.updated_at,
+            }
+        except Exception:
+            return None

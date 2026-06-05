@@ -34,7 +34,10 @@ urlpatterns = [
     path('tickets', views.TicketListView.as_view(), name='ticket_list'),
     path('tickets/<str:ticket_id>', views.TicketDetailView.as_view(), name='ticket_detail'),
     
-    
+    # ---------------------------------------------------------------------------- #
+    #                                   Message                                    #
+    # ---------------------------------------------------------------------------- #
+    path('tickets/<str:ticket_id>/messages', views.MessageView.as_view(), name='message_list'),
     
     
 ]
