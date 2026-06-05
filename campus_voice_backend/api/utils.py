@@ -12,3 +12,14 @@ def get_ticket(ticket_id, user):
             {'error': 'Ticket not found'},
             status=status.HTTP_404_NOT_FOUND
         )
+        
+def get_admin_ticket(ticket_id):
+    """For staff/admin — can access any ticket."""
+    try:
+        ticket = Ticket.objects.get(id=ticket_id)
+        return ticket, None
+    except Ticket.DoesNotExist:
+        return None, Response(
+            {'error': 'Ticket not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )

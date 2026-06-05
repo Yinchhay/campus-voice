@@ -106,7 +106,6 @@ class TicketSerializer(serializers.ModelSerializer):
             'priority_display',
             'status',
             'status_display',
-            'attachment',
             'resolved_at',
         ]
         read_only_fields = ['id', 'public_ticket_id', 'priority']
@@ -135,7 +134,6 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             'priority_display',
             'status',
             'status_display',
-            'attachment',
             'submitted_by_email',
             'resolution',
             'resolved_at',

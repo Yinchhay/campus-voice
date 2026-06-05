@@ -6,27 +6,27 @@ from rest_framework import status
 from rest_framework.permissions import IsAdminUser
 from django.db import transaction
 
-from api.utils import get_ticket
+from api.utils import get_admin_ticket
 from api.models import Ticket
 from api.serializers import AdminMessageSerializer
 
 logger = logging.getLogger(__name__)
 
 class AdminMessageView(APIView):
-    permission_class=[IsAdminUser]
+    permission_classes=[IsAdminUser]
 
     def get(self, request, ticket_id):
-        ticket, error = get_ticket(ticket_id, request.user)
+        ticket, error = get_admin_ticket(ticket_id)
         if error:
             return error
         
-        serializer = AdminMessageSerializer(ticket.message.all(), many=True)
+        serializer = AdminMessageSerializer(ticket.messages.all(), many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @transaction.atomic
     def post(self, request, ticket_id):
-        ticket, error = self.get_ticket(ticket_id)
+        ticket, error = get_admin_ticket(ticket_id)
         if error:
             return error
         
@@ -37,11 +37,11 @@ class AdminMessageView(APIView):
             )
         
         serializer = AdminMessageSerializer(data=request.data)
-        if serializer.is_valid:
+        if serializer.is_valid():
             message = serializer.save(
                 ticket=ticket,
                 sender=request.user,
-                is_staff_message=True
+                is_staff_message=True,
             )
             
             if ticket.status == Ticket.Status.SUBMITTED:

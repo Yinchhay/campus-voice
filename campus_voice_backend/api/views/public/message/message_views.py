@@ -21,12 +21,12 @@ class MessageView(APIView):
         if error:
             return error
         
-        serializer = PublicMessageSerializer(ticket.message.all(), many=True)
+        serializer = PublicMessageSerializer(ticket.messages.all(), many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @transaction.atomic
     def post(self, request, ticket_id):
-        ticket, error = self.get_ticket(ticket_id)
+        ticket, error = get_ticket(ticket_id, request.user)
         if error:
             return error
         
@@ -45,7 +45,7 @@ class MessageView(APIView):
             )    
 
             logger.info(
-                f"Staff reply on {ticket.public_ticket_id} "
+                f"Student Message on {ticket.public_ticket_id} "
                 f"by {request.user.email}"
             )
             return Response(
