@@ -1,27 +1,27 @@
+import requests
 import logging
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 
 from api.utils import get_ticket
 from api.models import Ticket
-from api.serializers import AdminMessageSerializer
+from api.serializers import PublicMessageSerializer
 
 logger = logging.getLogger(__name__)
 
-class AdminMessageView(APIView):
-    permission_class=[IsAdminUser]
-
+class MessageView(APIView):
+    permission_classes=[IsAuthenticated]
+    
     def get(self, request, ticket_id):
         ticket, error = get_ticket(ticket_id, request.user)
         if error:
             return error
         
-        serializer = AdminMessageSerializer(ticket.message.all(), many=True)
-        
+        serializer = PublicMessageSerializer(ticket.message.all(), many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @transaction.atomic
@@ -36,27 +36,21 @@ class AdminMessageView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        serializer = AdminMessageSerializer(data=request.data)
-        if serializer.is_valid:
+        serializer = PublicMessageSerializer(data=request.data)
+        if serializer.is_valid():
             message = serializer.save(
                 ticket=ticket,
                 sender=request.user,
-                is_staff_message=True
-            )
-            
-            if ticket.status == Ticket.Status.SUBMITTED:
-                ticket.status = Ticket.Status.IN_PROGRESS
-                ticket.save(update_fields=['status', 'updated_at'])
-                logger.info(f"Ticket {ticket.public_ticket_id} → IN_PROGRESS")
-                
+                is_staff_message=False,
+            )    
+
             logger.info(
                 f"Staff reply on {ticket.public_ticket_id} "
                 f"by {request.user.email}"
             )
             return Response(
-                AdminMessageSerializer(message).data,
+                PublicMessageSerializer(message).data,
                 status=status.HTTP_201_CREATED
             )
-            
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+    
