@@ -16,8 +16,8 @@ class AdminTicketListView(APIView):
     permission_classes=[IsAdminUser]
     
     def get(self, request):
-        categories = Ticket.objects.all()
-        serializer = TicketSerializer(categories, many=True)
+        tickets = Ticket.objects.all()
+        serializer = TicketSerializer(tickets, many=True)
     
         return Response(serializer.data, status=status.HTTP_200_OK)
     
