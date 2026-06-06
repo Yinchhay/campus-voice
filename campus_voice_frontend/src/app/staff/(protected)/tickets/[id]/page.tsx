@@ -22,7 +22,13 @@ import {
   Video,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { getStaffTicket, type StaffTicket, type StaffTicketMessage } from "@/lib/staff-api";
+import {
+  createStaffTicketMessage,
+  getStaffTicket,
+  updateStaffTicketStatus,
+  type StaffTicket,
+  type StaffTicketMessage,
+} from "@/lib/staff-api";
 import type {
   MeetingSlot,
   MeetingType,
@@ -139,7 +145,11 @@ export default function StaffTicketDetailPage({
   // Local state for status/priority overrides and messages
   const [currentStatus, setCurrentStatus] = useState<TicketStatus>("SUBMITTED");
   const [currentPriority, setCurrentPriority] = useState<TicketPriority>("LOW");
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<TicketStatus | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [localMessages, setLocalMessages] = useState<
     StaffTicketMessage[]
   >([]);
@@ -193,20 +203,55 @@ export default function StaffTicketDetailPage({
 
   const allMessages = [...serverMessages, ...localMessages];
 
-  function handleSend() {
+  async function handleSend() {
     const text = replyText.trim();
-    if (!text) return;
-    setLocalMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        content: text,
-        is_staff_message: true,
-        created_at: new Date().toISOString(),
-        attachment_name: null,
-      },
-    ]);
-    setReplyText("");
+    if (!text || isSendingMessage) return;
+
+    setIsSendingMessage(true);
+    setMessageError(null);
+
+    try {
+      const message = await createStaffTicketMessage(ticket.id, text);
+      setLocalMessages((prev) => [...prev, message]);
+      setReplyText("");
+
+      if (currentStatus === "SUBMITTED") {
+        setCurrentStatus("IN_PROGRESS");
+        setTicket((currentTicket) =>
+          currentTicket
+            ? {
+                ...currentTicket,
+                status: "IN_PROGRESS",
+              }
+            : currentTicket,
+        );
+      }
+    } catch (error) {
+      setMessageError(extractApiError(error, "Failed to send message."));
+    } finally {
+      setIsSendingMessage(false);
+    }
+  }
+
+  async function handleStatusChange(nextStatus: TicketStatus) {
+    if (nextStatus === currentStatus || updatingStatus) return;
+
+    const previousStatus = currentStatus;
+    setCurrentStatus(nextStatus);
+    setStatusUpdateError(null);
+    setUpdatingStatus(nextStatus);
+
+    try {
+      const updatedTicket = await updateStaffTicketStatus(ticket.id, nextStatus);
+      setTicket(updatedTicket);
+      setCurrentStatus(updatedTicket.status);
+      setCurrentPriority(updatedTicket.priority);
+    } catch (error) {
+      setCurrentStatus(previousStatus);
+      setStatusUpdateError(extractApiError(error, "Failed to update ticket status."));
+    } finally {
+      setUpdatingStatus(null);
+    }
   }
 
   function handleCreateMeeting() {
@@ -408,17 +453,34 @@ export default function StaffTicketDetailPage({
                     }}
                     rows={3}
                     placeholder="Type a response to the student… (Enter to send)"
+                    disabled={isSendingMessage || currentStatus === "RESOLVED"}
                     className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
                   />
                   <button
                     type="button"
                     onClick={handleSend}
-                    disabled={!replyText.trim()}
+                    disabled={!replyText.trim() || isSendingMessage || currentStatus === "RESOLVED"}
                     className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E3A8A] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Send message"
+                    title="Send message"
                   >
-                    <Send className="h-4 w-4" />
+                    {isSendingMessage ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
+                {messageError && (
+                  <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {messageError}
+                  </p>
+                )}
+                {currentStatus === "RESOLVED" && (
+                  <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                    This ticket is resolved. Reopen it before sending another message.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -433,7 +495,8 @@ export default function StaffTicketDetailPage({
                   <button
                     key={s}
                     type="button"
-                    onClick={() => setCurrentStatus(s)}
+                    onClick={() => handleStatusChange(s)}
+                    disabled={!!updatingStatus || currentStatus === s}
                     className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
                       currentStatus === s
                         ? s === "RESOLVED"
@@ -441,16 +504,21 @@ export default function StaffTicketDetailPage({
                           : s === "IN_PROGRESS"
                           ? "border-blue-200 bg-blue-50 text-blue-700"
                           : "border-slate-300 bg-slate-100 text-slate-700"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 disabled:cursor-wait disabled:opacity-60"
                     }`}
                   >
                     {s === "SUBMITTED" && <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />}
                     {s === "IN_PROGRESS" && <Clock className="mr-2 inline h-3.5 w-3.5" />}
                     {s === "RESOLVED" && <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />}
-                    {statusLabel[s]}
+                    {updatingStatus === s ? "Updating..." : statusLabel[s]}
                   </button>
                 ))}
               </div>
+              {statusUpdateError && (
+                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {statusUpdateError}
+                </p>
+              )}
             </div>
 
             {/* Priority control */}
