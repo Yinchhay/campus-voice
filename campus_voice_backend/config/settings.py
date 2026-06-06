@@ -173,7 +173,6 @@ CSRF_TRUSTED_ORIGINS = config(
 
 
 
-
 # Logging Configuration
 LOGGING = {
     'version': 1,

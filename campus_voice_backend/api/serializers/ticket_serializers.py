@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from api.models import Ticket, Category, Message
-from .message_serializer import PublicMessageSerializer, AdminMessageSerializer
+from api.models import Ticket, Category
+from .message_serializers import PublicMessageSerializer, AdminMessageSerializer
 
 
 class PublicTicketSerializer(serializers.ModelSerializer):
