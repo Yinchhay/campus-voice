@@ -145,14 +145,16 @@ export default function StaffTicketDetailPage({
   // Local state for status/priority overrides and messages
   const [currentStatus, setCurrentStatus] = useState<TicketStatus>("SUBMITTED");
   const [currentPriority, setCurrentPriority] = useState<TicketPriority>("LOW");
-  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
-  const [updatingStatus, setUpdatingStatus] = useState<TicketStatus | null>(null);
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(
+    null,
+  );
+  const [updatingStatus, setUpdatingStatus] = useState<TicketStatus | null>(
+    null,
+  );
   const [replyText, setReplyText] = useState("");
   const [messageError, setMessageError] = useState<string | null>(null);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [localMessages, setLocalMessages] = useState<
-    StaffTicketMessage[]
-  >([]);
+  const [localMessages, setLocalMessages] = useState<StaffTicketMessage[]>([]);
 
   // Meeting slot creation form state
   const [showMeetingForm, setShowMeetingForm] = useState(false);
@@ -179,7 +181,9 @@ export default function StaffTicketDetailPage({
         setCurrentPriority(data.priority);
       } catch (error) {
         if (isMounted) {
-          setPageError(extractApiError(error, "Failed to load ticket details."));
+          setPageError(
+            extractApiError(error, "Failed to load ticket details."),
+          );
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -196,7 +200,8 @@ export default function StaffTicketDetailPage({
   const serverMessages = useMemo(
     () =>
       [...(ticket?.messages ?? [])].sort(
-        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       ),
     [ticket?.messages],
   );
@@ -242,13 +247,18 @@ export default function StaffTicketDetailPage({
     setUpdatingStatus(nextStatus);
 
     try {
-      const updatedTicket = await updateStaffTicketStatus(ticket.id, nextStatus);
+      const updatedTicket = await updateStaffTicketStatus(
+        ticket.id,
+        nextStatus,
+      );
       setTicket(updatedTicket);
       setCurrentStatus(updatedTicket.status);
       setCurrentPriority(updatedTicket.priority);
     } catch (error) {
       setCurrentStatus(previousStatus);
-      setStatusUpdateError(extractApiError(error, "Failed to update ticket status."));
+      setStatusUpdateError(
+        extractApiError(error, "Failed to update ticket status."),
+      );
     } finally {
       setUpdatingStatus(null);
     }
@@ -270,7 +280,9 @@ export default function StaffTicketDetailPage({
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1E3A8A]" />
-          <p className="mt-4 text-sm text-slate-500">Loading ticket details...</p>
+          <p className="mt-4 text-sm text-slate-500">
+            Loading ticket details...
+          </p>
         </div>
       </RoleDashboardShell>
     );
@@ -286,7 +298,9 @@ export default function StaffTicketDetailPage({
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
           <TriangleAlert className="mx-auto h-10 w-10 text-amber-500" />
-          <h2 className="mt-4 text-lg font-semibold text-slate-900">Ticket details unavailable</h2>
+          <h2 className="mt-4 text-lg font-semibold text-slate-900">
+            Ticket details unavailable
+          </h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
             {pageError ?? "The selected ticket could not be found."}
           </p>
@@ -348,8 +362,12 @@ export default function StaffTicketDetailPage({
                 )}
               </div>
 
-              <h1 className="mt-4 text-lg font-semibold text-slate-900">{ticket.title}</h1>
-              <p className="mt-0.5 text-sm text-slate-500">{ticket.category_name}</p>
+              <h1 className="mt-4 text-lg font-semibold text-slate-900">
+                {ticket.title}
+              </h1>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {ticket.category_name}
+              </p>
 
               <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-400">
                 <span className="flex items-center gap-1">
@@ -374,23 +392,29 @@ export default function StaffTicketDetailPage({
                 <FileText className="h-4 w-4 text-slate-400" />
                 Report Description
               </h2>
-              <p className="leading-7 text-sm text-slate-700">{ticket.description}</p>
+              <p className="leading-7 text-sm text-slate-700">
+                {ticket.description}
+              </p>
             </div>
 
             {/* Chat thread */}
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
                 <MessageSquare className="h-5 w-5 text-blue-600" />
-                <h2 className="text-base font-semibold text-slate-900">Conversation</h2>
+                <h2 className="text-base font-semibold text-slate-900">
+                  Conversation
+                </h2>
                 <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                  {allMessages.length} message{allMessages.length !== 1 ? "s" : ""}
+                  {allMessages.length} message
+                  {allMessages.length !== 1 ? "s" : ""}
                 </span>
               </div>
 
               <div className="space-y-1 px-6 py-4">
                 {allMessages.length === 0 ? (
                   <div className="py-10 text-center text-sm text-slate-400">
-                    No messages yet. Use the box below to send the first response.
+                    No messages yet. Use the box below to send the first
+                    response.
                   </div>
                 ) : (
                   allMessages.map((msg) => {
@@ -402,7 +426,9 @@ export default function StaffTicketDetailPage({
                       >
                         <div
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                            isStaff ? "bg-[#1E3A8A] text-white" : "bg-slate-200 text-slate-700"
+                            isStaff
+                              ? "bg-[#1E3A8A] text-white"
+                              : "bg-slate-200 text-slate-700"
                           }`}
                         >
                           {isStaff ? "You" : "Stu"}
@@ -459,7 +485,11 @@ export default function StaffTicketDetailPage({
                   <button
                     type="button"
                     onClick={handleSend}
-                    disabled={!replyText.trim() || isSendingMessage || currentStatus === "RESOLVED"}
+                    disabled={
+                      !replyText.trim() ||
+                      isSendingMessage ||
+                      currentStatus === "RESOLVED"
+                    }
                     className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E3A8A] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Send message"
                     title="Send message"
@@ -478,7 +508,8 @@ export default function StaffTicketDetailPage({
                 )}
                 {currentStatus === "RESOLVED" && (
                   <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                    This ticket is resolved. Reopen it before sending another message.
+                    This ticket is resolved. Reopen it before sending another
+                    message.
                   </p>
                 )}
               </div>
@@ -489,7 +520,9 @@ export default function StaffTicketDetailPage({
           <div className="space-y-4">
             {/* Status control */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">Update Status</h2>
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">
+                Update Status
+              </h2>
               <div className="flex flex-col gap-2">
                 {statusFlow.map((s) => (
                   <button
@@ -502,14 +535,20 @@ export default function StaffTicketDetailPage({
                         ? s === "RESOLVED"
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : s === "IN_PROGRESS"
-                          ? "border-blue-200 bg-blue-50 text-blue-700"
-                          : "border-slate-300 bg-slate-100 text-slate-700"
+                            ? "border-blue-200 bg-blue-50 text-blue-700"
+                            : "border-slate-300 bg-slate-100 text-slate-700"
                         : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 disabled:cursor-wait disabled:opacity-60"
                     }`}
                   >
-                    {s === "SUBMITTED" && <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />}
-                    {s === "IN_PROGRESS" && <Clock className="mr-2 inline h-3.5 w-3.5" />}
-                    {s === "RESOLVED" && <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />}
+                    {s === "SUBMITTED" && (
+                      <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
+                    )}
+                    {s === "IN_PROGRESS" && (
+                      <Clock className="mr-2 inline h-3.5 w-3.5" />
+                    )}
+                    {s === "RESOLVED" && (
+                      <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
+                    )}
                     {updatingStatus === s ? "Updating..." : statusLabel[s]}
                   </button>
                 ))}
@@ -523,11 +562,15 @@ export default function StaffTicketDetailPage({
 
             {/* Priority control */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">Priority</h2>
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">
+                Priority
+              </h2>
               <select
                 id="priority-select"
                 value={currentPriority}
-                onChange={(e) => setCurrentPriority(e.target.value as TicketPriority)}
+                onChange={(e) =>
+                  setCurrentPriority(e.target.value as TicketPriority)
+                }
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#1E3A8A]"
               >
                 <option value="HIGH">High</option>
@@ -536,14 +579,18 @@ export default function StaffTicketDetailPage({
               </select>
               <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
                 Category:{" "}
-                <span className="font-medium text-slate-700">{ticket.category_name}</span>
+                <span className="font-medium text-slate-700">
+                  {ticket.category_name}
+                </span>
               </p>
             </div>
 
             {/* Meeting slot */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-900">Meeting Slot</h2>
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Meeting Slot
+                </h2>
                 {!meetingSlot && !meetingCreated && (
                   <button
                     type="button"
@@ -563,7 +610,9 @@ export default function StaffTicketDetailPage({
                     <>
                       <div className="flex items-center gap-2">
                         {meetingTypeIcon[meetingSlot.meeting_type]}
-                        <span>{meetingTypeLabel[meetingSlot.meeting_type]}</span>
+                        <span>
+                          {meetingTypeLabel[meetingSlot.meeting_type]}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
@@ -574,7 +623,9 @@ export default function StaffTicketDetailPage({
                         </span>
                       </div>
                       {meetingSlot.location_or_details && (
-                        <p className="text-slate-500">{meetingSlot.location_or_details}</p>
+                        <p className="text-slate-500">
+                          {meetingSlot.location_or_details}
+                        </p>
                       )}
                       {meetingSlot.meeting_link && (
                         <a
@@ -600,13 +651,18 @@ export default function StaffTicketDetailPage({
               {showMeetingForm && !meetingSlot && !meetingCreated && (
                 <div className="mt-3 space-y-3">
                   <div>
-                    <label htmlFor="meeting-type" className="mb-1 block text-xs font-medium text-slate-700">
+                    <label
+                      htmlFor="meeting-type"
+                      className="mb-1 block text-xs font-medium text-slate-700"
+                    >
                       Type
                     </label>
                     <select
                       id="meeting-type"
                       value={meetingType}
-                      onChange={(e) => setMeetingType(e.target.value as MeetingType)}
+                      onChange={(e) =>
+                        setMeetingType(e.target.value as MeetingType)
+                      }
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
                     >
                       <option value="VIRTUAL">Virtual</option>
@@ -616,7 +672,10 @@ export default function StaffTicketDetailPage({
                   </div>
 
                   <div>
-                    <label htmlFor="meeting-start" className="mb-1 block text-xs font-medium text-slate-700">
+                    <label
+                      htmlFor="meeting-start"
+                      className="mb-1 block text-xs font-medium text-slate-700"
+                    >
                       Start time
                     </label>
                     <input
@@ -629,7 +688,10 @@ export default function StaffTicketDetailPage({
                   </div>
 
                   <div>
-                    <label htmlFor="meeting-end" className="mb-1 block text-xs font-medium text-slate-700">
+                    <label
+                      htmlFor="meeting-end"
+                      className="mb-1 block text-xs font-medium text-slate-700"
+                    >
                       End time
                     </label>
                     <input
@@ -643,7 +705,10 @@ export default function StaffTicketDetailPage({
 
                   {(meetingType === "VIRTUAL" || meetingType === "HYBRID") && (
                     <div>
-                      <label htmlFor="meeting-link" className="mb-1 block text-xs font-medium text-slate-700">
+                      <label
+                        htmlFor="meeting-link"
+                        className="mb-1 block text-xs font-medium text-slate-700"
+                      >
                         Meeting link
                       </label>
                       <input
@@ -657,9 +722,13 @@ export default function StaffTicketDetailPage({
                     </div>
                   )}
 
-                  {(meetingType === "IN_PERSON" || meetingType === "HYBRID") && (
+                  {(meetingType === "IN_PERSON" ||
+                    meetingType === "HYBRID") && (
                     <div>
-                      <label htmlFor="meeting-location" className="mb-1 block text-xs font-medium text-slate-700">
+                      <label
+                        htmlFor="meeting-location"
+                        className="mb-1 block text-xs font-medium text-slate-700"
+                      >
                         Location / details
                       </label>
                       <input
@@ -685,7 +754,9 @@ export default function StaffTicketDetailPage({
               )}
 
               {!meetingSlot && !meetingCreated && !showMeetingForm && (
-                <p className="mt-2 text-xs text-slate-400">No meeting slot created yet.</p>
+                <p className="mt-2 text-xs text-slate-400">
+                  No meeting slot created yet.
+                </p>
               )}
             </div>
           </div>

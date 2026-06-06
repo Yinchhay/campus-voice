@@ -3,6 +3,7 @@ import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 export type StaffTicketMessage = {
   id: number;
+  sender?: string | null;
   content: string;
   attachment?: string | null;
   attachment_name?: string | null;
@@ -85,4 +86,23 @@ export async function listStaffTickets() {
 export async function getStaffTicket(ticketId: string) {
   const response = await api.get<BackendStaffTicket>(`/admin/tickets/${ticketId}`);
   return normalizeTicket(response.data);
+}
+
+export async function updateStaffTicketStatus(ticketId: string, status: TicketStatus) {
+  const response = await api.patch<BackendStaffTicket>(`/admin/tickets/${ticketId}`, {
+    status,
+  });
+  return normalizeTicket(response.data);
+}
+
+export async function listStaffTicketMessages(ticketId: string) {
+  const response = await api.get<StaffTicketMessage[]>(`/admin/tickets/${ticketId}/messages`);
+  return response.data;
+}
+
+export async function createStaffTicketMessage(ticketId: string, content: string) {
+  const response = await api.post<StaffTicketMessage>(`/admin/tickets/${ticketId}/messages`, {
+    content,
+  });
+  return response.data;
 }
