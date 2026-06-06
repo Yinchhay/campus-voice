@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { use, useMemo, useState } from "react";
+import axios from "axios";
+import { use, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CalendarClock,
@@ -21,13 +22,9 @@ import {
   Video,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import {
-  mockCategories,
-  mockMeetingSlots,
-  mockMessages,
-  mockTickets,
-} from "@/lib/mock-data";
+import { getStaffTicket, type StaffTicket, type StaffTicketMessage } from "@/lib/staff-api";
 import type {
+  MeetingSlot,
   MeetingType,
   TicketPriority,
   TicketStatus,
@@ -75,7 +72,30 @@ const meetingTypeLabel: Record<MeetingType, string> = {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function formatDate(iso: string) {
+function extractApiError(error: unknown, fallback: string) {
+  if (!axios.isAxiosError(error)) return fallback;
+  const data = error.response?.data;
+
+  if (typeof data === "string") return data;
+  if (data && typeof data === "object") {
+    const message =
+      "error" in data
+        ? data.error
+        : "detail" in data
+          ? data.detail
+          : "message" in data
+            ? data.message
+            : undefined;
+
+    if (typeof message === "string") return message;
+  }
+
+  return fallback;
+}
+
+function formatDate(iso?: string) {
+  if (!iso) return "Date unavailable";
+
   return new Date(iso).toLocaleDateString("en-US", {
     weekday: "short",
     day: "numeric",
@@ -83,14 +103,18 @@ function formatDate(iso: string) {
     year: "numeric",
   });
 }
-function formatTime(iso: string) {
+function formatTime(iso?: string) {
+  if (!iso) return "Time unavailable";
+
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
   });
 }
-function formatChatTime(iso: string) {
+function formatChatTime(iso?: string) {
+  if (!iso) return "";
+
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -108,39 +132,16 @@ export default function StaffTicketDetailPage({
 }) {
   const { id } = use(params);
 
-  const ticket = useMemo(() => mockTickets.find((t) => t.id === id), [id]);
-  const category = useMemo(
-    () => mockCategories.find((c) => c.id === ticket?.category_id),
-    [ticket],
-  );
-  const serverMessages = useMemo(
-    () =>
-      mockMessages
-        .filter((m) => m.ticket_id === id)
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
-    [id],
-  );
-  const meetingSlot = useMemo(
-    () => mockMeetingSlots.find((s) => s.ticket_id === id) ?? null,
-    [id],
-  );
+  const [ticket, setTicket] = useState<StaffTicket | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   // Local state for status/priority overrides and messages
-  const [currentStatus, setCurrentStatus] = useState<TicketStatus>(
-    ticket?.status ?? "SUBMITTED",
-  );
-  const [currentPriority, setCurrentPriority] = useState<TicketPriority>(
-    ticket?.priority ?? "LOW",
-  );
+  const [currentStatus, setCurrentStatus] = useState<TicketStatus>("SUBMITTED");
+  const [currentPriority, setCurrentPriority] = useState<TicketPriority>("LOW");
   const [replyText, setReplyText] = useState("");
   const [localMessages, setLocalMessages] = useState<
-    Array<{
-      id: number;
-      content: string;
-      is_staff_message: boolean;
-      created_at: string;
-      attachment_name: null;
-    }>
+    StaffTicketMessage[]
   >([]);
 
   // Meeting slot creation form state
@@ -151,6 +152,44 @@ export default function StaffTicketDetailPage({
   const [meetingStart, setMeetingStart] = useState("");
   const [meetingEnd, setMeetingEnd] = useState("");
   const [meetingCreated, setMeetingCreated] = useState(false);
+  const [meetingSlot] = useState<MeetingSlot | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTicket() {
+      setIsLoading(true);
+      setPageError(null);
+
+      try {
+        const data = await getStaffTicket(id);
+        if (!isMounted) return;
+        setTicket(data);
+        setCurrentStatus(data.status);
+        setCurrentPriority(data.priority);
+      } catch (error) {
+        if (isMounted) {
+          setPageError(extractApiError(error, "Failed to load ticket details."));
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadTicket();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const serverMessages = useMemo(
+    () =>
+      [...(ticket?.messages ?? [])].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      ),
+    [ticket?.messages],
+  );
 
   const allMessages = [...serverMessages, ...localMessages];
 
@@ -176,17 +215,36 @@ export default function StaffTicketDetailPage({
     setShowMeetingForm(false);
   }
 
-  if (!ticket) {
+  if (isLoading) {
     return (
       <RoleDashboardShell
         roleName="Staff"
-        title="Ticket Not Found"
+        title="Loading Ticket"
+        description=""
+        navItems={navItems}
+      >
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1E3A8A]" />
+          <p className="mt-4 text-sm text-slate-500">Loading ticket details...</p>
+        </div>
+      </RoleDashboardShell>
+    );
+  }
+
+  if (!ticket || pageError) {
+    return (
+      <RoleDashboardShell
+        roleName="Staff"
+        title="Ticket Unavailable"
         description=""
         navItems={navItems}
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
           <TriangleAlert className="mx-auto h-10 w-10 text-amber-500" />
-          <h2 className="mt-4 text-lg font-semibold text-slate-900">Ticket not found</h2>
+          <h2 className="mt-4 text-lg font-semibold text-slate-900">Ticket details unavailable</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+            {pageError ?? "The selected ticket could not be found."}
+          </p>
           <Link
             href="/staff/tickets"
             className="mt-4 inline-flex items-center gap-2 text-sm text-[#1E3A8A]"
@@ -237,7 +295,7 @@ export default function StaffTicketDetailPage({
                 >
                   {currentPriority}
                 </span>
-                {ticket.has_media && (
+                {ticket.attachment && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
                     <Paperclip className="h-3 w-3" />
                     Has attachment
@@ -246,14 +304,14 @@ export default function StaffTicketDetailPage({
               </div>
 
               <h1 className="mt-4 text-lg font-semibold text-slate-900">{ticket.title}</h1>
-              <p className="mt-0.5 text-sm text-slate-500">{category?.name ?? "Uncategorised"}</p>
+              <p className="mt-0.5 text-sm text-slate-500">{ticket.category_name}</p>
 
               <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-400">
                 <span className="flex items-center gap-1">
                   <FileText className="h-3.5 w-3.5" />
                   Submitted {formatDate(ticket.created_at)}
                 </span>
-                {ticket.submitted_by ? (
+                {ticket.submitted_by_email ? (
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
                     Authenticated student
                   </span>
@@ -408,12 +466,10 @@ export default function StaffTicketDetailPage({
                 <option value="MEDIUM">Medium</option>
                 <option value="LOW">Low</option>
               </select>
-              {category && (
-                <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                  Category default:{" "}
-                  <span className="font-medium text-slate-700">{category.priority_level}</span>
-                </p>
-              )}
+              <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                Category:{" "}
+                <span className="font-medium text-slate-700">{ticket.category_name}</span>
+              </p>
             </div>
 
             {/* Meeting slot */}
