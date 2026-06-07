@@ -15,7 +15,7 @@ import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import {
   getCurrentStaffAccount,
   type CurrentStaffAccount,
-} from "@/lib/admin-account";
+} from "@/lib/admin-api";
 import { adminNav } from "../dashboard/page";
 
 // ---------------------------------------------------------------------------
