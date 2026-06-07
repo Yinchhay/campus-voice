@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { use, useMemo, useState } from "react";
+import axios from "axios";
+import { use, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CalendarClock,
@@ -22,12 +23,14 @@ import {
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import {
-  mockCategories,
-  mockMeetingSlots,
-  mockMessages,
-  mockTickets,
-} from "@/lib/mock-data";
+  createStaffTicketMessage,
+  getStaffTicket,
+  updateStaffTicketStatus,
+  type StaffTicket,
+  type StaffTicketMessage,
+} from "@/lib/staff-api";
 import type {
+  MeetingSlot,
   MeetingType,
   TicketPriority,
   TicketStatus,
@@ -75,7 +78,30 @@ const meetingTypeLabel: Record<MeetingType, string> = {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function formatDate(iso: string) {
+function extractApiError(error: unknown, fallback: string) {
+  if (!axios.isAxiosError(error)) return fallback;
+  const data = error.response?.data;
+
+  if (typeof data === "string") return data;
+  if (data && typeof data === "object") {
+    const message =
+      "error" in data
+        ? data.error
+        : "detail" in data
+          ? data.detail
+          : "message" in data
+            ? data.message
+            : undefined;
+
+    if (typeof message === "string") return message;
+  }
+
+  return fallback;
+}
+
+function formatDate(iso?: string) {
+  if (!iso) return "Date unavailable";
+
   return new Date(iso).toLocaleDateString("en-US", {
     weekday: "short",
     day: "numeric",
@@ -83,14 +109,18 @@ function formatDate(iso: string) {
     year: "numeric",
   });
 }
-function formatTime(iso: string) {
+function formatTime(iso?: string) {
+  if (!iso) return "Time unavailable";
+
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
   });
 }
-function formatChatTime(iso: string) {
+function formatChatTime(iso?: string) {
+  if (!iso) return "";
+
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -108,40 +138,23 @@ export default function StaffTicketDetailPage({
 }) {
   const { id } = use(params);
 
-  const ticket = useMemo(() => mockTickets.find((t) => t.id === id), [id]);
-  const category = useMemo(
-    () => mockCategories.find((c) => c.id === ticket?.category_id),
-    [ticket],
-  );
-  const serverMessages = useMemo(
-    () =>
-      mockMessages
-        .filter((m) => m.ticket_id === id)
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
-    [id],
-  );
-  const meetingSlot = useMemo(
-    () => mockMeetingSlots.find((s) => s.ticket_id === id) ?? null,
-    [id],
-  );
+  const [ticket, setTicket] = useState<StaffTicket | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   // Local state for status/priority overrides and messages
-  const [currentStatus, setCurrentStatus] = useState<TicketStatus>(
-    ticket?.status ?? "SUBMITTED",
+  const [currentStatus, setCurrentStatus] = useState<TicketStatus>("SUBMITTED");
+  const [currentPriority, setCurrentPriority] = useState<TicketPriority>("LOW");
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(
+    null,
   );
-  const [currentPriority, setCurrentPriority] = useState<TicketPriority>(
-    ticket?.priority ?? "LOW",
+  const [updatingStatus, setUpdatingStatus] = useState<TicketStatus | null>(
+    null,
   );
   const [replyText, setReplyText] = useState("");
-  const [localMessages, setLocalMessages] = useState<
-    Array<{
-      id: number;
-      content: string;
-      is_staff_message: boolean;
-      created_at: string;
-      attachment_name: null;
-    }>
-  >([]);
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [localMessages, setLocalMessages] = useState<StaffTicketMessage[]>([]);
 
   // Meeting slot creation form state
   const [showMeetingForm, setShowMeetingForm] = useState(false);
@@ -151,23 +164,104 @@ export default function StaffTicketDetailPage({
   const [meetingStart, setMeetingStart] = useState("");
   const [meetingEnd, setMeetingEnd] = useState("");
   const [meetingCreated, setMeetingCreated] = useState(false);
+  const [meetingSlot] = useState<MeetingSlot | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTicket() {
+      setIsLoading(true);
+      setPageError(null);
+
+      try {
+        const data = await getStaffTicket(id);
+        if (!isMounted) return;
+        setTicket(data);
+        setCurrentStatus(data.status);
+        setCurrentPriority(data.priority);
+      } catch (error) {
+        if (isMounted) {
+          setPageError(
+            extractApiError(error, "Failed to load ticket details."),
+          );
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadTicket();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const serverMessages = useMemo(
+    () =>
+      [...(ticket?.messages ?? [])].sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      ),
+    [ticket?.messages],
+  );
 
   const allMessages = [...serverMessages, ...localMessages];
 
-  function handleSend() {
+  async function handleSend() {
     const text = replyText.trim();
-    if (!text) return;
-    setLocalMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        content: text,
-        is_staff_message: true,
-        created_at: new Date().toISOString(),
-        attachment_name: null,
-      },
-    ]);
-    setReplyText("");
+    if (!ticket || !text || isSendingMessage) return;
+
+    setIsSendingMessage(true);
+    setMessageError(null);
+
+    try {
+      const message = await createStaffTicketMessage(ticket.id, text);
+      setLocalMessages((prev) => [...prev, message]);
+      setReplyText("");
+
+      if (currentStatus === "SUBMITTED") {
+        setCurrentStatus("IN_PROGRESS");
+        setTicket((currentTicket) =>
+          currentTicket
+            ? {
+                ...currentTicket,
+                status: "IN_PROGRESS",
+              }
+            : currentTicket,
+        );
+      }
+    } catch (error) {
+      setMessageError(extractApiError(error, "Failed to send message."));
+    } finally {
+      setIsSendingMessage(false);
+    }
+  }
+
+  async function handleStatusChange(nextStatus: TicketStatus) {
+    if (!ticket || nextStatus === currentStatus || updatingStatus) return;
+
+    const previousStatus = currentStatus;
+    setCurrentStatus(nextStatus);
+    setStatusUpdateError(null);
+    setUpdatingStatus(nextStatus);
+
+    try {
+      const updatedTicket = await updateStaffTicketStatus(
+        ticket.id,
+        nextStatus,
+      );
+      setTicket(updatedTicket);
+      setCurrentStatus(updatedTicket.status);
+      setCurrentPriority(updatedTicket.priority);
+    } catch (error) {
+      setCurrentStatus(previousStatus);
+      setStatusUpdateError(
+        extractApiError(error, "Failed to update ticket status."),
+      );
+    } finally {
+      setUpdatingStatus(null);
+    }
   }
 
   function handleCreateMeeting() {
@@ -176,17 +270,40 @@ export default function StaffTicketDetailPage({
     setShowMeetingForm(false);
   }
 
-  if (!ticket) {
+  if (isLoading) {
     return (
       <RoleDashboardShell
         roleName="Staff"
-        title="Ticket Not Found"
+        title="Loading Ticket"
+        description=""
+        navItems={navItems}
+      >
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1E3A8A]" />
+          <p className="mt-4 text-sm text-slate-500">
+            Loading ticket details...
+          </p>
+        </div>
+      </RoleDashboardShell>
+    );
+  }
+
+  if (!ticket || pageError) {
+    return (
+      <RoleDashboardShell
+        roleName="Staff"
+        title="Ticket Unavailable"
         description=""
         navItems={navItems}
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
           <TriangleAlert className="mx-auto h-10 w-10 text-amber-500" />
-          <h2 className="mt-4 text-lg font-semibold text-slate-900">Ticket not found</h2>
+          <h2 className="mt-4 text-lg font-semibold text-slate-900">
+            Ticket details unavailable
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+            {pageError ?? "The selected ticket could not be found."}
+          </p>
           <Link
             href="/staff/tickets"
             className="mt-4 inline-flex items-center gap-2 text-sm text-[#1E3A8A]"
@@ -237,7 +354,7 @@ export default function StaffTicketDetailPage({
                 >
                   {currentPriority}
                 </span>
-                {ticket.has_media && (
+                {ticket.attachment && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
                     <Paperclip className="h-3 w-3" />
                     Has attachment
@@ -245,15 +362,19 @@ export default function StaffTicketDetailPage({
                 )}
               </div>
 
-              <h1 className="mt-4 text-lg font-semibold text-slate-900">{ticket.title}</h1>
-              <p className="mt-0.5 text-sm text-slate-500">{category?.name ?? "Uncategorised"}</p>
+              <h1 className="mt-4 text-lg font-semibold text-slate-900">
+                {ticket.title}
+              </h1>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {ticket.category_name}
+              </p>
 
               <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-400">
                 <span className="flex items-center gap-1">
                   <FileText className="h-3.5 w-3.5" />
                   Submitted {formatDate(ticket.created_at)}
                 </span>
-                {ticket.submitted_by ? (
+                {ticket.submitted_by_email ? (
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
                     Authenticated student
                   </span>
@@ -271,23 +392,29 @@ export default function StaffTicketDetailPage({
                 <FileText className="h-4 w-4 text-slate-400" />
                 Report Description
               </h2>
-              <p className="leading-7 text-sm text-slate-700">{ticket.description}</p>
+              <p className="leading-7 text-sm text-slate-700">
+                {ticket.description}
+              </p>
             </div>
 
             {/* Chat thread */}
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
                 <MessageSquare className="h-5 w-5 text-blue-600" />
-                <h2 className="text-base font-semibold text-slate-900">Conversation</h2>
+                <h2 className="text-base font-semibold text-slate-900">
+                  Conversation
+                </h2>
                 <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                  {allMessages.length} message{allMessages.length !== 1 ? "s" : ""}
+                  {allMessages.length} message
+                  {allMessages.length !== 1 ? "s" : ""}
                 </span>
               </div>
 
               <div className="space-y-1 px-6 py-4">
                 {allMessages.length === 0 ? (
                   <div className="py-10 text-center text-sm text-slate-400">
-                    No messages yet. Use the box below to send the first response.
+                    No messages yet. Use the box below to send the first
+                    response.
                   </div>
                 ) : (
                   allMessages.map((msg) => {
@@ -299,7 +426,9 @@ export default function StaffTicketDetailPage({
                       >
                         <div
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                            isStaff ? "bg-[#1E3A8A] text-white" : "bg-slate-200 text-slate-700"
+                            isStaff
+                              ? "bg-[#1E3A8A] text-white"
+                              : "bg-slate-200 text-slate-700"
                           }`}
                         >
                           {isStaff ? "You" : "Stu"}
@@ -350,17 +479,39 @@ export default function StaffTicketDetailPage({
                     }}
                     rows={3}
                     placeholder="Type a response to the student… (Enter to send)"
+                    disabled={isSendingMessage || currentStatus === "RESOLVED"}
                     className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
                   />
                   <button
                     type="button"
                     onClick={handleSend}
-                    disabled={!replyText.trim()}
+                    disabled={
+                      !replyText.trim() ||
+                      isSendingMessage ||
+                      currentStatus === "RESOLVED"
+                    }
                     className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E3A8A] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Send message"
+                    title="Send message"
                   >
-                    <Send className="h-4 w-4" />
+                    {isSendingMessage ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
+                {messageError && (
+                  <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {messageError}
+                  </p>
+                )}
+                {currentStatus === "RESOLVED" && (
+                  <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                    This ticket is resolved. Reopen it before sending another
+                    message.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -369,57 +520,77 @@ export default function StaffTicketDetailPage({
           <div className="space-y-4">
             {/* Status control */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">Update Status</h2>
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">
+                Update Status
+              </h2>
               <div className="flex flex-col gap-2">
                 {statusFlow.map((s) => (
                   <button
                     key={s}
                     type="button"
-                    onClick={() => setCurrentStatus(s)}
+                    onClick={() => handleStatusChange(s)}
+                    disabled={!!updatingStatus || currentStatus === s}
                     className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
                       currentStatus === s
                         ? s === "RESOLVED"
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : s === "IN_PROGRESS"
-                          ? "border-blue-200 bg-blue-50 text-blue-700"
-                          : "border-slate-300 bg-slate-100 text-slate-700"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                            ? "border-blue-200 bg-blue-50 text-blue-700"
+                            : "border-slate-300 bg-slate-100 text-slate-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 disabled:cursor-wait disabled:opacity-60"
                     }`}
                   >
-                    {s === "SUBMITTED" && <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />}
-                    {s === "IN_PROGRESS" && <Clock className="mr-2 inline h-3.5 w-3.5" />}
-                    {s === "RESOLVED" && <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />}
-                    {statusLabel[s]}
+                    {s === "SUBMITTED" && (
+                      <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
+                    )}
+                    {s === "IN_PROGRESS" && (
+                      <Clock className="mr-2 inline h-3.5 w-3.5" />
+                    )}
+                    {s === "RESOLVED" && (
+                      <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
+                    )}
+                    {updatingStatus === s ? "Updating..." : statusLabel[s]}
                   </button>
                 ))}
               </div>
+              {statusUpdateError && (
+                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {statusUpdateError}
+                </p>
+              )}
             </div>
 
             {/* Priority control */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">Priority</h2>
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">
+                Priority
+              </h2>
               <select
                 id="priority-select"
                 value={currentPriority}
-                onChange={(e) => setCurrentPriority(e.target.value as TicketPriority)}
+                onChange={(e) =>
+                  setCurrentPriority(e.target.value as TicketPriority)
+                }
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#1E3A8A]"
               >
                 <option value="HIGH">High</option>
                 <option value="MEDIUM">Medium</option>
                 <option value="LOW">Low</option>
               </select>
-              {category && (
-                <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                  Category default:{" "}
-                  <span className="font-medium text-slate-700">{category.priority_level}</span>
-                </p>
-              )}
+              <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                Category:{" "}
+                <span className="font-medium text-slate-700">
+                  {ticket.category_name}
+                </span>
+              </p>
             </div>
 
             {/* Meeting slot */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-900">Meeting Slot</h2>
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Meeting Slot
+                </h2>
                 {!meetingSlot && !meetingCreated && (
                   <button
                     type="button"
@@ -439,7 +610,9 @@ export default function StaffTicketDetailPage({
                     <>
                       <div className="flex items-center gap-2">
                         {meetingTypeIcon[meetingSlot.meeting_type]}
-                        <span>{meetingTypeLabel[meetingSlot.meeting_type]}</span>
+                        <span>
+                          {meetingTypeLabel[meetingSlot.meeting_type]}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
@@ -450,7 +623,9 @@ export default function StaffTicketDetailPage({
                         </span>
                       </div>
                       {meetingSlot.location_or_details && (
-                        <p className="text-slate-500">{meetingSlot.location_or_details}</p>
+                        <p className="text-slate-500">
+                          {meetingSlot.location_or_details}
+                        </p>
                       )}
                       {meetingSlot.meeting_link && (
                         <a
@@ -476,13 +651,18 @@ export default function StaffTicketDetailPage({
               {showMeetingForm && !meetingSlot && !meetingCreated && (
                 <div className="mt-3 space-y-3">
                   <div>
-                    <label htmlFor="meeting-type" className="mb-1 block text-xs font-medium text-slate-700">
+                    <label
+                      htmlFor="meeting-type"
+                      className="mb-1 block text-xs font-medium text-slate-700"
+                    >
                       Type
                     </label>
                     <select
                       id="meeting-type"
                       value={meetingType}
-                      onChange={(e) => setMeetingType(e.target.value as MeetingType)}
+                      onChange={(e) =>
+                        setMeetingType(e.target.value as MeetingType)
+                      }
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
                     >
                       <option value="VIRTUAL">Virtual</option>
@@ -492,7 +672,10 @@ export default function StaffTicketDetailPage({
                   </div>
 
                   <div>
-                    <label htmlFor="meeting-start" className="mb-1 block text-xs font-medium text-slate-700">
+                    <label
+                      htmlFor="meeting-start"
+                      className="mb-1 block text-xs font-medium text-slate-700"
+                    >
                       Start time
                     </label>
                     <input
@@ -505,7 +688,10 @@ export default function StaffTicketDetailPage({
                   </div>
 
                   <div>
-                    <label htmlFor="meeting-end" className="mb-1 block text-xs font-medium text-slate-700">
+                    <label
+                      htmlFor="meeting-end"
+                      className="mb-1 block text-xs font-medium text-slate-700"
+                    >
                       End time
                     </label>
                     <input
@@ -519,7 +705,10 @@ export default function StaffTicketDetailPage({
 
                   {(meetingType === "VIRTUAL" || meetingType === "HYBRID") && (
                     <div>
-                      <label htmlFor="meeting-link" className="mb-1 block text-xs font-medium text-slate-700">
+                      <label
+                        htmlFor="meeting-link"
+                        className="mb-1 block text-xs font-medium text-slate-700"
+                      >
                         Meeting link
                       </label>
                       <input
@@ -533,9 +722,13 @@ export default function StaffTicketDetailPage({
                     </div>
                   )}
 
-                  {(meetingType === "IN_PERSON" || meetingType === "HYBRID") && (
+                  {(meetingType === "IN_PERSON" ||
+                    meetingType === "HYBRID") && (
                     <div>
-                      <label htmlFor="meeting-location" className="mb-1 block text-xs font-medium text-slate-700">
+                      <label
+                        htmlFor="meeting-location"
+                        className="mb-1 block text-xs font-medium text-slate-700"
+                      >
                         Location / details
                       </label>
                       <input
@@ -561,7 +754,9 @@ export default function StaffTicketDetailPage({
               )}
 
               {!meetingSlot && !meetingCreated && !showMeetingForm && (
-                <p className="mt-2 text-xs text-slate-400">No meeting slot created yet.</p>
+                <p className="mt-2 text-xs text-slate-400">
+                  No meeting slot created yet.
+                </p>
               )}
             </div>
           </div>

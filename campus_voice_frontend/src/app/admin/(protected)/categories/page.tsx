@@ -21,7 +21,7 @@ import {
   listAdminCategories,
   updateAdminCategory,
   type CategoryPayload,
-} from "@/lib/admin-categories";
+} from "@/lib/admin-api";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { adminNav } from "../dashboard/page";
 import type { Category, CategoryIssueType, TicketPriority } from "@/lib/types";

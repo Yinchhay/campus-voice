@@ -1,30 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useState } from "react";
 import {
   ArrowLeft,
-  CalendarClock,
   CheckCircle2,
   Clock,
   FileText,
   MessageSquare,
   Paperclip,
   TriangleAlert,
-  Video,
-  MapPin,
-  Users,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import {
-  mockCategories,
-  mockMeetingSlots,
-  mockMessages,
-  mockTickets,
-  mockBookings,
-} from "@/lib/mock-data";
+import { getAdminTicket, type AdminTicket } from "@/lib/admin-api";
 import { adminNav } from "../../dashboard/page";
-import type { MeetingType, TicketPriority, TicketStatus } from "@/lib/types";
+import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Badges
@@ -44,33 +34,16 @@ const priorityBadgeClass: Record<TicketPriority, string> = {
   MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
   LOW: "bg-slate-100 text-slate-600 border-slate-200",
 };
-const meetingTypeIcon: Record<MeetingType, React.ReactNode> = {
-  VIRTUAL: <Video className="h-4 w-4" />,
-  IN_PERSON: <MapPin className="h-4 w-4" />,
-  HYBRID: <Users className="h-4 w-4" />,
-};
-const meetingTypeLabel: Record<MeetingType, string> = {
-  VIRTUAL: "Virtual",
-  IN_PERSON: "In-Person",
-  HYBRID: "Hybrid",
-};
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function formatDate(iso: string) {
+function formatDate(iso?: string | null) {
+  if (!iso) return "Unknown";
   return new Date(iso).toLocaleDateString("en-US", {
     weekday: "short",
     day: "numeric",
     month: "long",
     year: "numeric",
-  });
-}
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
   });
 }
 function formatChatTime(iso: string) {
@@ -90,44 +63,60 @@ export default function AdminTicketDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-
-  const ticket = useMemo(() => mockTickets.find((t) => t.id === id), [id]);
-  const category = useMemo(
-    () => mockCategories.find((c) => c.id === ticket?.category_id),
-    [ticket],
-  );
-  const messages = useMemo(
-    () =>
-      mockMessages
-        .filter((m) => m.ticket_id === id)
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
-    [id],
-  );
-  const meetingSlot = useMemo(
-    () => mockMeetingSlots.find((s) => s.ticket_id === id) ?? null,
-    [id],
-  );
-  const booking = useMemo(
-    () => mockBookings.find((b) => b.ticket_id === id) ?? null,
-    [id],
-  );
-
-  // Admin overrides (visual only)
-  const [statusOverride, setStatusOverride] = useState<TicketStatus>(
-    ticket?.status ?? "SUBMITTED",
-  );
-  const [priorityOverride, setPriorityOverride] = useState<TicketPriority>(
-    ticket?.priority ?? "LOW",
-  );
+  const [ticket, setTicket] = useState<AdminTicket | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
 
   const statusFlow: TicketStatus[] = ["SUBMITTED", "IN_PROGRESS", "RESOLVED"];
 
-  if (!ticket) {
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTicket() {
+      setIsLoading(true);
+      setPageError("");
+
+      try {
+        const data = await getAdminTicket(id);
+        if (isMounted) setTicket(data);
+      } catch {
+        if (isMounted) setPageError("Failed to load ticket details.");
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadTicket();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const messages = [...(ticket?.messages ?? [])].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+
+  if (isLoading) {
+    return (
+      <RoleDashboardShell roleName="Admin" title="Loading" description="" navItems={adminNav}>
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1E3A8A]" />
+          <p className="mt-4 text-sm text-slate-500">Loading ticket details...</p>
+        </div>
+      </RoleDashboardShell>
+    );
+  }
+
+  if (!ticket || pageError) {
     return (
       <RoleDashboardShell roleName="Admin" title="Not Found" description="" navItems={adminNav}>
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
           <TriangleAlert className="mx-auto h-10 w-10 text-amber-500" />
-          <h2 className="mt-4 text-lg font-semibold text-slate-900">Ticket not found</h2>
+          <h2 className="mt-4 text-lg font-semibold text-slate-900">Ticket unavailable</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+            {pageError || "Ticket not found."}
+          </p>
           <Link href="/admin/tickets" className="mt-4 inline-flex items-center gap-2 text-sm text-[#1E3A8A]">
             <ArrowLeft className="h-4 w-4" />
             Back to tickets
@@ -163,16 +152,16 @@ export default function AdminTicketDetailPage({
                   {ticket.public_ticket_id}
                 </span>
                 <span
-                  className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass[statusOverride]}`}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass[ticket.status]}`}
                 >
-                  {statusLabel[statusOverride]}
+                  {statusLabel[ticket.status]}
                 </span>
                 <span
-                  className={`rounded-full border px-2.5 py-1 text-xs font-medium ${priorityBadgeClass[priorityOverride]}`}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium ${priorityBadgeClass[ticket.priority]}`}
                 >
-                  {priorityOverride}
+                  {ticket.priority}
                 </span>
-                {ticket.has_media && (
+                {ticket.attachment && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
                     <Paperclip className="h-3 w-3" />
                     Has attachment
@@ -180,7 +169,7 @@ export default function AdminTicketDetailPage({
                 )}
               </div>
               <h1 className="mt-4 text-lg font-semibold text-slate-900">{ticket.title}</h1>
-              <p className="mt-0.5 text-sm text-slate-500">{category?.name ?? "Uncategorised"}</p>
+              <p className="mt-0.5 text-sm text-slate-500">{ticket.category_name}</p>
 
               <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-400">
                 <span className="flex items-center gap-1">
@@ -193,7 +182,7 @@ export default function AdminTicketDetailPage({
                     Resolved {formatDate(ticket.resolved_at)}
                   </span>
                 )}
-                {ticket.submitted_by ? (
+                {ticket.submitted_by_email ? (
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
                     Authenticated student
                   </span>
@@ -286,15 +275,13 @@ export default function AdminTicketDetailPage({
           <div className="space-y-4">
             {/* Status override */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">Status Override</h2>
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">Status</h2>
               <div className="flex flex-col gap-2">
                 {statusFlow.map((s) => (
-                  <button
+                  <div
                     key={s}
-                    type="button"
-                    onClick={() => setStatusOverride(s)}
                     className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
-                      statusOverride === s
+                      ticket.status === s
                         ? s === "RESOLVED"
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : s === "IN_PROGRESS"
@@ -307,75 +294,23 @@ export default function AdminTicketDetailPage({
                     {s === "IN_PROGRESS" && <Clock className="mr-2 inline h-3.5 w-3.5" />}
                     {s === "RESOLVED" && <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />}
                     {statusLabel[s]}
-                  </button>
+                  </div>
                 ))}
               </div>
+              <p className="mt-3 text-xs text-slate-400">
+                Admin ticket update API is not available in the current backend.
+              </p>
             </div>
 
             {/* Priority override */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">Priority Override</h2>
-              <select
-                id="admin-priority-select"
-                value={priorityOverride}
-                onChange={(e) => setPriorityOverride(e.target.value as TicketPriority)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#1E3A8A]"
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">Priority</h2>
+              <div
+                className={`rounded-xl border px-4 py-2.5 text-sm font-medium ${priorityBadgeClass[ticket.priority]}`}
               >
-                <option value="HIGH">High</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="LOW">Low</option>
-              </select>
-            </div>
-
-            {/* Meeting info */}
-            {meetingSlot && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <CalendarClock className="h-4 w-4 text-blue-600" />
-                  Meeting Slot
-                </h2>
-                <div className="space-y-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-700">
-                  <div className="flex items-center gap-2">
-                    {meetingTypeIcon[meetingSlot.meeting_type]}
-                    <span>{meetingTypeLabel[meetingSlot.meeting_type]}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
-                    <span>
-                      {formatDate(meetingSlot.start_time)}, {formatTime(meetingSlot.start_time)}{" "}
-                      &ndash; {formatTime(meetingSlot.end_time)}
-                    </span>
-                  </div>
-                  {meetingSlot.location_or_details && (
-                    <p className="text-slate-500">{meetingSlot.location_or_details}</p>
-                  )}
-                  {meetingSlot.meeting_link && (
-                    <a
-                      href={meetingSlot.meeting_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      Meeting link
-                    </a>
-                  )}
-                </div>
-
-                {booking ? (
-                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs text-emerald-700">
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <div>
-                      <p className="font-medium">Student booked</p>
-                      <p className="mt-0.5 text-emerald-600">
-                        {booking.is_confirmed ? "Confirmed" : "Pending confirmation"}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs text-slate-400">No booking yet — slot is available.</p>
-                )}
+                {ticket.priority}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

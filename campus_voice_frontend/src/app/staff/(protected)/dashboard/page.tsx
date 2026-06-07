@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import axios from "axios";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -14,7 +16,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { mockCategories, mockTickets } from "@/lib/mock-data";
+import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -53,7 +55,30 @@ const navItems = [
 // ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------
-function formatRelative(iso: string) {
+function extractApiError(error: unknown, fallback: string) {
+  if (!axios.isAxiosError(error)) return fallback;
+  const data = error.response?.data;
+
+  if (typeof data === "string") return data;
+  if (data && typeof data === "object") {
+    const message =
+      "error" in data
+        ? data.error
+        : "detail" in data
+          ? data.detail
+          : "message" in data
+            ? data.message
+            : undefined;
+
+    if (typeof message === "string") return message;
+  }
+
+  return fallback;
+}
+
+function formatRelative(iso?: string) {
+  if (!iso) return "Time unavailable";
+
   const diff = Date.now() - new Date(iso).getTime();
   const hours = Math.floor(diff / 3_600_000);
   if (hours < 1) return "Just now";
@@ -62,19 +87,50 @@ function formatRelative(iso: string) {
   return `${days}d ago`;
 }
 
-function categoryName(id: number) {
-  return mockCategories.find((c) => c.id === id)?.name ?? "Unknown";
+function ticketCreatedTime(ticket: StaffTicket) {
+  return ticket.created_at ? new Date(ticket.created_at).getTime() : 0;
 }
 
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function StaffDashboardPage() {
-  const total = mockTickets.length;
-  const open = mockTickets.filter((t) => t.status !== "RESOLVED").length;
-  const inProgress = mockTickets.filter((t) => t.status === "IN_PROGRESS").length;
-  const highPriority = mockTickets.filter((t) => t.priority === "HIGH" && t.status !== "RESOLVED").length;
-  const resolvedToday = mockTickets.filter((t) => {
+  const [tickets, setTickets] = useState<StaffTicket[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTickets() {
+      setIsLoading(true);
+      setPageError(null);
+
+      try {
+        const data = await listStaffTickets();
+        if (isMounted) setTickets(data);
+      } catch (error) {
+        if (isMounted) {
+          setPageError(extractApiError(error, "Failed to load staff tickets."));
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadTickets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const total = tickets.length;
+  const open = tickets.filter((t) => t.status !== "RESOLVED").length;
+  const inProgress = tickets.filter((t) => t.status === "IN_PROGRESS").length;
+  const highPriority = tickets.filter((t) => t.priority === "HIGH" && t.status !== "RESOLVED").length;
+  const submitted = tickets.filter((t) => t.status === "SUBMITTED").length;
+  const resolvedToday = tickets.filter((t) => {
     if (!t.resolved_at) return false;
     const d = new Date(t.resolved_at);
     const now = new Date();
@@ -83,10 +139,13 @@ export default function StaffDashboardPage() {
       d.getDate() === now.getDate();
   }).length;
 
-  // Recent 5 tickets ordered by created_at desc
-  const recentTickets = [...mockTickets]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 5);
+  const recentTickets = useMemo(
+    () =>
+      [...tickets]
+        .sort((a, b) => ticketCreatedTime(b) - ticketCreatedTime(a))
+        .slice(0, 5),
+    [tickets],
+  );
 
   const stats = [
     { label: "All Tickets", value: total, tone: "text-slate-900" },
@@ -114,7 +173,9 @@ export default function StaffDashboardPage() {
             {stats.map((s) => (
               <div key={s.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs text-slate-500">{s.label}</p>
-                <p className={`mt-1 text-2xl font-semibold ${s.tone}`}>{s.value}</p>
+                <p className={`mt-1 text-2xl font-semibold ${s.tone}`}>
+                  {isLoading ? "..." : s.value}
+                </p>
               </div>
             ))}
           </div>
@@ -136,8 +197,27 @@ export default function StaffDashboardPage() {
             </Link>
           </div>
 
+          {pageError && (
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <TriangleAlert className="h-4 w-4 shrink-0" />
+              {pageError}
+            </div>
+          )}
+
           <div className="space-y-2">
-            {recentTickets.map((ticket) => (
+            {isLoading && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                Loading recent tickets...
+              </div>
+            )}
+
+            {!isLoading && recentTickets.length === 0 && !pageError && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                No tickets are available yet.
+              </div>
+            )}
+
+            {!isLoading && recentTickets.map((ticket) => (
               <Link
                 key={ticket.id}
                 href={`/staff/tickets/${ticket.id}`}
@@ -156,7 +236,7 @@ export default function StaffDashboardPage() {
                     </span>
                   </div>
                   <p className="mt-1.5 truncate text-sm font-medium text-slate-900">{ticket.title}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">{categoryName(ticket.category_id)}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{ticket.category_name}</p>
                 </div>
 
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -201,7 +281,7 @@ export default function StaffDashboardPage() {
             <div>
               <p className="font-semibold text-slate-900">New Submissions</p>
               <p className="mt-0.5 text-sm text-slate-600">
-                {mockTickets.filter((t) => t.status === "SUBMITTED").length} tickets awaiting review
+                {submitted} ticket{submitted !== 1 ? "s" : ""} awaiting review
               </p>
             </div>
             <ArrowRight className="ml-auto h-4 w-4 text-slate-400" />
