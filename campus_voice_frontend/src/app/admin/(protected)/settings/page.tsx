@@ -2,22 +2,13 @@
 
 import { useEffect, useState } from "react";
 import {
-  Bell,
   Check,
   KeyRound,
-  LayoutDashboard,
   Lock,
   LogOut,
-  Mail,
-  Settings,
   Shield,
   ShieldCheck,
-  Tag,
-  TicketCheck,
-  ToggleLeft,
-  ToggleRight,
   User,
-  UsersRound,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
@@ -46,12 +37,16 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors ${checked ? "border-[#1E3A8A] bg-[#1E3A8A]" : "border-slate-300 bg-slate-200"
-        }`}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors ${
+        checked
+          ? "border-[#1E3A8A] bg-[#1E3A8A]"
+          : "border-slate-300 bg-slate-200"
+      }`}
     >
       <span
-        className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"
-          }`}
+        className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
       />
     </button>
   );
@@ -92,7 +87,13 @@ function Section({
 // ---------------------------------------------------------------------------
 // Field row
 // ---------------------------------------------------------------------------
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <label className="text-sm font-medium text-slate-700">{label}</label>
@@ -143,7 +144,10 @@ function formatAccountDate(iso: string | null) {
 
 function fullName(account: CurrentStaffAccount | null) {
   if (!account) return "";
-  return [account.first_name, account.last_name].filter(Boolean).join(" ") || account.email;
+  return (
+    [account.first_name, account.last_name].filter(Boolean).join(" ") ||
+    account.email
+  );
 }
 
 function roleLabel(role?: string) {
@@ -169,7 +173,9 @@ function ToggleRow({
     <div className="flex items-start justify-between gap-4">
       <div>
         <p className="text-sm font-medium text-slate-800">{label}</p>
-        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
+        {description && (
+          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+        )}
       </div>
       <Toggle id={id} checked={checked} onChange={onChange} />
     </div>
@@ -182,8 +188,9 @@ function ToggleRow({
 function SavedBadge({ visible }: { visible: boolean }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"
-        }`}
+      className={`inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-opacity duration-300 ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
     >
       <Check className="h-3.5 w-3.5" />
       Saved
@@ -475,7 +482,9 @@ export default function AdminSettingsPage() {
           </FieldRow>
 
           {pwError && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{pwError}</p>
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              {pwError}
+            </p>
           )}
 
           <div className="pt-2">
