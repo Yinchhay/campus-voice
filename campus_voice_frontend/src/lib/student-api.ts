@@ -32,10 +32,12 @@ export type StudentTicket = {
 
 export type StudentTicketMessage = {
   id: number;
+  sender?: string | null;
   content: string;
+  attachment?: string | null;
   is_staff_message: boolean;
   created_at: string;
-  attachment_name: string | null;
+  attachment_name?: string | null;
 };
 
 type BackendStudentTicket = Omit<StudentTicket, "category" | "category_id" | "category_name" | "has_media"> & {
@@ -120,4 +122,16 @@ export async function getMyTicket(ticketId: string) {
     if (!ticket) throw error;
     return ticket;
   }
+}
+
+export async function listStudentTicketMessages(ticketId: string) {
+  const response = await api.get<StudentTicketMessage[]>(`/v1/tickets/${ticketId}/messages`);
+  return response.data;
+}
+
+export async function createStudentTicketMessage(ticketId: string, content: string) {
+  const response = await api.post<StudentTicketMessage>(`/v1/tickets/${ticketId}/messages`, {
+    content,
+  });
+  return response.data;
 }

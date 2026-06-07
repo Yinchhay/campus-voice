@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { mockBookings, mockMeetingSlots } from "@/lib/mock-data";
 import {
+  createStudentTicketMessage,
   getMyTicket,
   type StudentTicket,
   type StudentTicketMessage,
@@ -249,6 +250,8 @@ export default function StudentReportDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [localMessages, setLocalMessages] = useState<StudentTicketMessage[]>(
     [],
   );
@@ -295,20 +298,22 @@ export default function StudentReportDetailPage({
 
   const allMessages = [...serverMessages, ...localMessages];
 
-  function handleSend() {
+  async function handleSend() {
     const text = replyText.trim();
-    if (!text) return;
-    setLocalMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        content: text,
-        is_staff_message: false,
-        created_at: new Date().toISOString(),
-        attachment_name: null,
-      },
-    ]);
-    setReplyText("");
+    if (!text || isSendingMessage) return;
+
+    setIsSendingMessage(true);
+    setMessageError(null);
+
+    try {
+      const message = await createStudentTicketMessage(ticket.id, text);
+      setLocalMessages((prev) => [...prev, message]);
+      setReplyText("");
+    } catch (error) {
+      setMessageError(extractApiError(error, "Failed to send message."));
+    } finally {
+      setIsSendingMessage(false);
+    }
   }
 
   if (isLoading) {
@@ -523,17 +528,29 @@ export default function StudentReportDetailPage({
                     }}
                     rows={3}
                     placeholder="Add a message or update… (Enter to send, Shift+Enter for new line)"
+                    disabled={isSendingMessage}
                     className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
                   />
                   <button
                     type="button"
                     onClick={handleSend}
-                    disabled={!replyText.trim()}
+                    disabled={!replyText.trim() || isSendingMessage}
                     className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E3A8A] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Send message"
+                    title="Send message"
                   >
-                    <Send className="h-4 w-4" />
+                    {isSendingMessage ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
+                {messageError && (
+                  <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {messageError}
+                  </p>
+                )}
                 <p className="mt-2 text-xs text-slate-400">
                   Messages are anonymous. Do not include personally identifying
                   information.
