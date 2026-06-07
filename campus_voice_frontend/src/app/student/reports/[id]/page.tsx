@@ -300,7 +300,7 @@ export default function StudentReportDetailPage({
 
   async function handleSend() {
     const text = replyText.trim();
-    if (!text || isSendingMessage) return;
+    if (!ticket || !text || isSendingMessage) return;
 
     setIsSendingMessage(true);
     setMessageError(null);

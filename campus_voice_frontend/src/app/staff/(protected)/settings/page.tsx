@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   Check,
@@ -15,6 +15,10 @@ import {
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import {
+  getCurrentStaffAccount,
+  type CurrentStaffAccount,
+} from "@/lib/admin-account";
 
 // ---------------------------------------------------------------------------
 // Nav
@@ -121,6 +125,29 @@ function TextInput({
   );
 }
 
+function formatAccountDate(iso: string | null) {
+  if (!iso) return "Never";
+
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function fullName(account: CurrentStaffAccount | null) {
+  if (!account) return "";
+  return [account.first_name, account.last_name].filter(Boolean).join(" ") || account.email;
+}
+
+function roleLabel(role?: string) {
+  if (role === "ADMIN") return "Administrator";
+  if (role === "STAFF") return "Staff";
+  return role ?? "Account";
+}
+
 function ToggleRow({
   id,
   label,
@@ -161,11 +188,9 @@ function SavedBadge({ visible }: { visible: boolean }) {
 // Page
 // ---------------------------------------------------------------------------
 export default function StaffSettingsPage() {
-  // Profile
-  const [displayName, setDisplayName] = useState("David OSS");
-  const [email] = useState("david.oss@paragoniu.edu.kh");
-  const [department, setDepartment] = useState("Office of Student Services");
-  const [profileSaved, setProfileSaved] = useState(false);
+  const [account, setAccount] = useState<CurrentStaffAccount | null>(null);
+  const [accountLoading, setAccountLoading] = useState(true);
+  const [accountError, setAccountError] = useState<string | null>(null);
 
   // Notifications
   const [notifyAssigned, setNotifyAssigned] = useState(true);
@@ -186,6 +211,30 @@ export default function StaffSettingsPage() {
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [pwError, setPwError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAccount() {
+      setAccountLoading(true);
+      setAccountError(null);
+
+      try {
+        const data = await getCurrentStaffAccount();
+        if (isMounted) setAccount(data);
+      } catch {
+        if (isMounted) setAccountError("Unable to load account details.");
+      } finally {
+        if (isMounted) setAccountLoading(false);
+      }
+    }
+
+    loadAccount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   function flash(setter: (v: boolean) => void) {
     setter(true);
@@ -223,50 +272,68 @@ export default function StaffSettingsPage() {
         {/* ── Profile ───────────────────────────────────────── */}
         <Section
           icon={<User className="h-5 w-5 text-slate-600" />}
-          title="Profile"
-          description="Your identity as shown to students and within the OSS system."
+          title="Account"
+          description="Current signed-in account details."
         >
+          {accountLoading && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              Loading account details...
+            </div>
+          )}
+          {accountError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {accountError}
+            </div>
+          )}
           <FieldRow label="Display name">
             <TextInput
               id="staff-display-name"
-              value={displayName}
-              onChange={setDisplayName}
+              value={fullName(account)}
+              disabled
               placeholder="Your name"
             />
           </FieldRow>
           <FieldRow label="Email address">
             <TextInput
               id="staff-email"
-              value={email}
+              value={account?.email ?? ""}
               disabled
               placeholder="email@paragoniu.edu.kh"
-            />
-          </FieldRow>
-          <FieldRow label="Department">
-            <TextInput
-              id="staff-department"
-              value={department}
-              onChange={setDepartment}
-              placeholder="e.g. Office of Student Services"
             />
           </FieldRow>
           <FieldRow label="Role">
             <div className="flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5">
               <ShieldCheck className="h-4 w-4 text-teal-600" />
-              <span className="text-sm font-medium text-teal-700">Staff</span>
+              <span className="text-sm font-medium text-teal-700">
+                {roleLabel(account?.role)}
+              </span>
             </div>
           </FieldRow>
-
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => flash(setProfileSaved)}
-              className="rounded-xl bg-[#1E3A8A] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900"
+          <FieldRow label="Status">
+            <div
+              className={`rounded-xl border px-3.5 py-2.5 text-sm font-medium ${
+                account?.is_active
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
             >
-              Save profile
-            </button>
-            <SavedBadge visible={profileSaved} />
-          </div>
+              {account?.is_active ? "Active" : "Inactive"}
+            </div>
+          </FieldRow>
+          <FieldRow label="Created">
+            <TextInput
+              id="staff-created-at"
+              value={formatAccountDate(account?.created_at ?? null)}
+              disabled
+            />
+          </FieldRow>
+          <FieldRow label="Last login">
+            <TextInput
+              id="staff-last-login"
+              value={formatAccountDate(account?.last_login ?? null)}
+              disabled
+            />
+          </FieldRow>
         </Section>
 
         {/* ── Security ──────────────────────────────────────── */}

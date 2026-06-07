@@ -210,7 +210,7 @@ export default function StaffTicketDetailPage({
 
   async function handleSend() {
     const text = replyText.trim();
-    if (!text || isSendingMessage) return;
+    if (!ticket || !text || isSendingMessage) return;
 
     setIsSendingMessage(true);
     setMessageError(null);
@@ -239,7 +239,7 @@ export default function StaffTicketDetailPage({
   }
 
   async function handleStatusChange(nextStatus: TicketStatus) {
-    if (nextStatus === currentStatus || updatingStatus) return;
+    if (!ticket || nextStatus === currentStatus || updatingStatus) return;
 
     const previousStatus = currentStatus;
     setCurrentStatus(nextStatus);
