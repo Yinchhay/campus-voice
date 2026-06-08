@@ -8,10 +8,6 @@ class Permission(models.Model):
         DELETE = 'delete', 'Delete'
         EXPORT = 'export', 'Export'
     
-    name = models.CharField(
-        max_length=50,
-        help_text="Name e.g., 'View Tickets', 'Approve Tickets'"
-    )
     resource = models.CharField(
         max_length=50,
         help_text="e.g., 'tickets', 'users', 'categories'"
@@ -21,7 +17,11 @@ class Permission(models.Model):
         choices=Action.choices,
         help_text="Action type (view, create, update, delete, export)" 
     )
-    description = models.TextField(blank=True)
+    description = models.TextField(
+        max_length=250,
+        blank=True,
+        help_text="Description of the permission"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -34,3 +34,15 @@ class Permission(models.Model):
 
     def __str__(self):
         return f"{self.resource}.{self.action}"
+    
+    @property
+    def codename(self):
+        return f"{self.resource}.{self.action}"
+    
+    @classmethod
+    def get_by_codename(cls, codename: str):
+        try:
+            resource, action = codename.split('.', 1)
+            return cls.objects.get(resource=resource, action=action)
+        except (ValueError, cls.DoesNotExist):
+            return None

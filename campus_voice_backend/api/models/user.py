@@ -11,8 +11,7 @@ class User(AbstractUser):
         ADMIN = 'ADMIN', 'Admin'
     
 
-    id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     google_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     google_picture_url = models.URLField(max_length=500, blank=True)
     email = models.EmailField(unique=True)
@@ -20,14 +19,6 @@ class User(AbstractUser):
         max_length=20,
         choices=Role.choices,
         default=Role.STUDENT
-    )
-    staff_role = models.ForeignKey(
-        'StaffRole',
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name='users',
-        help_text="Only used for Staff role"
     )
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -40,3 +31,19 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.email} ({self.role})"
+
+    def has_admin_permission(self, resource: str, action: str) -> bool:
+        from api.permissions import user_has_permission
+        return user_has_permission(self, resource, action)
+    
+    def get_admin_permissions(self) -> set:
+        from api.permissions import get_user_permissions
+        return get_user_permissions(self)
+    
+    def is_admin_superuser(self) -> bool:
+        from api.permissions import is_superadmin
+        return is_superadmin(self)
+    
+    def get_admin_roles(self):
+        from api.models import StaffRole
+        return StaffRole.objects.filter(user_assignments__user=self)

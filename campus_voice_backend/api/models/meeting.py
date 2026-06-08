@@ -9,33 +9,36 @@ class MeetingSlot(models.Model):
     """
     Meeting slot offered by OSS staff for high-priority ticket follow-ups.
     """
-    MEETING_TYPE_CHOICES = [
-        ('IN_PERSON', 'In-Person'),
-        ('VIRTUAL', 'Virtual'),
-        ('HYBRID', 'Hybrid'),
-    ]
+    class MeetingType(models.TextChoices):
+        IN_PERSON = 'IN_PERSON', 'In Person Meeting'
+        ONLINE = 'ONLINE', 'Online Meeting'
+    
 
+    class Campus(models.TextChoices):
+        MAIN = 'MAIN', 'Main Campus'
+        EAS = 'EAS', 'EAS Campus'
+        
+    
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='meeting_slots')
-    # staff_member = models.ForeignKey(User, on_delete=models.CASCADE, related_name='offered_meeting_slots')
+    staff_member = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='offered_meeting_slots')
     
     # Meeting details
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     meeting_type = models.CharField(
         max_length=20,
-        choices=MEETING_TYPE_CHOICES,
-        default='VIRTUAL'
+        choices=MeetingType.choices,
+        default=MeetingType.ONLINE
     )
-    
-    # Location for in-person or details for virtual
+    campus_location = models.CharField(
+        max_length=20,
+        choices=Campus.choices,
+        default=Campus.MAIN
+    )
+    room_number = models.CharField(max_length=10, null=True, blank=True)
     location_or_details = models.TextField(null=True, blank=True)
-    
-    # Availability tracking
     is_available = models.BooleanField(default=True)
-    
-    # Meeting link for virtual meetings
-    meeting_link = models.URLField(null=True, blank=True)
-    
+    meeting_link = models.URLField(null=True, blank=True) # Meeting link for virtual meetings
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -58,23 +61,19 @@ class StudentMeetingBooking(models.Model):
     """
     Records student's booking of a meeting slot while maintaining anonymity.
     """
-    
     meeting_slot = models.OneToOneField(
         MeetingSlot,
         on_delete=models.CASCADE,
         related_name='student_booking'
     )
-    ticket_id = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='meeting_bookings')
-    student_id = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='meeting_bookings')
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='meeting_bookings')
+    student = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='meeting_bookings')
     
     # Meeting details
     scheduled_time = models.DateTimeField()
-    
-    # Status
     is_confirmed = models.BooleanField(default=False)
     meeting_completed = models.BooleanField(default=False)
     completion_notes = models.TextField(null=True, blank=True)
-    
     # Timestamps
     booked_at = models.DateTimeField(auto_now_add=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
