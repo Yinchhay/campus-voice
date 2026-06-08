@@ -1,23 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BarChart3,
-  CheckCircle2,
-  Clock,
   FileText,
   LayoutDashboard,
   Settings,
   ShieldCheck,
   Tag,
   TicketCheck,
-  TriangleAlert,
   UsersRound,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { mockCategories, mockTickets, mockUsers } from "@/lib/mock-data";
-import type { TicketPriority, TicketStatus } from "@/lib/types";
+import {
+  listAdminCategories,
+  listAdminTickets,
+  type AdminTicket,
+} from "@/lib/admin-api";
+import type { Category, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Nav
@@ -43,44 +45,61 @@ const statusLabel: Record<TicketStatus, string> = {
   IN_PROGRESS: "In Progress",
   RESOLVED: "Resolved",
 };
-const priorityBadgeClass: Record<TicketPriority, string> = {
-  HIGH: "bg-red-50 text-red-700 border-red-200",
-  MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
-  LOW: "bg-slate-100 text-slate-600 border-slate-200",
-};
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-function formatRelative(iso: string) {
+function formatRelative(iso?: string) {
+  if (!iso) return "Unknown";
   const diff = Date.now() - new Date(iso).getTime();
   const hours = Math.floor(diff / 3_600_000);
   if (hours < 1) return "Just now";
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
 }
-function categoryName(id: number) {
-  return mockCategories.find((c) => c.id === id)?.name ?? "Unknown";
-}
 
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminDashboardPage() {
-  const total = mockTickets.length;
-  const open = mockTickets.filter((t) => t.status !== "RESOLVED").length;
-  const resolved = mockTickets.filter((t) => t.status === "RESOLVED").length;
-  const inProgress = mockTickets.filter((t) => t.status === "IN_PROGRESS").length;
-  const highPriority = mockTickets.filter((t) => t.priority === "HIGH" && t.status !== "RESOLVED").length;
-  const activeUsers = mockUsers.filter((u) => u.is_active).length;
-  const activeStaff = mockUsers.filter((u) => u.role === "STAFF" && u.is_active).length;
+  const [tickets, setTickets] = useState<AdminTicket[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDashboard() {
+      setIsLoading(true);
+      setPageError("");
+
+      try {
+        const [ticketRows, categoryRows] = await Promise.all([
+          listAdminTickets(),
+          listAdminCategories(),
+        ]);
+        if (!isMounted) return;
+        setTickets(ticketRows);
+        setCategories(categoryRows);
+      } catch {
+        if (isMounted) setPageError("Failed to load dashboard data.");
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const total = tickets.length;
+  const open = tickets.filter((t) => t.status !== "RESOLVED").length;
+  const resolved = tickets.filter((t) => t.status === "RESOLVED").length;
+  const inProgress = tickets.filter((t) => t.status === "IN_PROGRESS").length;
+  const highPriority = tickets.filter((t) => t.priority === "HIGH" && t.status !== "RESOLVED").length;
 
   const stats = [
     { label: "Total Tickets", value: total, tone: "text-slate-900" },
@@ -88,24 +107,31 @@ export default function AdminDashboardPage() {
     { label: "In Progress", value: inProgress, tone: "text-amber-700" },
     { label: "Resolved", value: resolved, tone: "text-emerald-700" },
     { label: "High Priority", value: highPriority, tone: "text-red-700" },
-    { label: "Active Users", value: activeUsers, tone: "text-slate-900" },
-    { label: "Active Staff", value: activeStaff, tone: "text-teal-700" },
   ];
 
-  // Recent 5 tickets
-  const recentTickets = [...mockTickets]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 5);
+  const recentTickets = useMemo(
+    () =>
+      [...tickets]
+        .sort(
+          (a, b) =>
+            new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime(),
+        )
+        .slice(0, 5),
+    [tickets],
+  );
 
-  // Category ticket count
-  const categoryBreakdown = mockCategories
-    .filter((c) => c.is_active)
-    .map((c) => ({
-      ...c,
-      count: mockTickets.filter((t) => t.category_id === c.id).length,
-      open: mockTickets.filter((t) => t.category_id === c.id && t.status !== "RESOLVED").length,
-    }))
-    .sort((a, b) => b.count - a.count);
+  const categoryBreakdown = useMemo(
+    () =>
+      categories
+        .filter((c) => c.is_active)
+        .map((c) => ({
+          ...c,
+          count: tickets.filter((t) => t.category_id === c.id).length,
+          open: tickets.filter((t) => t.category_id === c.id && t.status !== "RESOLVED").length,
+        }))
+        .sort((a, b) => b.count - a.count),
+    [categories, tickets],
+  );
 
   const categoryPriorityBadge: Record<string, string> = {
     HIGH: "bg-red-50 text-red-700 border-red-200",
@@ -121,6 +147,12 @@ export default function AdminDashboardPage() {
       navItems={adminNav}
     >
       <div className="space-y-6">
+        {pageError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {pageError}
+          </div>
+        )}
+
         {/* ── Stats grid ───────────────────────────────────── */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-5 flex items-center gap-2">
@@ -131,7 +163,9 @@ export default function AdminDashboardPage() {
             {stats.map((s) => (
               <div key={s.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs text-slate-500">{s.label}</p>
-                <p className={`mt-1 text-2xl font-semibold ${s.tone}`}>{s.value}</p>
+                <p className={`mt-1 text-2xl font-semibold ${s.tone}`}>
+                  {isLoading ? "..." : s.value}
+                </p>
               </div>
             ))}
           </div>
@@ -154,6 +188,11 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="space-y-2">
+              {recentTickets.length === 0 && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                  {isLoading ? "Loading tickets..." : "No tickets found."}
+                </div>
+              )}
               {recentTickets.map((ticket) => (
                 <Link
                   key={ticket.id}
@@ -189,6 +228,11 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="space-y-2">
+              {categoryBreakdown.length === 0 && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                  {isLoading ? "Loading categories..." : "No active categories found."}
+                </div>
+              )}
               {categoryBreakdown.map((cat) => (
                 <div
                   key={cat.id}
@@ -242,14 +286,14 @@ export default function AdminDashboardPage() {
               icon: <UsersRound className="h-5 w-5 text-teal-600" />,
               bg: "bg-teal-50 border-teal-100",
               label: "Manage Users",
-              sub: `${activeUsers} active accounts`,
+              sub: "Backend users API pending",
             },
             {
               href: "/admin/categories",
               icon: <Tag className="h-5 w-5 text-violet-600" />,
               bg: "bg-violet-50 border-violet-100",
               label: "Manage Categories",
-              sub: `${mockCategories.filter((c) => c.is_active).length} active categories`,
+              sub: `${categories.filter((c) => c.is_active).length} active categories`,
             },
           ].map((item) => (
             <Link

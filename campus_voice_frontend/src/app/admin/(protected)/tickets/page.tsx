@@ -1,24 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Filter,
-  LayoutDashboard,
   Search,
-  Settings,
-  Tag,
-  TicketCheck,
   TriangleAlert,
   Clock,
   CheckCircle2,
-  UsersRound,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { mockCategories, mockTickets } from "@/lib/mock-data";
+import {
+  listAdminCategories,
+  listAdminTickets,
+  type AdminTicket,
+} from "@/lib/admin-api";
 import { adminNav } from "../dashboard/page";
-import type { TicketPriority, TicketStatus } from "@/lib/types";
+import type { Category, TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -47,7 +46,8 @@ const priorityIcon: Record<TicketPriority, React.ReactNode> = {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function formatDate(iso: string) {
+function formatDate(iso?: string) {
+  if (!iso) return "Unknown";
   return new Date(iso).toLocaleDateString("en-US", {
     day: "numeric",
     month: "short",
@@ -59,13 +59,46 @@ function formatDate(iso: string) {
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminTicketsPage() {
+  const [tickets, setTickets] = useState<AdminTicket[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "ALL">("ALL");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "ALL">("ALL");
   const [categoryFilter, setCategoryFilter] = useState<number | "ALL">("ALL");
   const [search, setSearch] = useState("");
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTickets() {
+      setIsLoading(true);
+      setPageError("");
+
+      try {
+        const [ticketRows, categoryRows] = await Promise.all([
+          listAdminTickets(),
+          listAdminCategories(),
+        ]);
+        if (!isMounted) return;
+        setTickets(ticketRows);
+        setCategories(categoryRows);
+      } catch {
+        if (isMounted) setPageError("Failed to load tickets.");
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadTickets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
-    return mockTickets
+    return tickets
       .filter((t) => {
         if (statusFilter !== "ALL" && t.status !== statusFilter) return false;
         if (priorityFilter !== "ALL" && t.priority !== priorityFilter) return false;
@@ -80,29 +113,32 @@ export default function AdminTicketsPage() {
         }
         return true;
       })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [statusFilter, priorityFilter, categoryFilter, search]);
+      .sort(
+        (a, b) =>
+          new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime(),
+      );
+  }, [tickets, statusFilter, priorityFilter, categoryFilter, search]);
 
   function categoryName(id: number) {
-    return mockCategories.find((c) => c.id === id)?.name ?? "Unknown";
+    return categories.find((c) => c.id === id)?.name ?? "Unknown";
   }
 
   const statusTabs: Array<{ key: TicketStatus | "ALL"; label: string; count: number }> = [
-    { key: "ALL", label: "All", count: mockTickets.length },
+    { key: "ALL", label: "All", count: tickets.length },
     {
       key: "SUBMITTED",
       label: "Submitted",
-      count: mockTickets.filter((t) => t.status === "SUBMITTED").length,
+      count: tickets.filter((t) => t.status === "SUBMITTED").length,
     },
     {
       key: "IN_PROGRESS",
       label: "In Progress",
-      count: mockTickets.filter((t) => t.status === "IN_PROGRESS").length,
+      count: tickets.filter((t) => t.status === "IN_PROGRESS").length,
     },
     {
       key: "RESOLVED",
       label: "Resolved",
-      count: mockTickets.filter((t) => t.status === "RESOLVED").length,
+      count: tickets.filter((t) => t.status === "RESOLVED").length,
     },
   ];
 
@@ -114,6 +150,12 @@ export default function AdminTicketsPage() {
       navItems={adminNav}
     >
       <div className="space-y-5">
+        {pageError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {pageError}
+          </div>
+        )}
+
         {/* ── Filters ─────────────────────────────────────── */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           {/* Search */}
@@ -180,7 +222,7 @@ export default function AdminTicketsPage() {
                 className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
               >
                 <option value="ALL">All Categories</option>
-                {mockCategories.map((c) => (
+                {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -210,7 +252,9 @@ export default function AdminTicketsPage() {
 
           {filtered.length === 0 ? (
             <div className="px-5 py-12 text-center">
-              <p className="text-sm text-slate-500">No tickets match the current filters.</p>
+              <p className="text-sm text-slate-500">
+                {isLoading ? "Loading tickets..." : "No tickets match the current filters."}
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -225,7 +269,7 @@ export default function AdminTicketsPage() {
                       <span className="rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
                         {ticket.public_ticket_id}
                       </span>
-                      {ticket.submitted_by === null && (
+                      {!ticket.submitted_by_email && (
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">
                           Anon
                         </span>

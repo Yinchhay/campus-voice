@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import axios from "axios";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -14,7 +15,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { mockCategories, mockTickets } from "@/lib/mock-data";
+import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -60,7 +61,30 @@ const navItems = [
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function formatDate(iso: string) {
+function extractApiError(error: unknown, fallback: string) {
+  if (!axios.isAxiosError(error)) return fallback;
+  const data = error.response?.data;
+
+  if (typeof data === "string") return data;
+  if (data && typeof data === "object") {
+    const message =
+      "error" in data
+        ? data.error
+        : "detail" in data
+          ? data.detail
+          : "message" in data
+            ? data.message
+            : undefined;
+
+    if (typeof message === "string") return message;
+  }
+
+  return fallback;
+}
+
+function formatDate(iso?: string) {
+  if (!iso) return "Date unavailable";
+
   return new Date(iso).toLocaleDateString("en-US", {
     day: "numeric",
     month: "short",
@@ -72,13 +96,40 @@ function formatDate(iso: string) {
 // Page
 // ---------------------------------------------------------------------------
 export default function StaffTicketsPage() {
+  const [tickets, setTickets] = useState<StaffTicket[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "ALL">("ALL");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "ALL">("ALL");
   const [categoryFilter, setCategoryFilter] = useState<number | "ALL">("ALL");
   const [search, setSearch] = useState("");
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTickets() {
+      setIsLoading(true);
+      setPageError(null);
+
+      try {
+        const data = await listStaffTickets();
+        if (isMounted) setTickets(data);
+      } catch (error) {
+        if (isMounted) setPageError(extractApiError(error, "Failed to load tickets."));
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadTickets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
-    return mockTickets
+    return tickets
       .filter((t) => {
         if (statusFilter !== "ALL" && t.status !== statusFilter) return false;
         if (priorityFilter !== "ALL" && t.priority !== priorityFilter) return false;
@@ -93,12 +144,25 @@ export default function StaffTicketsPage() {
         }
         return true;
       })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [statusFilter, priorityFilter, categoryFilter, search]);
+      .sort((a, b) => {
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bTime - aTime;
+      });
+  }, [tickets, statusFilter, priorityFilter, categoryFilter, search]);
 
-  function categoryName(id: number) {
-    return mockCategories.find((c) => c.id === id)?.name ?? "Unknown";
-  }
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          tickets.map((ticket) => [
+            ticket.category_id,
+            { id: ticket.category_id, name: ticket.category_name },
+          ]),
+        ).values(),
+      ).sort((a, b) => a.name.localeCompare(b.name)),
+    [tickets],
+  );
 
   return (
     <RoleDashboardShell
@@ -170,7 +234,7 @@ export default function StaffTicketsPage() {
                 className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
               >
                 <option value="ALL">All Categories</option>
-                {mockCategories.map((c) => (
+                {categoryOptions.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -182,13 +246,30 @@ export default function StaffTicketsPage() {
 
         {/* ── Result count ─────────────────────────────────── */}
         <p className="text-sm text-slate-500">
-          Showing <span className="font-medium text-slate-800">{filtered.length}</span> ticket
-          {filtered.length !== 1 ? "s" : ""}
+          {isLoading ? (
+            "Loading tickets..."
+          ) : (
+            <>
+              Showing <span className="font-medium text-slate-800">{filtered.length}</span> ticket
+              {filtered.length !== 1 ? "s" : ""}
+            </>
+          )}
         </p>
 
         {/* ── Ticket rows ──────────────────────────────────── */}
         <div className="space-y-2">
-          {filtered.length === 0 ? (
+          {pageError && (
+            <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <TriangleAlert className="h-4 w-4 shrink-0" />
+              {pageError}
+            </div>
+          )}
+
+          {isLoading ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+              Loading ticket queue...
+            </div>
+          ) : filtered.length === 0 && !pageError ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
               <h3 className="text-base font-semibold text-slate-900">No tickets match</h3>
               <p className="mt-2 text-sm text-slate-500">
@@ -220,7 +301,7 @@ export default function StaffTicketsPage() {
                     </span>
                   </div>
                   <p className="mt-2 truncate text-sm font-medium text-slate-900">{ticket.title}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">{categoryName(ticket.category_id)}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{ticket.category_name}</p>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-3 text-xs text-slate-400">

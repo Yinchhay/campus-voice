@@ -1,26 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Bell,
   Check,
   KeyRound,
-  LayoutDashboard,
   Lock,
   LogOut,
-  Mail,
-  Settings,
   Shield,
   ShieldCheck,
-  Tag,
-  TicketCheck,
-  ToggleLeft,
-  ToggleRight,
   User,
-  UsersRound,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import {
+  getCurrentStaffAccount,
+  type CurrentStaffAccount,
+} from "@/lib/admin-api";
 import { adminNav } from "../dashboard/page";
 
 // ---------------------------------------------------------------------------
@@ -42,12 +37,16 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors ${checked ? "border-[#1E3A8A] bg-[#1E3A8A]" : "border-slate-300 bg-slate-200"
-        }`}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors ${
+        checked
+          ? "border-[#1E3A8A] bg-[#1E3A8A]"
+          : "border-slate-300 bg-slate-200"
+      }`}
     >
       <span
-        className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"
-          }`}
+        className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
       />
     </button>
   );
@@ -88,7 +87,13 @@ function Section({
 // ---------------------------------------------------------------------------
 // Field row
 // ---------------------------------------------------------------------------
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <label className="text-sm font-medium text-slate-700">{label}</label>
@@ -125,6 +130,32 @@ function TextInput({
   );
 }
 
+function formatAccountDate(iso: string | null) {
+  if (!iso) return "Never";
+
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function fullName(account: CurrentStaffAccount | null) {
+  if (!account) return "";
+  return (
+    [account.first_name, account.last_name].filter(Boolean).join(" ") ||
+    account.email
+  );
+}
+
+function roleLabel(role?: string) {
+  if (role === "ADMIN") return "Administrator";
+  if (role === "STAFF") return "Staff";
+  return role ?? "Account";
+}
+
 function ToggleRow({
   id,
   label,
@@ -142,7 +173,9 @@ function ToggleRow({
     <div className="flex items-start justify-between gap-4">
       <div>
         <p className="text-sm font-medium text-slate-800">{label}</p>
-        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
+        {description && (
+          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+        )}
       </div>
       <Toggle id={id} checked={checked} onChange={onChange} />
     </div>
@@ -155,8 +188,9 @@ function ToggleRow({
 function SavedBadge({ visible }: { visible: boolean }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"
-        }`}
+      className={`inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-opacity duration-300 ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
     >
       <Check className="h-3.5 w-3.5" />
       Saved
@@ -168,9 +202,9 @@ function SavedBadge({ visible }: { visible: boolean }) {
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminSettingsPage() {
-  // Profile
-  const [displayName, setDisplayName] = useState("Frank Admin");
-  const [email] = useState("frank.admin@paragoniu.edu.kh");
+  const [account, setAccount] = useState<CurrentStaffAccount | null>(null);
+  const [accountLoading, setAccountLoading] = useState(true);
+  const [accountError, setAccountError] = useState<string | null>(null);
 
   // Notifications
   const [notifyNewTicket, setNotifyNewTicket] = useState(true);
@@ -191,16 +225,35 @@ export default function AdminSettingsPage() {
   const [pwError, setPwError] = useState("");
 
   // Saved state
-  const [profileSaved, setProfileSaved] = useState(false);
   const [platformSaved, setPlatformSaved] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAccount() {
+      setAccountLoading(true);
+      setAccountError(null);
+
+      try {
+        const data = await getCurrentStaffAccount();
+        if (isMounted) setAccount(data);
+      } catch {
+        if (isMounted) setAccountError("Unable to load account details.");
+      } finally {
+        if (isMounted) setAccountLoading(false);
+      }
+    }
+
+    loadAccount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   function flash(setter: (v: boolean) => void) {
     setter(true);
     setTimeout(() => setter(false), 2500);
-  }
-
-  function handleSaveProfile() {
-    flash(setProfileSaved);
   }
 
   function handleSavePlatform() {
@@ -239,21 +292,31 @@ export default function AdminSettingsPage() {
         {/* ── Profile ───────────────────────────────────────── */}
         <Section
           icon={<User className="h-5 w-5 text-slate-600" />}
-          title="Profile"
-          description="Your account identity shown in the admin console."
+          title="Account"
+          description="Current signed-in account details."
         >
+          {accountLoading && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              Loading account details...
+            </div>
+          )}
+          {accountError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {accountError}
+            </div>
+          )}
           <FieldRow label="Display name">
             <TextInput
               id="admin-display-name"
-              value={displayName}
-              onChange={setDisplayName}
+              value={fullName(account)}
+              disabled
               placeholder="Your name"
             />
           </FieldRow>
           <FieldRow label="Email address">
             <TextInput
               id="admin-email"
-              value={email}
+              value={account?.email ?? ""}
               disabled
               placeholder="email@paragoniu.edu.kh"
             />
@@ -261,20 +324,36 @@ export default function AdminSettingsPage() {
           <FieldRow label="Role">
             <div className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3.5 py-2.5">
               <ShieldCheck className="h-4 w-4 text-violet-600" />
-              <span className="text-sm font-medium text-violet-700">Administrator</span>
+              <span className="text-sm font-medium text-violet-700">
+                {roleLabel(account?.role)}
+              </span>
             </div>
           </FieldRow>
-
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={handleSaveProfile}
-              className="rounded-xl bg-[#1E3A8A] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900"
+          <FieldRow label="Status">
+            <div
+              className={`rounded-xl border px-3.5 py-2.5 text-sm font-medium ${
+                account?.is_active
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
             >
-              Save profile
-            </button>
-            <SavedBadge visible={profileSaved} />
-          </div>
+              {account?.is_active ? "Active" : "Inactive"}
+            </div>
+          </FieldRow>
+          <FieldRow label="Created">
+            <TextInput
+              id="admin-created-at"
+              value={formatAccountDate(account?.created_at ?? null)}
+              disabled
+            />
+          </FieldRow>
+          <FieldRow label="Last login">
+            <TextInput
+              id="admin-last-login"
+              value={formatAccountDate(account?.last_login ?? null)}
+              disabled
+            />
+          </FieldRow>
         </Section>
 
         {/* ── Notification preferences ──────────────────────── */}
@@ -403,7 +482,9 @@ export default function AdminSettingsPage() {
           </FieldRow>
 
           {pwError && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{pwError}</p>
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              {pwError}
+            </p>
           )}
 
           <div className="pt-2">
