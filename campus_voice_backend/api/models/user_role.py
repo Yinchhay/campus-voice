@@ -8,7 +8,7 @@ class UserRole(models.Model):
         related_name='admin_roles'
     )
     role = models.ForeignKey(
-        'StaffRole',
+        'AdminRole',
         on_delete=models.CASCADE,
         related_name='user_assignments'
     )

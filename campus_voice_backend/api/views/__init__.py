@@ -22,6 +22,7 @@ from .public.resolution.resolution_views import ResolutionView
 # Admin
 from .admin.admin_login_views import AdminLoginView
 from .admin.admin_getme_views import AdminGetMeView
+from .admin.admin_user_views import AdminUserListView, AdminUserDetailView
 from .admin.admin_category_views import AdminCategoryListView, AdminCategoryDetailView
 from .admin.admin_ticket_views import AdminTicketListView, AdminTicketDetailView
 from .admin.admin_message_views import AdminMessageView

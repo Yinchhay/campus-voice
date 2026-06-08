@@ -4,8 +4,9 @@ from .ticket import Ticket, TicketAttachment
 from .message import Message
 from .meeting import MeetingSlot, StudentMeetingBooking
 from .permission import Permission
-from .staff_role import StaffRole
+from .admin_role import AdminRole
 from .resolution import Resolution
+from .user_role import UserRole
 
 __all__ = [
     'User',
@@ -16,6 +17,7 @@ __all__ = [
     'MeetingSlot',
     'StudentMeetingBooking',
     'Permission',
-    'StaffRole',
+    'AdminRole',
     'Resolution',
+    'UserRole',
 ]

@@ -1,7 +1,7 @@
 from django.db import models
 from .permission import Permission
 
-class StaffRole(models.Model):
+class AdminRole(models.Model):
     name = models.CharField(
         max_length=50,
         help_text="Name e.g., 'View Tickets', 'Approve Tickets'"
@@ -25,7 +25,7 @@ class StaffRole(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'staff_role'
+        db_table = 'admin_role'
         ordering = ['-is_superadmin', 'name']
         verbose_name = 'Admin Role'
         verbose_name_plural = 'Admin Roles'

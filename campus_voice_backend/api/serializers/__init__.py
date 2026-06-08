@@ -4,3 +4,4 @@ from .category_serializers import *
 from .message_serializers import *
 from .meeting_serializers import *
 from .resolution_serializers import *
+from .admin_serializers import *

@@ -1,7 +1,9 @@
 from django.urls import path
 from api.views import (
     AdminLoginView, 
-    AdminGetMeView, 
+    AdminGetMeView,
+    AdminUserListView,
+    AdminUserDetailView,
     AdminCategoryListView, 
     AdminCategoryDetailView,
     AdminTicketListView,
@@ -20,6 +22,12 @@ urlpatterns = [
     path('login', AdminLoginView.as_view(), name='admin_login'),
     
     path('me', AdminGetMeView.as_view(), name='admin_me'),
+    
+    # ---------------------------------------------------------------------------- #
+    #                           Admin User Management                              #
+    # ---------------------------------------------------------------------------- #
+    path('users', AdminUserListView.as_view(), name='admin_user_list'),
+    path('users/<str:user_id>', AdminUserDetailView.as_view(), name='admin_user_detail'),
     
     # ---------------------------------------------------------------------------- #
     #                          Admin Category Management                           #

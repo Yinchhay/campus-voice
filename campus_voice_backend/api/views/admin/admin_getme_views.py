@@ -2,13 +2,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser
-from api.serializers import StaffUserSerializer
+from api.serializers import AdminUserSerializer
 
 class AdminGetMeView(APIView):
     permission_classes=[IsAdminUser]
     
     def get(self, request):
-        serializer = StaffUserSerializer(request.user)
+        serializer = AdminUserSerializer(request.user)
         
         return Response(
             {

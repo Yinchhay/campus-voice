@@ -45,5 +45,9 @@ class User(AbstractUser):
         return is_superadmin(self)
     
     def get_admin_roles(self):
-        from api.models import StaffRole
-        return StaffRole.objects.filter(user_assignments__user=self)
+        from api.models import AdminRole
+        return AdminRole.objects.filter(user_assignments__user=self)
+    
+    @property
+    def is_superadmin(self):
+        return self.role == self.Role.ADMIN
