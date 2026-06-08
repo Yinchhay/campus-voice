@@ -39,5 +39,9 @@ urlpatterns = [
     # ---------------------------------------------------------------------------- #
     path('tickets/<str:ticket_id>/messages', views.MessageView.as_view(), name='message_list'),
     
+    # ---------------------------------------------------------------------------- #
+    #                                  Resolution                                  #
+    # ---------------------------------------------------------------------------- #
+    path('tickets/<str:ticket_id>/resolution', views.ResolutionView.as_view(), name='resolution'),
     
 ]

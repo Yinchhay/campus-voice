@@ -15,12 +15,17 @@ from .public.ticket.ticket_views import TicketListView, TicketDetailView
 # Messages
 from .public.message.message_views import MessageView
 
+# Resolution
+from .public.resolution.resolution_views import ResolutionView
+
+
 # Admin
 from .admin.admin_login_views import AdminLoginView
 from .admin.admin_getme_views import AdminGetMeView
 from .admin.admin_category_views import AdminCategoryListView, AdminCategoryDetailView
 from .admin.admin_ticket_views import AdminTicketListView, AdminTicketDetailView
 from .admin.admin_message_views import AdminMessageView
+from .admin.admin_resolution_views import AdminResolutionView
 
 __all__ = [
 
@@ -44,6 +49,10 @@ __all__ = [
     # Public Message
     'MessageView',
     
+    # Public Resolution
+    'ResolutionView',
+    
+    
     # Admin
     'AdminLoginView',
     'AdminGetMeView',
@@ -58,5 +67,8 @@ __all__ = [
     
     # Admin Message
     'AdminMessageView',
+    
+    # Admin Resolution
+    'AdminResolutionView',
 
 ]
