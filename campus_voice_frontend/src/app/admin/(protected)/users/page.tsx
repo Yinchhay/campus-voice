@@ -10,6 +10,7 @@ import {
   Plus,
   Search,
   ShieldCheck,
+  SlidersHorizontal,
   UserCircle,
   UserPlus,
   Users,
@@ -21,11 +22,14 @@ import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import {
   createAdminUser,
   deleteAdminUser,
+  listAdminRoles,
   listAdminUsers,
   updateAdminUser,
+  type AdminRoleDetail,
   type AdminUser,
 } from "@/lib/admin-api";
 import { adminNav } from "../dashboard/page";
+import { useAdminPermissions } from "@/lib/rbac";
 import type { UserRole } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -91,6 +95,7 @@ type CreateStaffForm = {
   password: string;
   confirmPassword: string;
   role: "STAFF" | "ADMIN";
+  roleIds: number[];
 };
 
 const emptyForm: CreateStaffForm = {
@@ -100,14 +105,17 @@ const emptyForm: CreateStaffForm = {
   password: "",
   confirmPassword: "",
   role: "STAFF",
+  roleIds: [],
 };
 
 function CreateStaffModal({
   onClose,
   onCreate,
+  roles,
 }: {
   onClose: () => void;
   onCreate: (form: CreateStaffForm) => Promise<AdminUser>;
+  roles: AdminRoleDetail[];
 }) {
   const [form, setForm] = useState<CreateStaffForm>(emptyForm);
   const [errors, setErrors] = useState<
@@ -135,6 +143,15 @@ function CreateStaffModal({
       ...prev,
       password: undefined,
       confirmPassword: undefined,
+    }));
+  }
+
+  function toggleRole(roleId: number) {
+    setForm((prev) => ({
+      ...prev,
+      roleIds: prev.roleIds.includes(roleId)
+        ? prev.roleIds.filter((id) => id !== roleId)
+        : [...prev.roleIds, roleId],
     }));
   }
 
@@ -326,6 +343,55 @@ function CreateStaffModal({
                 </div>
               </div>
 
+              {form.role === "STAFF" && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    RBAC roles
+                  </label>
+                  <div className="grid max-h-36 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
+                    {roles.length === 0 ? (
+                      <p className="px-2 py-3 text-sm text-slate-500">
+                        No roles available.
+                      </p>
+                    ) : (
+                      roles
+                        .filter((role) => role.is_active && !role.is_superadmin)
+                        .map((role) => {
+                          const checked = form.roleIds.includes(role.id);
+                          return (
+                            <button
+                              key={role.id}
+                              type="button"
+                              onClick={() => toggleRole(role.id)}
+                              className={`flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-left transition ${
+                                checked
+                                  ? "border-[#1E3A8A] bg-white text-slate-900"
+                                  : "border-transparent bg-transparent text-slate-700 hover:bg-white"
+                              }`}
+                            >
+                              <span>
+                                <span className="block text-sm font-medium">{role.name}</span>
+                                {role.description && (
+                                  <span className="mt-0.5 block text-xs text-slate-500">
+                                    {role.description}
+                                  </span>
+                                )}
+                              </span>
+                              <span
+                                className={`mt-0.5 h-4 w-4 shrink-0 rounded border ${
+                                  checked
+                                    ? "border-[#1E3A8A] bg-[#1E3A8A]"
+                                    : "border-slate-300 bg-white"
+                                }`}
+                              />
+                            </button>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Email */}
               <div>
                 <label
@@ -462,28 +528,184 @@ function CreateStaffModal({
   );
 }
 
+function ManageUserRolesModal({
+  user,
+  roles,
+  onClose,
+  onSave,
+}: {
+  user: AdminUser;
+  roles: AdminRoleDetail[];
+  onClose: () => void;
+  onSave: (roleIds: number[]) => Promise<void>;
+}) {
+  const [roleIds, setRoleIds] = useState<number[]>((user.roles ?? []).map((role) => role.id));
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  function toggleRole(roleId: number) {
+    setRoleIds((prev) =>
+      prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId],
+    );
+  }
+
+  async function handleSave() {
+    setIsSubmitting(true);
+    setSubmitError("");
+    try {
+      await onSave(roleIds);
+      onClose();
+    } catch (error) {
+      setSubmitError(extractApiError(error, "Failed to update roles."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === overlayRef.current) onClose();
+      }}
+    >
+      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#1E3A8A]">
+              <SlidersHorizontal className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Manage roles</h2>
+              <p className="text-xs text-slate-500">{user.email}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          {user.role === "ADMIN" ? (
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
+              Admin platform accounts bypass RBAC permission checks.
+            </div>
+          ) : null}
+
+          <div className="grid max-h-80 gap-2 overflow-y-auto">
+            {roles.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                No roles available.
+              </div>
+            ) : (
+              roles.map((role) => {
+                const checked = roleIds.includes(role.id);
+                return (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => toggleRole(role.id)}
+                    disabled={role.is_superadmin && user.role !== "ADMIN"}
+                    className={`flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      checked
+                        ? "border-[#1E3A8A] bg-blue-50"
+                        : "border-slate-200 bg-white hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>
+                      <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+                        {role.name}
+                        {role.is_superadmin && (
+                          <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-700">
+                            Superadmin
+                          </span>
+                        )}
+                      </span>
+                      {role.description && (
+                        <span className="mt-1 block text-xs text-slate-500">
+                          {role.description}
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className={`mt-0.5 h-4 w-4 shrink-0 rounded border ${
+                        checked ? "border-[#1E3A8A] bg-[#1E3A8A]" : "border-slate-300 bg-white"
+                      }`}
+                    />
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {submitError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSubmitting}
+              className="rounded-xl bg-[#1E3A8A] px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSubmitting ? "Saving..." : "Save roles"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminUsersPage() {
+  const { hasPermission, isLoading: isPermissionLoading } = useAdminPermissions();
   const [roleFilter, setRoleFilter] = useState<UserRole | "ALL">("ALL");
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [roles, setRoles] = useState<AdminRoleDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [roleUser, setRoleUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
+    if (isPermissionLoading) return;
+
     let isMounted = true;
 
     async function loadUsers() {
       setIsLoading(true);
       setPageError("");
       try {
-        const data = await listAdminUsers();
-        if (isMounted) setUsers(data);
+        const [userRows, roleRows] = await Promise.all([
+          listAdminUsers(),
+          hasPermission("role.view") ? listAdminRoles() : Promise.resolve([]),
+        ]);
+        if (isMounted) {
+          setUsers(userRows);
+          setRoles(roleRows);
+        }
       } catch (error) {
         if (isMounted)
           setPageError(extractApiError(error, "Failed to load users."));
@@ -497,7 +719,7 @@ export default function AdminUsersPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isPermissionLoading, hasPermission]);
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -525,6 +747,7 @@ export default function AdminUsersPage() {
       password: form.password,
       is_active: true,
       is_staff: true,
+      role_ids: form.role === "STAFF" ? form.roleIds : [],
     });
     setUsers((prev) => [user, ...prev]);
     return user;
@@ -563,6 +786,11 @@ export default function AdminUsersPage() {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  async function handleUpdateUserRoles(user: AdminUser, roleIds: number[]) {
+    const updated = await updateAdminUser(user.id, { role_ids: roleIds });
+    setUsers((prev) => prev.map((row) => (row.id === user.id ? updated : row)));
   }
 
   const roleTabs: Array<{
@@ -639,14 +867,16 @@ export default function AdminUsersPage() {
               );
             })}
 
-            <button
-              type="button"
-              onClick={() => setShowModal(true)}
-              className="ml-auto inline-flex items-center gap-2 rounded-xl bg-[#1E3A8A] px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-900"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Create Staff Account
-            </button>
+            {hasPermission("user.create") && (
+              <button
+                type="button"
+                onClick={() => setShowModal(true)}
+                className="ml-auto inline-flex items-center gap-2 rounded-xl bg-[#1E3A8A] px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-900"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Create Staff Account
+              </button>
+            )}
           </div>
         </div>
 
@@ -660,7 +890,7 @@ export default function AdminUsersPage() {
         {/* ── Table ────────────────────────────────────────── */}
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Column headers */}
-          <div suppressHydrationWarning className="hidden items-center gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-[minmax(220px,2fr)_120px_120px_120px_104px_84px]">
+          <div suppressHydrationWarning className="hidden items-center gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-[minmax(220px,2fr)_120px_120px_120px_104px_132px]">
             <span>Account</span>
             <span>Role</span>
             <span>Last Login</span>
@@ -684,7 +914,7 @@ export default function AdminUsersPage() {
                 return (
                   <div
                     key={user.id}
-                    className={`flex flex-col gap-3 px-5 py-4 transition sm:grid sm:grid-cols-[minmax(220px,2fr)_120px_120px_120px_104px_84px] sm:items-center sm:gap-4 ${
+                    className={`flex flex-col gap-3 px-5 py-4 transition sm:grid sm:grid-cols-[minmax(220px,2fr)_120px_120px_120px_104px_132px] sm:items-center sm:gap-4 ${
                       !active ? "opacity-60" : ""
                     }`}
                   >
@@ -703,6 +933,18 @@ export default function AdminUsersPage() {
                           <p className="mt-0.5 text-xs text-slate-400">
                             {user.email}
                           </p>
+                          {user.roles && user.roles.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {user.roles.map((role) => (
+                                <span
+                                  key={role.id}
+                                  className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600"
+                                >
+                                  {role.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </>
                       ) : (
                         <p className="text-sm font-medium text-slate-900">
@@ -732,7 +974,9 @@ export default function AdminUsersPage() {
                         type="button"
                         onClick={() => toggleActive(user)}
                         disabled={
-                          updatingId === user.id || deletingId === user.id
+                          updatingId === user.id ||
+                          deletingId === user.id ||
+                          !hasPermission("user.update")
                         }
                         title={
                           active ? "Deactivate account" : "Activate account"
@@ -771,16 +1015,31 @@ export default function AdminUsersPage() {
                         {active ? "Active" : "Inactive"}
                       </span>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteUser(user)}
-                      disabled={
-                        deletingId === user.id || updatingId === user.id
-                      }
-                      className="inline-flex h-8 w-[84px] items-center justify-center rounded-full border border-red-200 bg-white px-2 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {deletingId === user.id ? "Deleting..." : "Delete"}
-                    </button>
+                    <div className="flex flex-wrap gap-1.5 sm:justify-center">
+                      {hasPermission("user.update") && hasPermission("role.view") && (
+                        <button
+                          type="button"
+                          onClick={() => setRoleUser(user)}
+                          disabled={deletingId === user.id || updatingId === user.id}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          title="Manage roles"
+                        >
+                          <SlidersHorizontal className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {hasPermission("user.delete") && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(user)}
+                          disabled={
+                            deletingId === user.id || updatingId === user.id
+                          }
+                          className="inline-flex h-8 w-[84px] items-center justify-center rounded-full border border-red-200 bg-white px-2 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {deletingId === user.id ? "Deleting..." : "Delete"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -794,6 +1053,15 @@ export default function AdminUsersPage() {
         <CreateStaffModal
           onClose={() => setShowModal(false)}
           onCreate={handleCreateUser}
+          roles={roles}
+        />
+      )}
+      {roleUser && (
+        <ManageUserRolesModal
+          user={roleUser}
+          roles={roles}
+          onClose={() => setRoleUser(null)}
+          onSave={(roleIds) => handleUpdateUserRoles(roleUser, roleIds)}
         />
       )}
     </RoleDashboardShell>

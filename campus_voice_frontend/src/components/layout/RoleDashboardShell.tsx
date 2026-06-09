@@ -6,11 +6,13 @@ import type { LucideIcon } from "lucide-react";
 import { LogOut, ShieldCheck } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { loginPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
+import { useAdminPermissions, type PermissionCodename } from "@/lib/rbac";
 
-type DashboardNavItem = {
+export type DashboardNavItem = {
 	label: string;
 	href: string;
 	Icon: LucideIcon;
+	requiredPermission?: PermissionCodename;
 };
 
 type RoleDashboardShellProps = {
@@ -30,6 +32,11 @@ export function RoleDashboardShell({
 }: RoleDashboardShellProps) {
 	const pathname = usePathname();
 	const role = normalizeCampusVoiceRole(roleName);
+	const { hasPermission, isLoading } = useAdminPermissions();
+	const visibleNavItems =
+		role === "admin" && !isLoading
+			? navItems.filter((item) => hasPermission(item.requiredPermission))
+			: navItems;
 
 	return (
 		<main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
@@ -47,7 +54,7 @@ export function RoleDashboardShell({
 						</div>
 
 						<nav className="mt-4 grid gap-1">
-							{navItems.map(({ label, href, Icon }) => {
+							{visibleNavItems.map(({ label, href, Icon }) => {
 								const isActive = pathname === href || pathname.startsWith(`${href}/`);
 
 								return (

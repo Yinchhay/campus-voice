@@ -24,6 +24,7 @@ import {
 } from "@/lib/admin-api";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { adminNav } from "../dashboard/page";
+import { useAdminPermissions } from "@/lib/rbac";
 import type { Category, CategoryIssueType, TicketPriority } from "@/lib/types";
 
 type CategoryFormState = {
@@ -91,6 +92,7 @@ function validateCategory(form: CategoryFormState) {
 }
 
 export default function AdminCategoriesPage() {
+  const { hasPermission } = useAdminPermissions();
   const [rows, setRows] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
@@ -127,6 +129,9 @@ export default function AdminCategoriesPage() {
     [rows],
   );
   const inactive = rows.length - active;
+  const canCreate = hasPermission("category.create");
+  const canUpdate = hasPermission("category.update");
+  const canDelete = hasPermission("category.delete");
 
   function startEditing(category: Category) {
     setEditingId(category.id);
@@ -269,17 +274,19 @@ export default function AdminCategoriesPage() {
               />
               Refresh
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowForm((value) => !value);
-                setFormError("");
-              }}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900"
-            >
-              <Plus className="h-4 w-4" />
-              Add Category
-            </button>
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm((value) => !value);
+                  setFormError("");
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900"
+              >
+                <Plus className="h-4 w-4" />
+                Add Category
+              </button>
+            )}
           </div>
         </div>
 
@@ -289,7 +296,7 @@ export default function AdminCategoriesPage() {
           </div>
         )}
 
-        {showForm && (
+        {showForm && canCreate && (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-base font-semibold text-slate-900">
               New Category
@@ -588,48 +595,54 @@ export default function AdminCategoriesPage() {
                         </>
                       ) : (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => startEditing(cat)}
-                            title="Edit"
-                            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-slate-300"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void toggleActive(cat)}
-                            disabled={isToggling || isDeleting}
-                            title={cat.is_active ? "Deactivate" : "Activate"}
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                              cat.is_active
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-                                : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
-                            } disabled:cursor-not-allowed disabled:opacity-60`}
-                          >
-                            {isToggling ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : cat.is_active ? (
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            ) : (
-                              <XCircle className="h-3.5 w-3.5" />
-                            )}
-                            {cat.is_active ? "Active" : "Inactive"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(cat)}
-                            disabled={isDeleting || isToggling}
-                            title="Delete"
-                            className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isDeleting ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
-                            )}
-                          </button>
+                          {canUpdate && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEditing(cat)}
+                                title="Edit"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-slate-300"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void toggleActive(cat)}
+                                disabled={isToggling || isDeleting}
+                                title={cat.is_active ? "Deactivate" : "Activate"}
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                                  cat.is_active
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                                    : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
+                                } disabled:cursor-not-allowed disabled:opacity-60`}
+                              >
+                                {isToggling ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : cat.is_active ? (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                ) : (
+                                  <XCircle className="h-3.5 w-3.5" />
+                                )}
+                                {cat.is_active ? "Active" : "Inactive"}
+                              </button>
+                            </>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(cat)}
+                              disabled={isDeleting || isToggling}
+                              title="Delete"
+                              className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isDeleting ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
