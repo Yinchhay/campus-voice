@@ -3,7 +3,8 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from api.permissions import HasResourcePermission
 from django.db import transaction
 
 from api.utils import get_admin_ticket
@@ -13,7 +14,9 @@ from api.serializers import AdminMessageSerializer
 logger = logging.getLogger(__name__)
 
 class AdminMessageView(APIView):
-    permission_classes=[IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [HasResourcePermission]
+    resource = 'message'
 
     def get(self, request, ticket_id):
         ticket, error = get_admin_ticket(ticket_id)

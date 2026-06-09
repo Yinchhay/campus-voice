@@ -4,6 +4,11 @@ from api.views import (
     AdminGetMeView,
     AdminUserListView,
     AdminUserDetailView,
+    AdminRoleListView,
+    AdminRoleDetailView,
+    AdminPermissionListView,
+    AdminUserRoleView,
+    AdminRolePermissionsView,
     AdminCategoryListView, 
     AdminCategoryDetailView,
     AdminTicketListView,
@@ -28,6 +33,15 @@ urlpatterns = [
     # ---------------------------------------------------------------------------- #
     path('users', AdminUserListView.as_view(), name='admin_user_list'),
     path('users/<str:user_id>', AdminUserDetailView.as_view(), name='admin_user_detail'),
+
+    # ---------------------------------------------------------------------------- #
+    #                    Admin Role and Permission Management                      #
+    # ---------------------------------------------------------------------------- #
+    path('roles', AdminRoleListView.as_view(), name='admin_role_list'),
+    path('roles/<int:role_id>', AdminRoleDetailView.as_view(), name='admin_role_detail'),
+    path('roles/<int:role_id>/permissions', AdminRolePermissionsView.as_view(), name='admin_role_permissions'),
+    path('permissions', AdminPermissionListView.as_view(), name='admin_permission_list'),
+    path('users/<str:user_id>/roles', AdminUserRoleView.as_view(), name='admin_user_roles'),
     
     # ---------------------------------------------------------------------------- #
     #                          Admin Category Management                           #

@@ -33,5 +33,8 @@ db-shell:
 seed-categories:
 	docker-compose -f docker-compose.dev.yml exec backend python manage.py seed_categories
 
+seed-rbac:
+	docker-compose -f docker-compose.dev.yml exec backend python manage.py seed_rbac
+
 createsuperuser:
 	docker-compose -f docker-compose.dev.yml exec backend python manage.py createsuperuser

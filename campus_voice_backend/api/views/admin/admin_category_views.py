@@ -3,7 +3,8 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from api.permissions import HasResourcePermission
 from django.db import transaction
 
 from api.models import Category
@@ -12,7 +13,9 @@ from api.serializers import CategorySerializer, CategoryDetailSerializer
 logger = logging.getLogger(__name__)
 
 class AdminCategoryListView(APIView):
-    permission_classes=[IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [HasResourcePermission]
+    resource = 'category'
     
     def get(self, request):
         categories = Category.objects.all()
@@ -46,7 +49,9 @@ class AdminCategoryListView(APIView):
             )
     
 class AdminCategoryDetailView(APIView):
-    permission_classes= [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [HasResourcePermission]
+    resource = 'category'
     
     def get(self, request, category_id):
         try:

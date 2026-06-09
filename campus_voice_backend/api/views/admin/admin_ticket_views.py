@@ -3,7 +3,8 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from api.permissions import HasResourcePermission
 from django.db import transaction
 
 from api.models import Ticket
@@ -13,7 +14,9 @@ from api.serializers import TicketSerializer, TicketDetailSerializer
 logger = logging.getLogger(__name__)
 
 class AdminTicketListView(APIView):
-    permission_classes=[IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [HasResourcePermission]
+    resource = 'ticket'
     
     def get(self, request):
         tickets = Ticket.objects.all()
@@ -22,7 +25,9 @@ class AdminTicketListView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class AdminTicketDetailView(APIView):
-    permission_classes=[IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [HasResourcePermission]
+    resource = 'ticket'
     
     def get(self, request, ticket_id):
         try:

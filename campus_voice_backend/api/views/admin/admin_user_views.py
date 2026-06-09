@@ -1,7 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from api.permissions import HasResourcePermission
 from django.contrib.auth import get_user_model
 from django.db import transaction
 
@@ -11,7 +12,9 @@ from api.serializers import AdminUserSerializer
 User = get_user_model()
     
 class AdminUserListView(APIView):
-    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [HasResourcePermission]
+    resource = 'user'
     
     # Need to get everything
     def get(self, request):
@@ -79,8 +82,9 @@ class AdminUserListView(APIView):
 
 
 class AdminUserDetailView(APIView):
-    permission_classes = [IsAdminUser]
-
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [HasResourcePermission]
+    resource = 'user'
 
     def get(self, request, user_id):
         try:

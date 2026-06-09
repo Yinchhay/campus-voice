@@ -23,10 +23,12 @@ from .public.resolution.resolution_views import ResolutionView
 from .admin.admin_login_views import AdminLoginView
 from .admin.admin_getme_views import AdminGetMeView
 from .admin.admin_user_views import AdminUserListView, AdminUserDetailView
+from .admin.admin_role_views import AdminRoleListView, AdminRoleDetailView, AdminPermissionListView, AdminUserRoleView, AdminRolePermissionsView
 from .admin.admin_category_views import AdminCategoryListView, AdminCategoryDetailView
 from .admin.admin_ticket_views import AdminTicketListView, AdminTicketDetailView
 from .admin.admin_message_views import AdminMessageView
 from .admin.admin_resolution_views import AdminResolutionView
+
 
 __all__ = [
 
@@ -57,6 +59,17 @@ __all__ = [
     # Admin
     'AdminLoginView',
     'AdminGetMeView',
+    
+    # Admin User Management
+    'AdminUserListView',
+    'AdminUserDetailView',
+
+    # Admin User Role and Permission
+    'AdminRoleListView',
+    'AdminRoleDetailView',
+    'AdminPermissionListView',
+    'AdminUserRoleView',
+    'AdminRolePermissionsView',
     
     # Admin Category
     'AdminCategoryListView',
