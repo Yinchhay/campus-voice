@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -16,16 +16,23 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import axios from "axios";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { mockUsers } from "@/lib/mock-data";
+import {
+  createAdminUser,
+  deleteAdminUser,
+  listAdminUsers,
+  updateAdminUser,
+  type AdminUser,
+} from "@/lib/admin-api";
 import { adminNav } from "../dashboard/page";
-import type { User, UserRole } from "@/lib/types";
+import type { UserRole } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Auth method helpers
 // ---------------------------------------------------------------------------
 /** Students always use Google SSO; staff/admin use username + password. */
-function authMethod(user: User): "google" | "credentials" {
+function authMethod(user: AdminUser): "google" | "credentials" {
   if (user.role === "STUDENT") return "google";
   return "credentials";
 }
@@ -53,14 +60,33 @@ function formatDate(iso: string | null) {
 
 function generateTempPassword() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#";
-  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return Array.from(
+    { length: 12 },
+    () => chars[Math.floor(Math.random() * chars.length)],
+  ).join("");
+}
+
+function extractApiError(error: unknown, fallback: string) {
+  if (!axios.isAxiosError(error)) return fallback;
+
+  const data = error.response?.data;
+  if (typeof data === "string") return data;
+  if (data && typeof data === "object") {
+    if ("error" in data && typeof data.error === "string") return data.error;
+    if ("detail" in data && typeof data.detail === "string") return data.detail;
+    if ("message" in data && typeof data.message === "string")
+      return data.message;
+  }
+
+  return fallback;
 }
 
 // ---------------------------------------------------------------------------
 // Create Staff Modal
 // ---------------------------------------------------------------------------
 type CreateStaffForm = {
-  username: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -68,7 +94,8 @@ type CreateStaffForm = {
 };
 
 const emptyForm: CreateStaffForm = {
-  username: "",
+  firstName: "",
+  lastName: "",
   email: "",
   password: "",
   confirmPassword: "",
@@ -80,16 +107,23 @@ function CreateStaffModal({
   onCreate,
 }: {
   onClose: () => void;
-  onCreate: (user: User) => void;
+  onCreate: (form: CreateStaffForm) => Promise<AdminUser>;
 }) {
   const [form, setForm] = useState<CreateStaffForm>(emptyForm);
-  const [errors, setErrors] = useState<Partial<Record<keyof CreateStaffForm, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof CreateStaffForm, string>>
+  >({});
   const [showPw, setShowPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
-  const [created, setCreated] = useState<User | null>(null);
+  const [created, setCreated] = useState<AdminUser | null>(null);
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  function set<K extends keyof CreateStaffForm>(key: K, value: CreateStaffForm[K]) {
+  function set<K extends keyof CreateStaffForm>(
+    key: K,
+    value: CreateStaffForm[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
   }
@@ -97,38 +131,41 @@ function CreateStaffModal({
   function useTempPassword() {
     const pw = generateTempPassword();
     setForm((prev) => ({ ...prev, password: pw, confirmPassword: pw }));
-    setErrors((prev) => ({ ...prev, password: undefined, confirmPassword: undefined }));
+    setErrors((prev) => ({
+      ...prev,
+      password: undefined,
+      confirmPassword: undefined,
+    }));
   }
 
   function validate(): boolean {
     const next: typeof errors = {};
-    if (!form.username.trim()) next.username = "Username is required.";
-    else if (!/^[a-zA-Z0-9._-]+$/.test(form.username.trim()))
-      next.username = "Only letters, numbers, dots, hyphens and underscores.";
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+    if (!form.email.trim()) next.email = "Email is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       next.email = "Enter a valid email address.";
     if (!form.password) next.password = "Password is required.";
     else if (form.password.length < 8) next.password = "Minimum 8 characters.";
-    if (!form.confirmPassword) next.confirmPassword = "Please confirm the password.";
-    else if (form.password !== form.confirmPassword) next.confirmPassword = "Passwords do not match.";
+    if (!form.confirmPassword)
+      next.confirmPassword = "Please confirm the password.";
+    else if (form.password !== form.confirmPassword)
+      next.confirmPassword = "Passwords do not match.";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!validate()) return;
-    const now = new Date().toISOString();
-    const newUser: User = {
-      id: `u-${Date.now()}`,
-      username: form.username.trim(),
-      email: form.email.trim() || `${form.username.trim()}@paragoniu.edu.kh`,
-      role: form.role,
-      is_active: true,
-      created_at: now,
-      last_login: null,
-    };
-    setCreated(newUser);
-    onCreate(newUser);
+
+    setIsSubmitting(true);
+    setSubmitError("");
+    try {
+      const newUser = await onCreate(form);
+      setCreated(newUser);
+    } catch (error) {
+      setSubmitError(extractApiError(error, "Failed to create account."));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -147,7 +184,9 @@ function CreateStaffModal({
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#1E3A8A]">
               <UserPlus className="h-4 w-4 text-white" />
             </div>
-            <h2 className="text-base font-semibold text-slate-900">Create Staff Account</h2>
+            <h2 className="text-base font-semibold text-slate-900">
+              Create Staff Account
+            </h2>
           </div>
           <button
             type="button"
@@ -167,7 +206,9 @@ function CreateStaffModal({
                 <CheckCircle2 className="h-7 w-7 text-emerald-600" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-slate-900">Account created</h3>
+                <h3 className="text-base font-semibold text-slate-900">
+                  Account created
+                </h3>
                 <p className="mt-1 text-sm text-slate-500">
                   Share these credentials with the new staff member securely.
                 </p>
@@ -184,18 +225,26 @@ function CreateStaffModal({
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Username</span>
-                  <span className="font-mono font-medium text-slate-900">{created.username}</span>
+                  <span className="text-slate-500">Name</span>
+                  <span className="font-medium text-slate-900">
+                    {created.full_name ||
+                      [created.first_name, created.last_name]
+                        .filter(Boolean)
+                        .join(" ") ||
+                      created.email}
+                  </span>
                 </div>
-                {created.email && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Email</span>
-                    <span className="font-medium text-slate-900">{created.email}</span>
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Email</span>
+                  <span className="font-medium text-slate-900">
+                    {created.email}
+                  </span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Password</span>
-                  <span className="font-mono font-medium text-slate-900">{form.password}</span>
+                  <span className="font-mono font-medium text-slate-900">
+                    {form.password}
+                  </span>
                 </div>
               </div>
 
@@ -217,7 +266,9 @@ function CreateStaffModal({
             <div className="space-y-4">
               {/* Role selector */}
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Role</label>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Role
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   {(["STAFF", "ADMIN"] as const).map((r) => (
                     <button
@@ -239,33 +290,49 @@ function CreateStaffModal({
                 </div>
               </div>
 
-              {/* Username */}
-              <div>
-                <label htmlFor="new-username" className="mb-1.5 block text-sm font-medium text-slate-700">
-                  Username <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="new-username"
-                  type="text"
-                  value={form.username}
-                  onChange={(e) => set("username", e.target.value)}
-                  placeholder="e.g. sarah.oss"
-                  className={`w-full rounded-xl border bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:bg-white focus:ring-2 ${
-                    errors.username
-                      ? "border-red-300 focus:border-red-400 focus:ring-red-100"
-                      : "border-slate-200 focus:border-[#1E3A8A] focus:ring-blue-100"
-                  }`}
-                />
-                {errors.username && (
-                  <p className="mt-1 text-xs text-red-600">{errors.username}</p>
-                )}
+              {/* Name */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="new-first-name"
+                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                  >
+                    First name
+                  </label>
+                  <input
+                    id="new-first-name"
+                    type="text"
+                    value={form.firstName}
+                    onChange={(e) => set("firstName", e.target.value)}
+                    placeholder="Campus"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="new-last-name"
+                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                  >
+                    Last name
+                  </label>
+                  <input
+                    id="new-last-name"
+                    type="text"
+                    value={form.lastName}
+                    onChange={(e) => set("lastName", e.target.value)}
+                    placeholder="Staff"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
               </div>
 
-              {/* Email (optional) */}
+              {/* Email */}
               <div>
-                <label htmlFor="new-email" className="mb-1.5 block text-sm font-medium text-slate-700">
-                  Email{" "}
-                  <span className="font-normal text-slate-400">(optional — defaults to username@paragoniu.edu.kh)</span>
+                <label
+                  htmlFor="new-email"
+                  className="mb-1.5 block text-sm font-medium text-slate-700"
+                >
+                  Email <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="new-email"
@@ -279,13 +346,18 @@ function CreateStaffModal({
                       : "border-slate-200 focus:border-[#1E3A8A] focus:ring-blue-100"
                   }`}
                 />
-                {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
+                {errors.email && (
+                  <p className="mt-1 text-xs text-red-600">{errors.email}</p>
+                )}
               </div>
 
               {/* Password */}
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <label htmlFor="new-password" className="text-sm font-medium text-slate-700">
+                  <label
+                    htmlFor="new-password"
+                    className="text-sm font-medium text-slate-700"
+                  >
                     Temporary password <span className="text-red-500">*</span>
                   </label>
                   <button
@@ -315,15 +387,24 @@ function CreateStaffModal({
                     onClick={() => setShowPw((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPw ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
-                {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
+                {errors.password && (
+                  <p className="mt-1 text-xs text-red-600">{errors.password}</p>
+                )}
               </div>
 
               {/* Confirm password */}
               <div>
-                <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label
+                  htmlFor="confirm-password"
+                  className="mb-1.5 block text-sm font-medium text-slate-700"
+                >
                   Confirm password <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -344,21 +425,34 @@ function CreateStaffModal({
                     onClick={() => setShowConfirmPw((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showConfirmPw ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
                 {errors.confirmPassword && (
-                  <p className="mt-1 text-xs text-red-600">{errors.confirmPassword}</p>
+                  <p className="mt-1 text-xs text-red-600">
+                    {errors.confirmPassword}
+                  </p>
                 )}
               </div>
+
+              {submitError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {submitError}
+                </div>
+              )}
 
               {/* Submit */}
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="mt-2 w-full rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900"
+                disabled={isSubmitting}
+                className="mt-2 w-full rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Create account
+                {isSubmitting ? "Creating..." : "Create account"}
               </button>
             </div>
           )}
@@ -374,43 +468,119 @@ function CreateStaffModal({
 export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<UserRole | "ALL">("ALL");
   const [search, setSearch] = useState("");
-  const [localActive, setLocalActive] = useState<Record<string, boolean>>({});
-  const [localUsers, setLocalUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  const allUsers = useMemo(() => [...localUsers, ...mockUsers], [localUsers]);
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadUsers() {
+      setIsLoading(true);
+      setPageError("");
+      try {
+        const data = await listAdminUsers();
+        if (isMounted) setUsers(data);
+      } catch (error) {
+        if (isMounted)
+          setPageError(extractApiError(error, "Failed to load users."));
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadUsers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
-    return allUsers.filter((u) => {
+    return users.filter((u) => {
       if (roleFilter !== "ALL" && u.role !== roleFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         if (
           !u.email.toLowerCase().includes(q) &&
-          !(u.username ?? "").toLowerCase().includes(q)
+          !(u.full_name ?? "").toLowerCase().includes(q) &&
+          !(u.first_name ?? "").toLowerCase().includes(q) &&
+          !(u.last_name ?? "").toLowerCase().includes(q)
         )
           return false;
       }
       return true;
     });
-  }, [allUsers, roleFilter, search]);
+  }, [users, roleFilter, search]);
 
-  function isActive(userId: string, defaultValue: boolean) {
-    return localActive[userId] ?? defaultValue;
+  async function handleCreateUser(form: CreateStaffForm) {
+    const user = await createAdminUser({
+      email: form.email.trim(),
+      first_name: form.firstName.trim(),
+      last_name: form.lastName.trim(),
+      role: form.role,
+      password: form.password,
+      is_active: true,
+      is_staff: true,
+    });
+    setUsers((prev) => [user, ...prev]);
+    return user;
   }
 
-  function toggleActive(userId: string, defaultValue: boolean) {
-    setLocalActive((prev) => ({
-      ...prev,
-      [userId]: !(prev[userId] ?? defaultValue),
-    }));
+  async function toggleActive(user: AdminUser) {
+    setUpdatingId(user.id);
+    setPageError("");
+    try {
+      const updated = await updateAdminUser(user.id, {
+        is_active: !user.is_active,
+      });
+      setUsers((prev) =>
+        prev.map((row) => (row.id === user.id ? updated : row)),
+      );
+    } catch (error) {
+      setPageError(extractApiError(error, "Failed to update user status."));
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
-  const roleTabs: Array<{ key: UserRole | "ALL"; label: string; count: number }> = [
-    { key: "ALL", label: "All", count: allUsers.length },
-    { key: "STUDENT", label: "Students", count: allUsers.filter((u) => u.role === "STUDENT").length },
-    { key: "STAFF", label: "Staff", count: allUsers.filter((u) => u.role === "STAFF").length },
-    { key: "ADMIN", label: "Admins", count: allUsers.filter((u) => u.role === "ADMIN").length },
+  async function handleDeleteUser(user: AdminUser) {
+    const confirmed = window.confirm(
+      `Delete ${user.email}? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingId(user.id);
+    setPageError("");
+    try {
+      await deleteAdminUser(user.id);
+      setUsers((prev) => prev.filter((row) => row.id !== user.id));
+    } catch (error) {
+      setPageError(extractApiError(error, "Failed to delete user."));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  const roleTabs: Array<{
+    key: UserRole | "ALL";
+    label: string;
+    count: number;
+  }> = [
+    { key: "ALL", label: "All", count: users.length },
+    {
+      key: "STAFF",
+      label: "Staff",
+      count: users.filter((u) => u.role === "STAFF").length,
+    },
+    {
+      key: "ADMIN",
+      label: "Admins",
+      count: users.filter((u) => u.role === "ADMIN").length,
+    },
   ];
 
   return (
@@ -421,54 +591,11 @@ export default function AdminUsersPage() {
       navItems={adminNav}
     >
       <div className="space-y-5">
-        {/* ── Auth method info cards ────────────────────────── */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          {/* Students */}
-          <div className="flex items-start gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-              {/* Google SVG icon */}
-              <svg viewBox="0 0 24 24" className="h-5 w-5" aria-label="Google">
-                <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  fill="#EA4335"
-                />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-blue-900">Students — Google SSO</p>
-              <p className="mt-0.5 text-xs text-blue-700">
-                Students sign in with their <strong>@paragoniu.edu.kh</strong> Google account.
-                Accounts are auto-created on first login — no manual provisioning needed.
-              </p>
-            </div>
+        {pageError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {pageError}
           </div>
-
-          {/* Staff / Admin */}
-          <div className="flex items-start gap-4 rounded-2xl border border-teal-100 bg-teal-50 p-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-              <KeyRound className="h-5 w-5 text-teal-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-teal-900">Staff &amp; Admin — Credentials</p>
-              <p className="mt-0.5 text-xs text-teal-700">
-                Staff and admin accounts are provisioned by an administrator with a
-                username, optional email, and temporary password.
-              </p>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* ── Filters + Create button ───────────────────────── */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -479,7 +606,7 @@ export default function AdminUsersPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by username or email…"
+              placeholder="Search by name or email…"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
             />
           </div>
@@ -501,7 +628,9 @@ export default function AdminUsersPage() {
                   {tab.label}
                   <span
                     className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
-                      isActiveTab ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                      isActiveTab
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-100 text-slate-600"
                     }`}
                   >
                     {tab.count}
@@ -522,53 +651,63 @@ export default function AdminUsersPage() {
         </div>
 
         <p className="text-sm text-slate-500">
-          Showing <span className="font-medium text-slate-800">{filtered.length}</span> user
+          Showing{" "}
+          <span className="font-medium text-slate-800">{filtered.length}</span>{" "}
+          user
           {filtered.length !== 1 ? "s" : ""}
         </p>
 
         {/* ── Table ────────────────────────────────────────── */}
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Column headers */}
-          <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:grid">
+          <div suppressHydrationWarning className="hidden items-center gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-[minmax(220px,2fr)_120px_120px_120px_104px_84px]">
             <span>Account</span>
             <span>Role</span>
-            <span>Auth</span>
             <span>Last Login</span>
             <span>Joined</span>
-            <span>Status</span>
+            <span suppressHydrationWarning className="text-center">Status</span>
+            <span suppressHydrationWarning className="text-center">Action</span>
           </div>
 
           {filtered.length === 0 ? (
             <div className="px-5 py-12 text-center text-sm text-slate-500">
-              No users match the current filters.
+              {isLoading
+                ? "Loading users..."
+                : "No users match the current filters."}
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
               {filtered.map((user) => {
-                const active = isActive(user.id, user.is_active);
+                const active = user.is_active;
                 const method = authMethod(user);
 
                 return (
                   <div
                     key={user.id}
-                    className={`flex flex-col gap-3 px-5 py-4 transition sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] sm:items-center sm:gap-4 ${
+                    className={`flex flex-col gap-3 px-5 py-4 transition sm:grid sm:grid-cols-[minmax(220px,2fr)_120px_120px_120px_104px_84px] sm:items-center sm:gap-4 ${
                       !active ? "opacity-60" : ""
                     }`}
                   >
                     {/* Account column */}
                     <div>
                       {/* Username (staff/admin) or email (student) as primary identifier */}
-                      {method === "credentials" && user.username ? (
+                      {method === "credentials" ? (
                         <>
-                          <p className="font-mono text-sm font-medium text-slate-900">
-                            {user.username}
+                          <p className="text-sm font-medium text-slate-900">
+                            {user.full_name ||
+                              [user.first_name, user.last_name]
+                                .filter(Boolean)
+                                .join(" ") ||
+                              user.email}
                           </p>
-                          {user.email && (
-                            <p className="mt-0.5 text-xs text-slate-400">{user.email}</p>
-                          )}
+                          <p className="mt-0.5 text-xs text-slate-400">
+                            {user.email}
+                          </p>
                         </>
                       ) : (
-                        <p className="text-sm font-medium text-slate-900">{user.email}</p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {user.email}
+                        </p>
                       )}
                     </div>
 
@@ -580,35 +719,25 @@ export default function AdminUsersPage() {
                       {user.role}
                     </span>
 
-                    {/* Auth method */}
-                    {method === "google" ? (
-                      <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                        {/* Mini Google G */}
-                        <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden>
-                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                        </svg>
-                        Google SSO
-                      </span>
-                    ) : (
-                      <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-                        <KeyRound className="h-3 w-3" />
-                        Credentials
-                      </span>
-                    )}
-
-                    <span className="text-xs text-slate-500">{formatDate(user.last_login)}</span>
-                    <span className="text-xs text-slate-500">{formatDate(user.created_at)}</span>
+                    <span className="text-xs text-slate-500">
+                      {formatDate(user.last_login)}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {formatDate(user.created_at)}
+                    </span>
 
                     {/* Active toggle — students cannot be manually deactivated here */}
                     {method === "credentials" ? (
                       <button
                         type="button"
-                        onClick={() => toggleActive(user.id, user.is_active)}
-                        title={active ? "Deactivate account" : "Activate account"}
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                        onClick={() => toggleActive(user)}
+                        disabled={
+                          updatingId === user.id || deletingId === user.id
+                        }
+                        title={
+                          active ? "Deactivate account" : "Activate account"
+                        }
+                        className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
                           active
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
                             : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
@@ -619,11 +748,15 @@ export default function AdminUsersPage() {
                         ) : (
                           <XCircle className="h-3.5 w-3.5" />
                         )}
-                        {active ? "Active" : "Inactive"}
+                        {updatingId === user.id
+                          ? "Saving..."
+                          : active
+                            ? "Active"
+                            : "Inactive"}
                       </button>
                     ) : (
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                        className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-2 text-xs font-medium ${
                           active
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : "border-slate-200 bg-slate-50 text-slate-500"
@@ -638,6 +771,16 @@ export default function AdminUsersPage() {
                         {active ? "Active" : "Inactive"}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUser(user)}
+                      disabled={
+                        deletingId === user.id || updatingId === user.id
+                      }
+                      className="inline-flex h-8 w-[84px] items-center justify-center rounded-full border border-red-200 bg-white px-2 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingId === user.id ? "Deleting..." : "Delete"}
+                    </button>
                   </div>
                 );
               })}
@@ -650,10 +793,7 @@ export default function AdminUsersPage() {
       {showModal && (
         <CreateStaffModal
           onClose={() => setShowModal(false)}
-          onCreate={(user) => {
-            setLocalUsers((prev) => [user, ...prev]);
-            setShowModal(false);
-          }}
+          onCreate={handleCreateUser}
         />
       )}
     </RoleDashboardShell>
