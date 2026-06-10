@@ -25,6 +25,7 @@ import {
   type AdminTicket,
   type AdminUser,
 } from "@/lib/admin-api";
+import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { Category, TicketStatus } from "@/lib/types";
 
@@ -33,10 +34,30 @@ import type { Category, TicketStatus } from "@/lib/types";
 // ---------------------------------------------------------------------------
 export const adminNav: DashboardNavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", Icon: LayoutDashboard },
-  { label: "Tickets", href: "/admin/tickets", Icon: TicketCheck, requiredPermission: "ticket.view" },
-  { label: "Users", href: "/admin/users", Icon: UsersRound, requiredPermission: "user.view" },
-  { label: "Roles", href: "/admin/roles", Icon: ShieldCheck, requiredPermission: "role.view" },
-  { label: "Categories", href: "/admin/categories", Icon: Tag, requiredPermission: "category.view" },
+  {
+    label: "Tickets",
+    href: DASHBOARD_MODULES.ticketOverview.href.admin,
+    Icon: TicketCheck,
+    requiredPermission: DASHBOARD_MODULES.ticketOverview.requiredPermission,
+  },
+  {
+    label: "Users",
+    href: DASHBOARD_MODULES.userManagement.href.admin,
+    Icon: UsersRound,
+    requiredPermission: DASHBOARD_MODULES.userManagement.requiredPermission,
+  },
+  {
+    label: "Roles",
+    href: DASHBOARD_MODULES.roleManagement.href.admin,
+    Icon: ShieldCheck,
+    requiredPermission: DASHBOARD_MODULES.roleManagement.requiredPermission,
+  },
+  {
+    label: "Categories",
+    href: DASHBOARD_MODULES.categoryManagement.href.admin,
+    Icon: Tag,
+    requiredPermission: DASHBOARD_MODULES.categoryManagement.requiredPermission,
+  },
   { label: "Settings", href: "/admin/settings", Icon: Settings },
 ];
 
@@ -97,11 +118,21 @@ export default function AdminDashboardPage() {
 
       try {
         const [ticketRows, categoryRows, userRows, roleRows, permissionRows] = await Promise.all([
-          hasPermission("ticket.view") ? listAdminTickets() : Promise.resolve([]),
-          hasPermission("category.view") ? listAdminCategories() : Promise.resolve([]),
-          hasPermission("user.view") ? listAdminUsers() : Promise.resolve([]),
-          hasPermission("role.view") ? listAdminRoles() : Promise.resolve([]),
-          hasPermission("permission.view") ? listAdminPermissions() : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)
+            ? listAdminTickets()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission)
+            ? listAdminCategories()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission)
+            ? listAdminUsers()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission)
+            ? listAdminRoles()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission)
+            ? listAdminPermissions()
+            : Promise.resolve([]),
         ]);
         if (!isMounted) return;
         setTickets(ticketRows);
@@ -123,11 +154,11 @@ export default function AdminDashboardPage() {
     };
   }, [hasPermission, isPermissionLoading]);
 
-  const canViewTickets = hasPermission("ticket.view");
-  const canViewCategories = hasPermission("category.view");
-  const canViewUsers = hasPermission("user.view");
-  const canViewRoles = hasPermission("role.view");
-  const canViewPermissions = hasPermission("permission.view");
+  const canViewTickets = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
+  const canViewCategories = hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission);
+  const canViewUsers = hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission);
+  const canViewRoles = hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission);
+  const canViewPermissions = hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission);
 
   const total = tickets.length;
   const open = tickets.filter((t) => t.status !== "RESOLVED").length;
@@ -198,46 +229,46 @@ export default function AdminDashboardPage() {
   const quickLinks: DashboardQuickLink[] = [];
   if (canViewTickets) {
     quickLinks.push({
-      href: "/admin/tickets",
+      href: DASHBOARD_MODULES.ticketOverview.href.admin,
       icon: <TicketCheck className="h-5 w-5 text-blue-600" />,
       bg: "bg-blue-50 border-blue-100",
-      label: "Ticket Overview",
+      label: DASHBOARD_MODULES.ticketOverview.label,
       sub: `${open} open cases`,
     });
   }
   if (canViewUsers) {
     quickLinks.push({
-      href: "/admin/users",
+      href: DASHBOARD_MODULES.userManagement.href.admin,
       icon: <UsersRound className="h-5 w-5 text-teal-600" />,
       bg: "bg-teal-50 border-teal-100",
-      label: "User Management",
+      label: DASHBOARD_MODULES.userManagement.label,
       sub: `${users.length} staff/admin users`,
     });
   }
   if (canViewRoles) {
     quickLinks.push({
-      href: "/admin/roles",
+      href: DASHBOARD_MODULES.roleManagement.href.admin,
       icon: <ShieldCheck className="h-5 w-5 text-indigo-600" />,
       bg: "bg-indigo-50 border-indigo-100",
-      label: "Role Management",
+      label: DASHBOARD_MODULES.roleManagement.label,
       sub: `${roles.length} RBAC roles`,
     });
   }
   if (canViewCategories) {
     quickLinks.push({
-      href: "/admin/categories",
+      href: DASHBOARD_MODULES.categoryManagement.href.admin,
       icon: <Tag className="h-5 w-5 text-violet-600" />,
       bg: "bg-violet-50 border-violet-100",
-      label: "Category Management",
+      label: DASHBOARD_MODULES.categoryManagement.label,
       sub: `${categories.filter((c) => c.is_active).length} active categories`,
     });
   }
   if (canViewPermissions) {
     quickLinks.push({
-      href: "/admin/roles?view=permissions",
+      href: DASHBOARD_MODULES.accessControls.href.admin,
       icon: <BarChart3 className="h-5 w-5 text-slate-600" />,
       bg: "bg-slate-50 border-slate-200",
-      label: "Access Controls",
+      label: DASHBOARD_MODULES.accessControls.label,
       sub: `${permissions.length} permissions available`,
     });
   }
