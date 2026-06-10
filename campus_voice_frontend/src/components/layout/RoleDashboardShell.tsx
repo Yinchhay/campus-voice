@@ -34,7 +34,7 @@ export function RoleDashboardShell({
 	const role = normalizeCampusVoiceRole(roleName);
 	const { hasPermission, isLoading } = useAdminPermissions();
 	const visibleNavItems =
-		role === "admin" && !isLoading
+		!isLoading
 			? navItems.filter((item) => hasPermission(item.requiredPermission))
 			: navItems;
 

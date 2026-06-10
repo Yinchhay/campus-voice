@@ -2,20 +2,20 @@
 
 import Link from "next/link";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
   Clock,
   Filter,
-  LayoutDashboard,
-  ListChecks,
   Search,
-  Settings,
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
+import { staffNav } from "@/lib/staff-nav";
+import { useAdminPermissions } from "@/lib/rbac";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -51,12 +51,6 @@ const priorityIcon: Record<TicketPriority, React.ReactNode> = {
   MEDIUM: <Clock className="h-3.5 w-3.5" />,
   LOW: <CheckCircle2 className="h-3.5 w-3.5" />,
 };
-
-const navItems = [
-  { label: "Dashboard", href: "/staff/dashboard", Icon: LayoutDashboard },
-  { label: "Ticket Queue", href: "/staff/tickets", Icon: ListChecks },
-  { label: "Settings", href: "/staff/settings", Icon: Settings },
-];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -96,6 +90,11 @@ function formatDate(iso?: string) {
 // Page
 // ---------------------------------------------------------------------------
 export default function StaffTicketsPage() {
+  const router = useRouter();
+  const {
+    hasPermission,
+    isLoading: isPermissionLoading,
+  } = useAdminPermissions();
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -105,6 +104,13 @@ export default function StaffTicketsPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
+    if (isPermissionLoading) return;
+    if (!hasPermission("ticket.view")) {
+      if (hasPermission("category.view")) router.replace("/staff/categories");
+      else setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function loadTickets() {
@@ -126,7 +132,7 @@ export default function StaffTicketsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [hasPermission, isPermissionLoading, router]);
 
   const filtered = useMemo(() => {
     return tickets
@@ -169,7 +175,7 @@ export default function StaffTicketsPage() {
       roleName="Staff"
       title="Ticket Queue"
       description="All campus reports. Filter by status, priority, or category to find what needs attention."
-      navItems={navItems}
+      navItems={staffNav}
     >
       <div className="space-y-5">
         {/* ── Search + filters ─────────────────────────────── */}
