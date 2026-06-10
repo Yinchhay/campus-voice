@@ -5,11 +5,8 @@ import {
   Bell,
   Check,
   KeyRound,
-  LayoutDashboard,
-  ListChecks,
   Lock,
   LogOut,
-  Settings,
   ShieldCheck,
   User,
 } from "lucide-react";
@@ -19,15 +16,7 @@ import {
   getCurrentStaffAccount,
   type CurrentStaffAccount,
 } from "@/lib/admin-api";
-
-// ---------------------------------------------------------------------------
-// Nav
-// ---------------------------------------------------------------------------
-const navItems = [
-  { label: "Dashboard", href: "/staff/dashboard", Icon: LayoutDashboard },
-  { label: "Ticket Queue", href: "/staff/tickets", Icon: ListChecks },
-  { label: "Settings", href: "/staff/settings", Icon: Settings },
-];
+import { staffNav } from "@/lib/staff-nav";
 
 // ---------------------------------------------------------------------------
 // Shared sub-components
@@ -266,7 +255,7 @@ export default function StaffSettingsPage() {
       roleName="Staff"
       title="Settings"
       description="Manage your personal account preferences and notification settings."
-      navItems={navItems}
+      navItems={staffNav}
     >
       <div className="max-w-2xl space-y-6">
         {/* ── Profile ───────────────────────────────────────── */}

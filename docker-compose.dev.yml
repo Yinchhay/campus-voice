@@ -1,7 +1,6 @@
 version: '3.9'
 
 services:
-
   db:
     image: postgres:17
     ports:
@@ -35,8 +34,8 @@ services:
     volumes:
       - ./campus_voice_backend:/app
     depends_on:
-      db: 
-        condition: service_healthy 
+      db:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
@@ -61,9 +60,6 @@ services:
       # Google OAuth
       - GOOGLE_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET}
-      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
-      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
-      - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET}
       - NEXT_PUBLIC_API_URL=/api
       - SERVER_API_URL=http://backend:8000/api
       - BACKEND_ORIGIN=http://backend:8000
@@ -75,7 +71,6 @@ services:
       - backend
     networks:
       - app-network
-
 
   nginx:
     image: nginx:alpine

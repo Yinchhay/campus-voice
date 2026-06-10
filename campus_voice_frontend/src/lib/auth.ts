@@ -142,8 +142,8 @@ export const authOptions = {
   jwt: { maxAge: 365 * 24 * 60 * 60 },
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? "",
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
       authorization: {
         params: {
           scope: "openid email profile",

@@ -16,9 +16,17 @@ import {
 import { RoleDashboardShell, type DashboardNavItem } from "@/components/layout/RoleDashboardShell";
 import {
   listAdminCategories,
+  listAdminPermissions,
+  listAdminRoles,
   listAdminTickets,
+  listAdminUsers,
+  type AdminPermission,
+  type AdminRoleDetail,
   type AdminTicket,
+  type AdminUser,
 } from "@/lib/admin-api";
+import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
+import { useRbacPermissions } from "@/lib/rbac";
 import type { Category, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -26,10 +34,30 @@ import type { Category, TicketStatus } from "@/lib/types";
 // ---------------------------------------------------------------------------
 export const adminNav: DashboardNavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", Icon: LayoutDashboard },
-  { label: "Tickets", href: "/admin/tickets", Icon: TicketCheck, requiredPermission: "ticket.view" },
-  { label: "Users", href: "/admin/users", Icon: UsersRound, requiredPermission: "user.view" },
-  { label: "Roles", href: "/admin/roles", Icon: ShieldCheck, requiredPermission: "role.view" },
-  { label: "Categories", href: "/admin/categories", Icon: Tag, requiredPermission: "category.view" },
+  {
+    label: "Tickets",
+    href: DASHBOARD_MODULES.ticketOverview.href.admin,
+    Icon: TicketCheck,
+    requiredPermission: DASHBOARD_MODULES.ticketOverview.requiredPermission,
+  },
+  {
+    label: "Users",
+    href: DASHBOARD_MODULES.userManagement.href.admin,
+    Icon: UsersRound,
+    requiredPermission: DASHBOARD_MODULES.userManagement.requiredPermission,
+  },
+  {
+    label: "Roles",
+    href: DASHBOARD_MODULES.roleManagement.href.admin,
+    Icon: ShieldCheck,
+    requiredPermission: DASHBOARD_MODULES.roleManagement.requiredPermission,
+  },
+  {
+    label: "Categories",
+    href: DASHBOARD_MODULES.categoryManagement.href.admin,
+    Icon: Tag,
+    requiredPermission: DASHBOARD_MODULES.categoryManagement.requiredPermission,
+  },
   { label: "Settings", href: "/admin/settings", Icon: Settings },
 ];
 
@@ -58,16 +86,30 @@ function formatRelative(iso?: string) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+type DashboardQuickLink = {
+  href: string;
+  icon: React.ReactNode;
+  bg: string;
+  label: string;
+  sub: string;
+};
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminDashboardPage() {
+  const { hasPermission, isLoading: isPermissionLoading } = useRbacPermissions();
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [roles, setRoles] = useState<AdminRoleDetail[]>([]);
+  const [permissions, setPermissions] = useState<AdminPermission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
 
   useEffect(() => {
+    if (isPermissionLoading) return;
+
     let isMounted = true;
 
     async function loadDashboard() {
@@ -75,13 +117,29 @@ export default function AdminDashboardPage() {
       setPageError("");
 
       try {
-        const [ticketRows, categoryRows] = await Promise.all([
-          listAdminTickets(),
-          listAdminCategories(),
+        const [ticketRows, categoryRows, userRows, roleRows, permissionRows] = await Promise.all([
+          hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)
+            ? listAdminTickets()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission)
+            ? listAdminCategories()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission)
+            ? listAdminUsers()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission)
+            ? listAdminRoles()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission)
+            ? listAdminPermissions()
+            : Promise.resolve([]),
         ]);
         if (!isMounted) return;
         setTickets(ticketRows);
         setCategories(categoryRows);
+        setUsers(userRows);
+        setRoles(roleRows);
+        setPermissions(permissionRows);
       } catch {
         if (isMounted) setPageError("Failed to load dashboard data.");
       } finally {
@@ -94,7 +152,13 @@ export default function AdminDashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [hasPermission, isPermissionLoading]);
+
+  const canViewTickets = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
+  const canViewCategories = hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission);
+  const canViewUsers = hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission);
+  const canViewRoles = hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission);
+  const canViewPermissions = hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission);
 
   const total = tickets.length;
   const open = tickets.filter((t) => t.status !== "RESOLVED").length;
@@ -103,11 +167,33 @@ export default function AdminDashboardPage() {
   const highPriority = tickets.filter((t) => t.priority === "HIGH" && t.status !== "RESOLVED").length;
 
   const stats = [
-    { label: "Total Tickets", value: total, tone: "text-slate-900" },
-    { label: "Open Cases", value: open, tone: "text-blue-700" },
-    { label: "In Progress", value: inProgress, tone: "text-amber-700" },
-    { label: "Resolved", value: resolved, tone: "text-emerald-700" },
-    { label: "High Priority", value: highPriority, tone: "text-red-700" },
+    ...(canViewTickets
+      ? [
+          { label: "Total Tickets", value: total, tone: "text-slate-900" },
+          { label: "Open Cases", value: open, tone: "text-blue-700" },
+          { label: "In Progress", value: inProgress, tone: "text-amber-700" },
+          { label: "Resolved", value: resolved, tone: "text-emerald-700" },
+          { label: "High Priority", value: highPriority, tone: "text-red-700" },
+        ]
+      : []),
+    ...(canViewCategories
+      ? [
+          {
+            label: "Categories",
+            value: categories.filter((category) => category.is_active).length,
+            tone: "text-violet-700",
+          },
+        ]
+      : []),
+    ...(canViewUsers
+      ? [{ label: "Staff/Admin Users", value: users.length, tone: "text-teal-700" }]
+      : []),
+    ...(canViewRoles
+      ? [{ label: "RBAC Roles", value: roles.length, tone: "text-indigo-700" }]
+      : []),
+    ...(canViewPermissions
+      ? [{ label: "Permissions", value: permissions.length, tone: "text-slate-700" }]
+      : []),
   ];
 
   const recentTickets = useMemo(
@@ -140,6 +226,53 @@ export default function AdminDashboardPage() {
     LOW: "bg-slate-100 text-slate-600 border-slate-200",
   };
 
+  const quickLinks: DashboardQuickLink[] = [];
+  if (canViewTickets) {
+    quickLinks.push({
+      href: DASHBOARD_MODULES.ticketOverview.href.admin,
+      icon: <TicketCheck className="h-5 w-5 text-blue-600" />,
+      bg: "bg-blue-50 border-blue-100",
+      label: DASHBOARD_MODULES.ticketOverview.label,
+      sub: `${open} open cases`,
+    });
+  }
+  if (canViewUsers) {
+    quickLinks.push({
+      href: DASHBOARD_MODULES.userManagement.href.admin,
+      icon: <UsersRound className="h-5 w-5 text-teal-600" />,
+      bg: "bg-teal-50 border-teal-100",
+      label: DASHBOARD_MODULES.userManagement.label,
+      sub: `${users.length} staff/admin users`,
+    });
+  }
+  if (canViewRoles) {
+    quickLinks.push({
+      href: DASHBOARD_MODULES.roleManagement.href.admin,
+      icon: <ShieldCheck className="h-5 w-5 text-indigo-600" />,
+      bg: "bg-indigo-50 border-indigo-100",
+      label: DASHBOARD_MODULES.roleManagement.label,
+      sub: `${roles.length} RBAC roles`,
+    });
+  }
+  if (canViewCategories) {
+    quickLinks.push({
+      href: DASHBOARD_MODULES.categoryManagement.href.admin,
+      icon: <Tag className="h-5 w-5 text-violet-600" />,
+      bg: "bg-violet-50 border-violet-100",
+      label: DASHBOARD_MODULES.categoryManagement.label,
+      sub: `${categories.filter((c) => c.is_active).length} active categories`,
+    });
+  }
+  if (canViewPermissions) {
+    quickLinks.push({
+      href: DASHBOARD_MODULES.accessControls.href.admin,
+      icon: <BarChart3 className="h-5 w-5 text-slate-600" />,
+      bg: "bg-slate-50 border-slate-200",
+      label: DASHBOARD_MODULES.accessControls.label,
+      sub: `${permissions.length} permissions available`,
+    });
+  }
+
   return (
     <RoleDashboardShell
       roleName="Admin"
@@ -160,7 +293,7 @@ export default function AdminDashboardPage() {
             <ShieldCheck className="h-5 w-5 text-emerald-600" />
             <h2 className="text-lg font-semibold text-slate-900">Platform Overview</h2>
           </div>
-          <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {stats.map((s) => (
               <div key={s.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs text-slate-500">{s.label}</p>
@@ -169,11 +302,18 @@ export default function AdminDashboardPage() {
                 </p>
               </div>
             ))}
+            {!isLoading && stats.length === 0 && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                No dashboard modules are available for your current permissions.
+              </div>
+            )}
           </div>
         </div>
 
+        {(canViewTickets || canViewCategories) && (
         <div className="grid gap-6 lg:grid-cols-2">
           {/* ── Recent tickets ────────────────────────────── */}
+          {canViewTickets && (
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -220,8 +360,10 @@ export default function AdminDashboardPage() {
               ))}
             </div>
           </div>
+          )}
 
           {/* ── Category breakdown ────────────────────────── */}
+          {canViewCategories && (
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-teal-600" />
@@ -248,11 +390,18 @@ export default function AdminDashboardPage() {
                         {cat.priority_level}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {cat.open} open of {cat.count} total
-                    </p>
+                    {canViewTickets ? (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {cat.open} open of {cat.count} total
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Active for student submissions
+                      </p>
+                    )}
                   </div>
                   {/* Bar */}
+                  {canViewTickets && (
                   <div className="w-20 shrink-0">
                     <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
                       <div
@@ -263,40 +412,21 @@ export default function AdminDashboardPage() {
                       />
                     </div>
                   </div>
+                  )}
                   <span className="w-6 shrink-0 text-right text-sm font-semibold text-slate-700">
-                    {cat.count}
+                    {canViewTickets ? cat.count : ""}
                   </span>
                 </div>
               ))}
             </div>
           </div>
+          )}
         </div>
+        )}
 
         {/* ── Quick links ───────────────────────────────────── */}
         <div className="grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              href: "/admin/tickets",
-              icon: <TicketCheck className="h-5 w-5 text-blue-600" />,
-              bg: "bg-blue-50 border-blue-100",
-              label: "Manage Tickets",
-              sub: `${open} open cases`,
-            },
-            {
-              href: "/admin/users",
-              icon: <UsersRound className="h-5 w-5 text-teal-600" />,
-              bg: "bg-teal-50 border-teal-100",
-              label: "Manage Users",
-              sub: "Backend users API pending",
-            },
-            {
-              href: "/admin/categories",
-              icon: <Tag className="h-5 w-5 text-violet-600" />,
-              bg: "bg-violet-50 border-violet-100",
-              label: "Manage Categories",
-              sub: `${categories.filter((c) => c.is_active).length} active categories`,
-            },
-          ].map((item) => (
+          {quickLinks.map((item) => (
             <Link
               key={item.href}
               href={item.href}

@@ -10,14 +10,23 @@ import {
   Clock,
   FileText,
   Inbox,
-  LayoutDashboard,
-  ListChecks,
-  Settings,
+  ShieldCheck,
+  Tag,
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import {
+  listAdminCategories,
+  listAdminPermissions,
+  listAdminRoles,
+  type AdminPermission,
+  type AdminRoleDetail,
+} from "@/lib/admin-api";
+import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
 import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
-import type { TicketPriority, TicketStatus } from "@/lib/types";
+import { staffNav } from "@/lib/staff-nav";
+import { useRbacPermissions } from "@/lib/rbac";
+import type { Category, TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -45,12 +54,6 @@ const priorityIcon: Record<TicketPriority, React.ReactNode> = {
   MEDIUM: <Clock className="h-3.5 w-3.5" />,
   LOW: <CheckCircle2 className="h-3.5 w-3.5" />,
 };
-
-const navItems = [
-  { label: "Dashboard", href: "/staff/dashboard", Icon: LayoutDashboard },
-  { label: "Ticket Queue", href: "/staff/tickets", Icon: ListChecks },
-  { label: "Settings", href: "/staff/settings", Icon: Settings },
-];
 
 // ---------------------------------------------------------------------------
 // Helper
@@ -95,35 +98,67 @@ function ticketCreatedTime(ticket: StaffTicket) {
 // Page
 // ---------------------------------------------------------------------------
 export default function StaffDashboardPage() {
+  const {
+    hasPermission,
+    isLoading: isPermissionLoading,
+  } = useRbacPermissions();
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [roles, setRoles] = useState<AdminRoleDetail[]>([]);
+  const [permissions, setPermissions] = useState<AdminPermission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isPermissionLoading) return;
+
     let isMounted = true;
 
-    async function loadTickets() {
+    async function loadDashboard() {
       setIsLoading(true);
       setPageError(null);
 
       try {
-        const data = await listStaffTickets();
-        if (isMounted) setTickets(data);
+        const [ticketRows, categoryRows, roleRows, permissionRows] = await Promise.all([
+          hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)
+            ? listStaffTickets()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission)
+            ? listAdminCategories()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission)
+            ? listAdminRoles()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission)
+            ? listAdminPermissions()
+            : Promise.resolve([]),
+        ]);
+        if (!isMounted) return;
+        setTickets(ticketRows);
+        setCategories(categoryRows);
+        setRoles(roleRows);
+        setPermissions(permissionRows);
       } catch (error) {
         if (isMounted) {
-          setPageError(extractApiError(error, "Failed to load staff tickets."));
+          setPageError(extractApiError(error, "Failed to load staff dashboard."));
         }
       } finally {
         if (isMounted) setIsLoading(false);
       }
     }
 
-    loadTickets();
+    loadDashboard();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [hasPermission, isPermissionLoading]);
+
+  const canViewTickets = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
+  const canViewCategories = hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission);
+  const canViewRoles = hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission);
+  const canViewPermissions =
+    canViewRoles && hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission);
 
   const total = tickets.length;
   const open = tickets.filter((t) => t.status !== "RESOLVED").length;
@@ -148,11 +183,47 @@ export default function StaffDashboardPage() {
   );
 
   const stats = [
-    { label: "All Tickets", value: total, tone: "text-slate-900" },
-    { label: "Open Cases", value: open, tone: "text-blue-700" },
-    { label: "In Progress", value: inProgress, tone: "text-amber-700" },
-    { label: "High Priority", value: highPriority, tone: "text-red-700" },
-    { label: "Resolved Today", value: resolvedToday, tone: "text-emerald-700" },
+    ...(canViewTickets
+      ? [
+          { label: "All Tickets", value: total, tone: "text-slate-900" },
+          { label: "Open Cases", value: open, tone: "text-blue-700" },
+          { label: "In Progress", value: inProgress, tone: "text-amber-700" },
+          { label: "High Priority", value: highPriority, tone: "text-red-700" },
+          { label: "Resolved Today", value: resolvedToday, tone: "text-emerald-700" },
+        ]
+      : []),
+    ...(canViewCategories
+      ? [
+          {
+            label: "Active Categories",
+            value: categories.filter((category) => category.is_active).length,
+            tone: "text-violet-700",
+          },
+          {
+            label: "Total Categories",
+            value: categories.length,
+            tone: "text-slate-900",
+          },
+        ]
+      : []),
+    ...(canViewRoles
+      ? [
+          {
+            label: "RBAC Roles",
+            value: roles.length,
+            tone: "text-indigo-700",
+          },
+        ]
+      : []),
+    ...(canViewPermissions
+      ? [
+          {
+            label: "Permissions",
+            value: permissions.length,
+            tone: "text-slate-700",
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -160,7 +231,7 @@ export default function StaffDashboardPage() {
       roleName="Staff"
       title="Staff Dashboard"
       description="Review incoming reports, prioritise urgent cases, and move them through the resolution pipeline."
-      navItems={navItems}
+      navItems={staffNav}
     >
       <div className="space-y-6">
         {/* ── Stats ────────────────────────────────────────── */}
@@ -181,7 +252,14 @@ export default function StaffDashboardPage() {
           </div>
         </div>
 
+        {stats.length === 0 && !isLoading && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            No dashboard modules are available for your current permissions.
+          </div>
+        )}
+
         {/* ── Recent tickets ────────────────────────────────── */}
+        {canViewTickets && (
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -252,9 +330,68 @@ export default function StaffDashboardPage() {
             ))}
           </div>
         </div>
+        )}
+
+        {/* ── Category overview ─────────────────────────────── */}
+        {canViewCategories && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Tag className="h-5 w-5 text-violet-600" />
+                <h2 className="text-lg font-semibold text-slate-900">Category Overview</h2>
+              </div>
+              <Link
+                href="/staff/categories"
+                className="inline-flex items-center gap-1 text-sm font-medium text-[#1E3A8A] hover:text-blue-700"
+              >
+                Manage
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              {isLoading && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                  Loading categories...
+                </div>
+              )}
+              {!isLoading && categories.length === 0 && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                  No categories are available yet.
+                </div>
+              )}
+              {!isLoading &&
+                categories.slice(0, 6).map((category) => (
+                  <div
+                    key={category.id}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {category.name}
+                      </p>
+                      <span
+                        className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${
+                          category.is_active
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {category.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                      {category.description}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Quick actions ─────────────────────────────────── */}
         <div className="grid gap-4 sm:grid-cols-2">
+          {canViewTickets && (
           <Link
             href="/staff/tickets?filter=HIGH"
             className="flex items-center gap-4 rounded-2xl border border-red-100 bg-red-50 p-5 transition hover:border-red-200"
@@ -270,7 +407,9 @@ export default function StaffDashboardPage() {
             </div>
             <ArrowRight className="ml-auto h-4 w-4 text-red-400" />
           </Link>
+          )}
 
+          {canViewTickets && (
           <Link
             href="/staff/tickets?filter=SUBMITTED"
             className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300"
@@ -286,6 +425,68 @@ export default function StaffDashboardPage() {
             </div>
             <ArrowRight className="ml-auto h-4 w-4 text-slate-400" />
           </Link>
+          )}
+
+          {canViewCategories && (
+            <Link
+              href={DASHBOARD_MODULES.categoryManagement.href.staff}
+              className="flex items-center gap-4 rounded-2xl border border-violet-100 bg-violet-50 p-5 transition hover:border-violet-200"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                <Tag className="h-5 w-5 text-violet-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-violet-950">
+                  {DASHBOARD_MODULES.categoryManagement.label}
+                </p>
+                <p className="mt-0.5 text-sm text-violet-700">
+                  {categories.filter((category) => category.is_active).length} active categor
+                  {categories.filter((category) => category.is_active).length === 1 ? "y" : "ies"}
+                </p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-violet-400" />
+            </Link>
+          )}
+
+          {canViewRoles && (
+            <Link
+              href={DASHBOARD_MODULES.roleManagement.href.staff}
+              className="flex items-center gap-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-5 transition hover:border-indigo-200"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                <ShieldCheck className="h-5 w-5 text-indigo-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-indigo-950">
+                  {DASHBOARD_MODULES.roleManagement.label}
+                </p>
+                <p className="mt-0.5 text-sm text-indigo-700">
+                  {roles.length} RBAC role{roles.length === 1 ? "" : "s"}
+                </p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-indigo-400" />
+            </Link>
+          )}
+
+          {canViewPermissions && (
+            <Link
+              href={DASHBOARD_MODULES.accessControls.href.staff}
+              className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                <BarChart3 className="h-5 w-5 text-slate-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">
+                  {DASHBOARD_MODULES.accessControls.label}
+                </p>
+                <p className="mt-0.5 text-sm text-slate-600">
+                  {permissions.length} permission{permissions.length === 1 ? "" : "s"} available
+                </p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-slate-400" />
+            </Link>
+          )}
         </div>
       </div>
     </RoleDashboardShell>

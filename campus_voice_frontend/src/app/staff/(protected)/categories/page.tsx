@@ -2,15 +2,15 @@
 
 import { CategoryManagementPanel } from "@/components/categories/CategoryManagementPanel";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { adminNav } from "../dashboard/page";
+import { staffNav } from "@/lib/staff-nav";
 
-export default function AdminCategoriesPage() {
+export default function StaffCategoriesPage() {
   return (
     <RoleDashboardShell
-      roleName="Admin"
-      title="Category Management"
-      description="Configure report categories, their default priority levels, and active status."
-      navItems={adminNav}
+      roleName="Staff"
+      title="Categories"
+      description="Manage report categories, default priorities, and availability for student submissions."
+      navItems={staffNav}
     >
       <CategoryManagementPanel />
     </RoleDashboardShell>
