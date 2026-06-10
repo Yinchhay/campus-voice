@@ -29,7 +29,7 @@ import {
   type AdminUser,
 } from "@/lib/admin-api";
 import { adminNav } from "../dashboard/page";
-import { useAdminPermissions } from "@/lib/rbac";
+import { useRbacPermissions } from "@/lib/rbac";
 import type { UserRole } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -677,7 +677,7 @@ function ManageUserRolesModal({
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminUsersPage() {
-  const { hasPermission, isLoading: isPermissionLoading } = useAdminPermissions();
+  const { hasPermission, isLoading: isPermissionLoading } = useRbacPermissions();
   const [roleFilter, setRoleFilter] = useState<UserRole | "ALL">("ALL");
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);

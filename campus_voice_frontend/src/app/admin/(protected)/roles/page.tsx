@@ -22,7 +22,7 @@ import {
   type AdminPermission,
   type AdminRoleDetail,
 } from "@/lib/admin-api";
-import { useAdminPermissions } from "@/lib/rbac";
+import { useRbacPermissions } from "@/lib/rbac";
 import { adminNav } from "../dashboard/page";
 
 type RoleForm = {
@@ -283,7 +283,7 @@ function RoleModal({
 }
 
 export default function AdminRolesPage() {
-  const { hasPermission, isLoading: isPermissionLoading } = useAdminPermissions();
+  const { hasPermission, isLoading: isPermissionLoading } = useRbacPermissions();
   const [roles, setRoles] = useState<AdminRoleDetail[]>([]);
   const [permissions, setPermissions] = useState<AdminPermission[]>([]);
   const [search, setSearch] = useState("");

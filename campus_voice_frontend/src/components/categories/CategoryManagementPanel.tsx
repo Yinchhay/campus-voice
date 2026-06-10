@@ -22,7 +22,7 @@ import {
   updateAdminCategory,
   type CategoryPayload,
 } from "@/lib/admin-api";
-import { useAdminPermissions } from "@/lib/rbac";
+import { useRbacPermissions } from "@/lib/rbac";
 import type { Category, CategoryIssueType, TicketPriority } from "@/lib/types";
 
 type CategoryFormState = {
@@ -90,7 +90,7 @@ function validateCategory(form: CategoryFormState) {
 }
 
 export function CategoryManagementPanel() {
-  const { hasPermission } = useAdminPermissions();
+  const { hasPermission } = useRbacPermissions();
   const [rows, setRows] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
