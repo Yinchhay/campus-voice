@@ -13,7 +13,7 @@ import {
   TicketCheck,
   UsersRound,
 } from "lucide-react";
-import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import { RoleDashboardShell, type DashboardNavItem } from "@/components/layout/RoleDashboardShell";
 import {
   listAdminCategories,
   listAdminTickets,
@@ -24,11 +24,12 @@ import type { Category, TicketStatus } from "@/lib/types";
 // ---------------------------------------------------------------------------
 // Nav
 // ---------------------------------------------------------------------------
-export const adminNav = [
+export const adminNav: DashboardNavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", Icon: LayoutDashboard },
-  { label: "Tickets", href: "/admin/tickets", Icon: TicketCheck },
-  { label: "Users", href: "/admin/users", Icon: UsersRound },
-  { label: "Categories", href: "/admin/categories", Icon: Tag },
+  { label: "Tickets", href: "/admin/tickets", Icon: TicketCheck, requiredPermission: "ticket.view" },
+  { label: "Users", href: "/admin/users", Icon: UsersRound, requiredPermission: "user.view" },
+  { label: "Roles", href: "/admin/roles", Icon: ShieldCheck, requiredPermission: "role.view" },
+  { label: "Categories", href: "/admin/categories", Icon: Tag, requiredPermission: "category.view" },
   { label: "Settings", href: "/admin/settings", Icon: Settings },
 ];
 
