@@ -13,6 +13,7 @@ import {
 	UserRound,
 } from "lucide-react";
 import { dashboardPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
+import { getStaffLandingPath } from "@/lib/rbac";
 
 type CredentialLoginPageProps = {
 	roleName: "Staff" | "Admin";
@@ -84,7 +85,13 @@ export function CredentialLoginPage({
 
 		const session = await getSession();
 		const role = normalizeCampusVoiceRole(session?.user?.role);
-		router.push(role ? dashboardPathForRole(role) : result?.url ?? callbackUrl);
+		const nextPath =
+			role === "staff"
+				? await getStaffLandingPath()
+				: role
+					? dashboardPathForRole(role)
+					: result?.url ?? callbackUrl;
+		router.push(nextPath);
 		router.refresh();
 	};
 
