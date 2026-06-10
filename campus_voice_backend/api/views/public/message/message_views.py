@@ -21,7 +21,10 @@ class MessageView(APIView):
         if error:
             return error
         
-        serializer = PublicMessageSerializer(ticket.messages.all(), many=True)
+        serializer = PublicMessageSerializer(
+            ticket.messages.prefetch_related('attachment').all(), 
+            many=True
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @transaction.atomic
@@ -36,7 +39,10 @@ class MessageView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        serializer = PublicMessageSerializer(data=request.data)
+        serializer = PublicMessageSerializer(
+            data=request.data,
+            context={'request': request}  # needed for file upload in create()
+        )
         if serializer.is_valid():
             message = serializer.save(
                 ticket=ticket,

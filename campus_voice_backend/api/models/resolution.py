@@ -9,13 +9,6 @@ class Resolution(models.Model):
     ticket = models.OneToOneField(Ticket, on_delete=models.CASCADE, related_name='resolution')
     resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='resolved_tickets')
     note= models.TextField()
-    attachment = models.FileField(
-        upload_to='resolutions/%Y/%m/%d/',
-        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'])],
-        null=True,
-        blank=True
-    )
-    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

@@ -59,20 +59,3 @@ class Ticket(models.Model):
             self.public_ticket_id = f"CV-{random.randint(100000, 999999)}"
         super().save(*args, **kwargs)
     
-    
-class TicketAttachment(models.Model):
-    """Attachments for a ticket (PDF, images, etc.)"""
-    
-    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='attachments')
-    file = models.FileField(
-        upload_to='tickets/%Y/%m/%d/',
-        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])]
-    )
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'ticket_attachment'
-        ordering = ['-uploaded_at']
-    
-    def __str__(self):
-        return f"Attachment for {self.ticket.public_ticket_id}"

@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from api.models import Ticket, Category
+from api.models import Ticket, Category, TicketAttachment
 from .message_serializers import PublicMessageSerializer, AdminMessageSerializer
+from .attachment_serializers import TicketAttachmentSerializer, ResolutionAttachmentSerializer
 
 
 class PublicTicketSerializer(serializers.ModelSerializer):
@@ -8,6 +9,7 @@ class PublicTicketSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = Ticket
@@ -22,9 +24,25 @@ class PublicTicketSerializer(serializers.ModelSerializer):
             'priority_display',
             'status',
             'status_display',
+            'attachments',
             'resolved_at',
         ]
         read_only_fields = ['id', 'public_ticket_id', 'priority', 'status', 'resolved_at']
+
+    def get_attachments(self, obj):
+        return TicketAttachmentSerializer(obj.attachments.all(), many=True).data
+    
+    def create(self, validated_data):
+        request = self.context.get('request')
+        ticket  = Ticket.objects.create(**validated_data)
+        files   = request.FILES.getlist('attachments') if request else []
+        for file in files[:3]:
+            TicketAttachment.objects.create(
+                ticket=ticket,
+                file=file,
+                uploaded_by=request.user,
+            )
+        return ticket
 
 
 class PublicTicketDetailSerializer(serializers.ModelSerializer):
@@ -36,6 +54,7 @@ class PublicTicketDetailSerializer(serializers.ModelSerializer):
     message_count = serializers.SerializerMethodField()  
     messages = serializers.SerializerMethodField()
     resolution = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
      
     class Meta:
         model = Ticket
@@ -50,6 +69,7 @@ class PublicTicketDetailSerializer(serializers.ModelSerializer):
             'status',
             'status_display',
             'submitted_by_email',
+            'attachments',
             'resolution',
             'resolved_at',
             'created_at',
@@ -67,6 +87,9 @@ class PublicTicketDetailSerializer(serializers.ModelSerializer):
             'id': str(obj.category.id),
             'name': obj.category.name,
         }
+        
+    def get_attachments(self, obj):
+        return TicketAttachmentSerializer(obj.attachments.all(), many=True).data
 
     def get_message_count(self, obj):
         return obj.messages.count()
@@ -79,7 +102,7 @@ class PublicTicketDetailSerializer(serializers.ModelSerializer):
             r = obj.resolution
             return {
                 'note':        r.note,
-                'attachment':  r.attachment.url if r.attachment else None,
+                'attachments': ResolutionAttachmentSerializer(r.attachments.all(), many=True).data,
                 'resolved_by': r.resolved_by.get_full_name() or r.resolved_by.email if r.resolved_by else None,
                 'created_at':  r.created_at,
             }
@@ -92,6 +115,7 @@ class TicketSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = Ticket
@@ -106,9 +130,13 @@ class TicketSerializer(serializers.ModelSerializer):
             'priority_display',
             'status',
             'status_display',
+            'attachments',
             'resolved_at',
         ]
         read_only_fields = ['id', 'public_ticket_id', 'priority']
+
+    def get_attachments(self, obj):
+        return TicketAttachmentSerializer(obj.attachments.all(), many=True).data
 
 
 class TicketDetailSerializer(serializers.ModelSerializer):
@@ -120,6 +148,7 @@ class TicketDetailSerializer(serializers.ModelSerializer):
     submitted_by_email = serializers.CharField(source='submitted_by.email', read_only=True, allow_null=True)
     messages = serializers.SerializerMethodField()
     resolution = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = Ticket
@@ -135,6 +164,7 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             'status',
             'status_display',
             'submitted_by_email',
+            'attachments',
             'resolution',
             'resolved_at',
             'created_at',
@@ -148,6 +178,9 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             'id': str(obj.category.id),
             'name': obj.category.name,
         }
+        
+    def get_attachments(self, obj):
+        return TicketAttachmentSerializer(obj.attachments.all(), many=True).data
 
     def get_messages(self, obj):
         return AdminMessageSerializer(obj.messages.all(), many=True).data
@@ -158,7 +191,7 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             r = obj.resolution
             return {
                 'note':        r.note,
-                'attachment':  r.attachment.url if r.attachment else None,
+                'attachments': ResolutionAttachmentSerializer(r.attachments.all(), many=True).data,
                 'resolved_by': r.resolved_by.get_full_name() or r.resolved_by.email if r.resolved_by else None,
                 'created_at':  r.created_at,
                 'updated_at':  r.updated_at,

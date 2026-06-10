@@ -9,7 +9,6 @@ class Message(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_messages')
     content = models.TextField()
-    attachment = models.FileField(upload_to='ticket_attachments/%Y/%m/%d/', null=True, blank=True)
     is_staff_message = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

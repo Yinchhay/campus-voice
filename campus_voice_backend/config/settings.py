@@ -206,4 +206,4 @@ LOGGING = {
 AUTH_USER_MODEL = 'api.User'
 
 # Google OAuth Configuration
-GOOGLE_OAUTH_CLIENT_ID = config('GOOGLE_OAUTH_CLIENT_ID', default='')
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')

@@ -23,7 +23,10 @@ class AdminMessageView(APIView):
         if error:
             return error
         
-        serializer = AdminMessageSerializer(ticket.messages.all(), many=True)
+        serializer = AdminMessageSerializer(
+            ticket.messages.prefetch_related('attachment').all(),
+            many=True
+        )
         
         return Response(serializer.data, status=status.HTTP_200_OK)
     
@@ -39,7 +42,10 @@ class AdminMessageView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        serializer = AdminMessageSerializer(data=request.data)
+        serializer = AdminMessageSerializer(
+            data=request.data,
+            context={'request': request}
+        )
         if serializer.is_valid():
             message = serializer.save(
                 ticket=ticket,

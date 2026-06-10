@@ -18,7 +18,7 @@ class TicketListView(APIView):
     permission_classes=[IsAuthenticated]
     
     def get(self, request):
-        tickets = Ticket.objects.filter(submitted_by=request.user)
+        tickets = Ticket.objects.filter(submitted_by=request.user).prefetch_related('attachments')
         serializer = PublicTicketSerializer(tickets, many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -32,7 +32,10 @@ class TicketListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        serializer = PublicTicketSerializer(data=request.data)
+        serializer = PublicTicketSerializer(
+            data=request.data,
+            context={'request': request}   # needed for file upload in create()
+        )
         
         if serializer.is_valid():
             try:
@@ -58,7 +61,11 @@ class TicketDetailView(APIView):
     
     def get(self, request, ticket_id):
         try:
-            ticket = Ticket.objects.get(id=ticket_id)
+            ticket = Ticket.objects.prefetch_related(
+                    'attachments',
+                    'messages__attachment',
+                    'resolution__attachments',
+                ).get(id=ticket_id)
             if ticket.submitted_by != request.user:
                 return Response(
                     {'error': 'You do not have permission to view this ticket'},

@@ -36,7 +36,6 @@ class AdminResolutionView(APIView):
     @transaction.atomic
     def post(self, request, ticket_id):
         ticket, error = get_admin_ticket(ticket_id)
-        
         if error:
             return error
 
@@ -46,7 +45,10 @@ class AdminResolutionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        serializer = ResolutionSerializer(data=request.data)
+        serializer = ResolutionSerializer(
+            data=request.data,
+            context={'request': request} 
+        )
         if serializer.is_valid():
             serializer.save(
                 ticket=ticket,
@@ -78,7 +80,8 @@ class AdminResolutionView(APIView):
         serializer = ResolutionSerializer(
             resolution,
             data=request.data,
-            partial=True           # partial=True allows updating only note or attachment
+            partial=True,
+            context={'request': request}  # needed for file upload in update()
         )
         if serializer.is_valid():
             serializer.save()

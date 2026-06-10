@@ -125,7 +125,7 @@ class GoogleAuthView(APIView):
             user_info = response.json()
 
             # Verify the token is for our app
-            if user_info.get('aud') != settings.GOOGLE_OAUTH_CLIENT_ID:
+            if user_info.get('aud') != settings.GOOGLE_CLIENT_ID:
                 logger.warning(f"Token audience mismatch: {user_info.get('aud')}")
                 return None
 

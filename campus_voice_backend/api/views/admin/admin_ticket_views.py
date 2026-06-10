@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from api.permissions import HasResourcePermission
-from django.db import transaction
 
 from api.models import Ticket
 from api.serializers import TicketSerializer, TicketDetailSerializer
@@ -19,7 +18,7 @@ class AdminTicketListView(APIView):
     resource = 'ticket'
     
     def get(self, request):
-        tickets = Ticket.objects.all()
+        tickets = Ticket.objects.prefetch_related('attachments').all()
         serializer = TicketSerializer(tickets, many=True)
     
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -31,7 +30,11 @@ class AdminTicketDetailView(APIView):
     
     def get(self, request, ticket_id):
         try:
-            ticket = Ticket.objects.get(id=ticket_id)
+            ticket = Ticket.objects.prefetch_related(
+                    'attachments',
+                    'messages__attachment',
+                    'resolution__attachments',
+                ).get(id=ticket_id)
             serializer = TicketDetailSerializer(ticket)
             
             return Response(serializer.data, status=status.HTTP_200_OK)

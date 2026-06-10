@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from api.models import Message
-
+from api.models import Message, MessageAttachment
+from .attachment_serializers import MessageAttachmentSerializer
 
 class PublicMessageSerializer(serializers.ModelSerializer):
     """
@@ -10,6 +10,7 @@ class PublicMessageSerializer(serializers.ModelSerializer):
     - no FK IDs exposed
     """
     sender_info = serializers.SerializerMethodField()
+    attachment = serializers.SerializerMethodField()
     
     class Meta:
         model = Message
@@ -32,6 +33,24 @@ class PublicMessageSerializer(serializers.ModelSerializer):
                 'role': obj.sender.role,  # 'STUDENT' | 'STAFF' | 'ADMIN'
             }
         return None
+    
+    def get_attachment(self, obj):
+        try:
+            return MessageAttachmentSerializer(obj.attachment).data
+        except MessageAttachment.DoesNotExist:
+            return None
+    
+    def create(self, validated_data):
+        request = self.context.get('request')
+        message = Message.objects.create(**validated_data)
+        if request and request.FILES.get('file'):
+            MessageAttachment.objects.create(
+                message=message,
+                file=request.FILES['file'],
+                uploaded_by=request.user,
+            )
+        return message
+
 
 class AdminMessageSerializer(serializers.ModelSerializer):
     """
@@ -40,6 +59,7 @@ class AdminMessageSerializer(serializers.ModelSerializer):
     - includes updated_at for audit trail
     """
     sender_info = serializers.SerializerMethodField()
+    attachment = serializers.SerializerMethodField()
     
     class Meta:
         model = Message
@@ -65,3 +85,21 @@ class AdminMessageSerializer(serializers.ModelSerializer):
                 'role':   obj.sender.role,   # 'STUDENT' | 'STAFF' | 'ADMIN'
             }
         return None
+    
+    def get_attachment(self, obj):
+        try:
+            return MessageAttachmentSerializer(obj.attachment).data
+        except MessageAttachment.DoesNotExist:
+            return None
+        
+    def create(self, validated_data):
+        request = self.context.get('request')
+        message = Message.objects.create(**validated_data)
+        if request and request.FILES.get('file'):
+            MessageAttachment.objects.create(
+                message=message,
+                file=request.FILES['file'],
+                uploaded_by=request.user,
+            )
+        return message
+    
