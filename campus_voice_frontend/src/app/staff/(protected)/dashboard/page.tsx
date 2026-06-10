@@ -393,7 +393,7 @@ export default function StaffDashboardPage() {
                 <Tag className="h-5 w-5 text-violet-600" />
               </div>
               <div>
-                <p className="font-semibold text-violet-950">Manage Categories</p>
+                <p className="font-semibold text-violet-950">Category Management</p>
                 <p className="mt-0.5 text-sm text-violet-700">
                   {categories.filter((category) => category.is_active).length} active categor
                   {categories.filter((category) => category.is_active).length === 1 ? "y" : "ies"}

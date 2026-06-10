@@ -32,6 +32,21 @@ export function canUseAnyPermission(
   return codenames.some((codename) => permissions.has(codename));
 }
 
+export function resolveStaffLandingPath(permissions: Set<PermissionCodename>) {
+  if (canUsePermission(permissions, "ticket.view")) return "/staff/dashboard";
+  if (canUsePermission(permissions, "category.view")) return "/staff/categories";
+  return "/staff/no-access";
+}
+
+export async function getStaffLandingPath() {
+  try {
+    const account = await getCurrentStaffAccount();
+    return resolveStaffLandingPath(permissionsForAccount(account));
+  } catch {
+    return "/staff/no-access";
+  }
+}
+
 export function useRbacPermissions() {
   const [account, setAccount] = useState<CurrentStaffAccount | null>(null);
   const [isLoading, setIsLoading] = useState(true);

@@ -201,7 +201,7 @@ export default function AdminDashboardPage() {
       href: "/admin/tickets",
       icon: <TicketCheck className="h-5 w-5 text-blue-600" />,
       bg: "bg-blue-50 border-blue-100",
-      label: "Manage Tickets",
+      label: "Ticket Overview",
       sub: `${open} open cases`,
     });
   }
@@ -210,7 +210,7 @@ export default function AdminDashboardPage() {
       href: "/admin/users",
       icon: <UsersRound className="h-5 w-5 text-teal-600" />,
       bg: "bg-teal-50 border-teal-100",
-      label: "Manage Users",
+      label: "User Management",
       sub: `${users.length} staff/admin users`,
     });
   }
@@ -219,7 +219,7 @@ export default function AdminDashboardPage() {
       href: "/admin/roles",
       icon: <ShieldCheck className="h-5 w-5 text-indigo-600" />,
       bg: "bg-indigo-50 border-indigo-100",
-      label: "Manage Roles",
+      label: "Role Management",
       sub: `${roles.length} RBAC roles`,
     });
   }
@@ -228,7 +228,7 @@ export default function AdminDashboardPage() {
       href: "/admin/categories",
       icon: <Tag className="h-5 w-5 text-violet-600" />,
       bg: "bg-violet-50 border-violet-100",
-      label: "Manage Categories",
+      label: "Category Management",
       sub: `${categories.filter((c) => c.is_active).length} active categories`,
     });
   }
