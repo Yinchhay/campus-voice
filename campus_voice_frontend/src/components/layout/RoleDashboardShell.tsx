@@ -33,10 +33,11 @@ export function RoleDashboardShell({
 	const pathname = usePathname();
 	const role = normalizeCampusVoiceRole(roleName);
 	const { hasPermission, isLoading } = useRbacPermissions();
-	const visibleNavItems =
-		!isLoading
-			? navItems.filter((item) => hasPermission(item.requiredPermission))
-			: navItems;
+	const visibleNavItems = navItems.filter((item) => {
+		if (!item.requiredPermission) return true;
+		if (isLoading) return false;
+		return hasPermission(item.requiredPermission);
+	});
 
 	return (
 		<main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">

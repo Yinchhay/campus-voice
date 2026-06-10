@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentStaffAccount, type CurrentStaffAccount } from "@/lib/admin-api";
+import { STAFF_LANDING_MODULE_ORDER } from "@/lib/dashboard-access";
 
 export type PermissionCodename = `${string}.${string}` | "*";
+
+let cachedAccount: CurrentStaffAccount | null = null;
+let hasLoadedAccount = false;
 
 export function permissionsForAccount(account: CurrentStaffAccount | null) {
   if (!account) return new Set<PermissionCodename>();
@@ -33,14 +37,19 @@ export function canUseAnyPermission(
 }
 
 export function resolveStaffLandingPath(permissions: Set<PermissionCodename>) {
-  if (canUsePermission(permissions, "ticket.view")) return "/staff/dashboard";
-  if (canUsePermission(permissions, "category.view")) return "/staff/categories";
+  for (const dashboardModule of STAFF_LANDING_MODULE_ORDER) {
+    if (canUsePermission(permissions, dashboardModule.requiredPermission)) {
+      return dashboardModule.href.staff ?? "/staff/no-access";
+    }
+  }
   return "/staff/no-access";
 }
 
 export async function getStaffLandingPath() {
   try {
     const account = await getCurrentStaffAccount();
+    cachedAccount = account;
+    hasLoadedAccount = true;
     return resolveStaffLandingPath(permissionsForAccount(account));
   } catch {
     return "/staff/no-access";
@@ -48,8 +57,8 @@ export async function getStaffLandingPath() {
 }
 
 export function useRbacPermissions() {
-  const [account, setAccount] = useState<CurrentStaffAccount | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [account, setAccount] = useState<CurrentStaffAccount | null>(cachedAccount);
+  const [isLoading, setIsLoading] = useState(!hasLoadedAccount);
 
   useEffect(() => {
     let isMounted = true;
@@ -57,8 +66,12 @@ export function useRbacPermissions() {
     async function loadAccount() {
       try {
         const current = await getCurrentStaffAccount();
+        cachedAccount = current;
+        hasLoadedAccount = true;
         if (isMounted) setAccount(current);
       } catch {
+        cachedAccount = null;
+        hasLoadedAccount = true;
         if (isMounted) setAccount(null);
       } finally {
         if (isMounted) setIsLoading(false);

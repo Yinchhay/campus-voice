@@ -10,11 +10,19 @@ import {
   Clock,
   FileText,
   Inbox,
+  ShieldCheck,
   Tag,
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { listAdminCategories } from "@/lib/admin-api";
+import {
+  listAdminCategories,
+  listAdminPermissions,
+  listAdminRoles,
+  type AdminPermission,
+  type AdminRoleDetail,
+} from "@/lib/admin-api";
+import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
 import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
 import { staffNav } from "@/lib/staff-nav";
 import { useRbacPermissions } from "@/lib/rbac";
@@ -96,6 +104,8 @@ export default function StaffDashboardPage() {
   } = useRbacPermissions();
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [roles, setRoles] = useState<AdminRoleDetail[]>([]);
+  const [permissions, setPermissions] = useState<AdminPermission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
@@ -109,13 +119,25 @@ export default function StaffDashboardPage() {
       setPageError(null);
 
       try {
-        const [ticketRows, categoryRows] = await Promise.all([
-          hasPermission("ticket.view") ? listStaffTickets() : Promise.resolve([]),
-          hasPermission("category.view") ? listAdminCategories() : Promise.resolve([]),
+        const [ticketRows, categoryRows, roleRows, permissionRows] = await Promise.all([
+          hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)
+            ? listStaffTickets()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission)
+            ? listAdminCategories()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission)
+            ? listAdminRoles()
+            : Promise.resolve([]),
+          hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission)
+            ? listAdminPermissions()
+            : Promise.resolve([]),
         ]);
         if (!isMounted) return;
         setTickets(ticketRows);
         setCategories(categoryRows);
+        setRoles(roleRows);
+        setPermissions(permissionRows);
       } catch (error) {
         if (isMounted) {
           setPageError(extractApiError(error, "Failed to load staff dashboard."));
@@ -132,8 +154,11 @@ export default function StaffDashboardPage() {
     };
   }, [hasPermission, isPermissionLoading]);
 
-  const canViewTickets = hasPermission("ticket.view");
-  const canViewCategories = hasPermission("category.view");
+  const canViewTickets = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
+  const canViewCategories = hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission);
+  const canViewRoles = hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission);
+  const canViewPermissions =
+    canViewRoles && hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission);
 
   const total = tickets.length;
   const open = tickets.filter((t) => t.status !== "RESOLVED").length;
@@ -178,6 +203,24 @@ export default function StaffDashboardPage() {
             label: "Total Categories",
             value: categories.length,
             tone: "text-slate-900",
+          },
+        ]
+      : []),
+    ...(canViewRoles
+      ? [
+          {
+            label: "RBAC Roles",
+            value: roles.length,
+            tone: "text-indigo-700",
+          },
+        ]
+      : []),
+    ...(canViewPermissions
+      ? [
+          {
+            label: "Permissions",
+            value: permissions.length,
+            tone: "text-slate-700",
           },
         ]
       : []),
@@ -386,20 +429,62 @@ export default function StaffDashboardPage() {
 
           {canViewCategories && (
             <Link
-              href="/staff/categories"
+              href={DASHBOARD_MODULES.categoryManagement.href.staff}
               className="flex items-center gap-4 rounded-2xl border border-violet-100 bg-violet-50 p-5 transition hover:border-violet-200"
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
                 <Tag className="h-5 w-5 text-violet-600" />
               </div>
               <div>
-                <p className="font-semibold text-violet-950">Category Management</p>
+                <p className="font-semibold text-violet-950">
+                  {DASHBOARD_MODULES.categoryManagement.label}
+                </p>
                 <p className="mt-0.5 text-sm text-violet-700">
                   {categories.filter((category) => category.is_active).length} active categor
                   {categories.filter((category) => category.is_active).length === 1 ? "y" : "ies"}
                 </p>
               </div>
               <ArrowRight className="ml-auto h-4 w-4 text-violet-400" />
+            </Link>
+          )}
+
+          {canViewRoles && (
+            <Link
+              href={DASHBOARD_MODULES.roleManagement.href.staff}
+              className="flex items-center gap-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-5 transition hover:border-indigo-200"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                <ShieldCheck className="h-5 w-5 text-indigo-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-indigo-950">
+                  {DASHBOARD_MODULES.roleManagement.label}
+                </p>
+                <p className="mt-0.5 text-sm text-indigo-700">
+                  {roles.length} RBAC role{roles.length === 1 ? "" : "s"}
+                </p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-indigo-400" />
+            </Link>
+          )}
+
+          {canViewPermissions && (
+            <Link
+              href={DASHBOARD_MODULES.accessControls.href.staff}
+              className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                <BarChart3 className="h-5 w-5 text-slate-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">
+                  {DASHBOARD_MODULES.accessControls.label}
+                </p>
+                <p className="mt-0.5 text-sm text-slate-600">
+                  {permissions.length} permission{permissions.length === 1 ? "" : "s"} available
+                </p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-slate-400" />
             </Link>
           )}
         </div>

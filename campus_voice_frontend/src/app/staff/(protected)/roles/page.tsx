@@ -2,15 +2,15 @@
 
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { RoleManagementPanel } from "@/components/roles/RoleManagementPanel";
-import { adminNav } from "../dashboard/page";
+import { staffNav } from "@/lib/staff-nav";
 
-export default function AdminRolesPage() {
+export default function StaffRolesPage() {
   return (
     <RoleDashboardShell
-      roleName="Admin"
+      roleName="Staff"
       title="Roles"
-      description="Create permission bundles for staff and assign access by resource and action."
-      navItems={adminNav}
+      description="Review and manage RBAC role bundles based on your assigned permissions."
+      navItems={staffNav}
     >
       <RoleManagementPanel />
     </RoleDashboardShell>

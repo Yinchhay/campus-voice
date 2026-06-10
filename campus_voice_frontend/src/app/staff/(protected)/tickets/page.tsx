@@ -13,6 +13,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
 import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
 import { staffNav } from "@/lib/staff-nav";
 import { useRbacPermissions } from "@/lib/rbac";
@@ -105,9 +106,14 @@ export default function StaffTicketsPage() {
 
   useEffect(() => {
     if (isPermissionLoading) return;
-    if (!hasPermission("ticket.view")) {
-      if (hasPermission("category.view")) router.replace("/staff/categories");
-      else setIsLoading(false);
+    if (!hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)) {
+      if (hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission)) {
+        router.replace(DASHBOARD_MODULES.categoryManagement.href.staff);
+      } else if (hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission)) {
+        router.replace(DASHBOARD_MODULES.roleManagement.href.staff);
+      } else {
+        setIsLoading(false);
+      }
       return;
     }
 

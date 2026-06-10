@@ -22,6 +22,7 @@ import {
   updateAdminCategory,
   type CategoryPayload,
 } from "@/lib/admin-api";
+import { RBAC_PERMISSIONS } from "@/lib/dashboard-access";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { Category, CategoryIssueType, TicketPriority } from "@/lib/types";
 
@@ -127,9 +128,9 @@ export function CategoryManagementPanel() {
     [rows],
   );
   const inactive = rows.length - active;
-  const canCreate = hasPermission("category.create");
-  const canUpdate = hasPermission("category.update");
-  const canDelete = hasPermission("category.delete");
+  const canCreate = hasPermission(RBAC_PERMISSIONS.category.create);
+  const canUpdate = hasPermission(RBAC_PERMISSIONS.category.update);
+  const canDelete = hasPermission(RBAC_PERMISSIONS.category.delete);
 
   function startEditing(category: Category) {
     setEditingId(category.id);

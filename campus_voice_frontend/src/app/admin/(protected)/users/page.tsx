@@ -29,6 +29,7 @@ import {
   type AdminUser,
 } from "@/lib/admin-api";
 import { adminNav } from "../dashboard/page";
+import { RBAC_PERMISSIONS } from "@/lib/dashboard-access";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { UserRole } from "@/lib/types";
 
@@ -700,7 +701,7 @@ export default function AdminUsersPage() {
       try {
         const [userRows, roleRows] = await Promise.all([
           listAdminUsers(),
-          hasPermission("role.view") ? listAdminRoles() : Promise.resolve([]),
+          hasPermission(RBAC_PERMISSIONS.role.view) ? listAdminRoles() : Promise.resolve([]),
         ]);
         if (isMounted) {
           setUsers(userRows);
@@ -867,7 +868,7 @@ export default function AdminUsersPage() {
               );
             })}
 
-            {hasPermission("user.create") && (
+            {hasPermission(RBAC_PERMISSIONS.user.create) && (
               <button
                 type="button"
                 onClick={() => setShowModal(true)}
@@ -976,7 +977,7 @@ export default function AdminUsersPage() {
                         disabled={
                           updatingId === user.id ||
                           deletingId === user.id ||
-                          !hasPermission("user.update")
+                          !hasPermission(RBAC_PERMISSIONS.user.update)
                         }
                         title={
                           active ? "Deactivate account" : "Activate account"
@@ -1016,7 +1017,8 @@ export default function AdminUsersPage() {
                       </span>
                     )}
                     <div className="flex flex-wrap gap-1.5 sm:justify-center">
-                      {hasPermission("user.update") && hasPermission("role.view") && (
+                      {hasPermission(RBAC_PERMISSIONS.user.update) &&
+                        hasPermission(RBAC_PERMISSIONS.role.view) && (
                         <button
                           type="button"
                           onClick={() => setRoleUser(user)}
@@ -1027,7 +1029,7 @@ export default function AdminUsersPage() {
                           <SlidersHorizontal className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      {hasPermission("user.delete") && (
+                      {hasPermission(RBAC_PERMISSIONS.user.delete) && (
                         <button
                           type="button"
                           onClick={() => handleDeleteUser(user)}
