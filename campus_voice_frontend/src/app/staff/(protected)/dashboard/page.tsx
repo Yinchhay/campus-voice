@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -10,13 +11,12 @@ import {
   Clock,
   FileText,
   Inbox,
-  LayoutDashboard,
-  ListChecks,
-  Settings,
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
+import { staffNav } from "@/lib/staff-nav";
+import { useAdminPermissions } from "@/lib/rbac";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -45,12 +45,6 @@ const priorityIcon: Record<TicketPriority, React.ReactNode> = {
   MEDIUM: <Clock className="h-3.5 w-3.5" />,
   LOW: <CheckCircle2 className="h-3.5 w-3.5" />,
 };
-
-const navItems = [
-  { label: "Dashboard", href: "/staff/dashboard", Icon: LayoutDashboard },
-  { label: "Ticket Queue", href: "/staff/tickets", Icon: ListChecks },
-  { label: "Settings", href: "/staff/settings", Icon: Settings },
-];
 
 // ---------------------------------------------------------------------------
 // Helper
@@ -95,11 +89,23 @@ function ticketCreatedTime(ticket: StaffTicket) {
 // Page
 // ---------------------------------------------------------------------------
 export default function StaffDashboardPage() {
+  const router = useRouter();
+  const {
+    hasPermission,
+    isLoading: isPermissionLoading,
+  } = useAdminPermissions();
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isPermissionLoading) return;
+    if (!hasPermission("ticket.view")) {
+      if (hasPermission("category.view")) router.replace("/staff/categories");
+      else setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function loadTickets() {
@@ -123,7 +129,7 @@ export default function StaffDashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [hasPermission, isPermissionLoading, router]);
 
   const total = tickets.length;
   const open = tickets.filter((t) => t.status !== "RESOLVED").length;
@@ -160,7 +166,7 @@ export default function StaffDashboardPage() {
       roleName="Staff"
       title="Staff Dashboard"
       description="Review incoming reports, prioritise urgent cases, and move them through the resolution pipeline."
-      navItems={navItems}
+      navItems={staffNav}
     >
       <div className="space-y-6">
         {/* ── Stats ────────────────────────────────────────── */}
