@@ -6,7 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import { LogOut, ShieldCheck } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { loginPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
-import { useAdminPermissions, type PermissionCodename } from "@/lib/rbac";
+import { useRbacPermissions, type PermissionCodename } from "@/lib/rbac";
 
 export type DashboardNavItem = {
 	label: string;
@@ -32,7 +32,7 @@ export function RoleDashboardShell({
 }: RoleDashboardShellProps) {
 	const pathname = usePathname();
 	const role = normalizeCampusVoiceRole(roleName);
-	const { hasPermission, isLoading } = useAdminPermissions();
+	const { hasPermission, isLoading } = useRbacPermissions();
 	const visibleNavItems =
 		!isLoading
 			? navItems.filter((item) => hasPermission(item.requiredPermission))

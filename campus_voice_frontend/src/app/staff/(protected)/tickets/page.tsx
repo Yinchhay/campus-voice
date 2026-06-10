@@ -15,7 +15,7 @@ import {
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
 import { staffNav } from "@/lib/staff-nav";
-import { useAdminPermissions } from "@/lib/rbac";
+import { useRbacPermissions } from "@/lib/rbac";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -94,7 +94,7 @@ export default function StaffTicketsPage() {
   const {
     hasPermission,
     isLoading: isPermissionLoading,
-  } = useAdminPermissions();
+  } = useRbacPermissions();
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);

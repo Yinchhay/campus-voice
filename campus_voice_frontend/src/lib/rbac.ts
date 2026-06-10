@@ -32,7 +32,7 @@ export function canUseAnyPermission(
   return codenames.some((codename) => permissions.has(codename));
 }
 
-export function useAdminPermissions() {
+export function useRbacPermissions() {
   const [account, setAccount] = useState<CurrentStaffAccount | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -77,3 +77,5 @@ export function useAdminPermissions() {
     hasAnyPermission,
   };
 }
+
+export const useAdminPermissions = useRbacPermissions;
