@@ -9,10 +9,10 @@ def ticket_upload_path(instance, filename):
     return f'tickets/{instance.ticket.id}/{filename}'
 
 def message_upload_path(instance, filename):
-    return f'tickets/{instance.ticket.id}/{filename}'
+    return f'messages/{instance.message.id}/{filename}'
 
 def resolution_upload_path(instance, filename):
-    return f'tickets/{instance.ticket.id}/{filename}'
+    return f'resolutions/{instance.resolution.id}/{filename}'
 
 class BaseAttachment(models.Model):
     """Shared fields for all attachment type"""

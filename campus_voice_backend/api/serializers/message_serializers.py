@@ -43,10 +43,10 @@ class PublicMessageSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         request = self.context.get('request')
         message = Message.objects.create(**validated_data)
-        if request and request.FILES.get('file'):
+        if request and request.FILES.get('attachment'):
             MessageAttachment.objects.create(
                 message=message,
-                file=request.FILES['file'],
+                file=request.FILES['attachment'],
                 uploaded_by=request.user,
             )
         return message
@@ -95,10 +95,10 @@ class AdminMessageSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         request = self.context.get('request')
         message = Message.objects.create(**validated_data)
-        if request and request.FILES.get('file'):
+        if request and request.FILES.get('attachment'):
             MessageAttachment.objects.create(
                 message=message,
-                file=request.FILES['file'],
+                file=request.FILES['attachment'],
                 uploaded_by=request.user,
             )
         return message
