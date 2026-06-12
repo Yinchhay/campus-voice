@@ -43,7 +43,14 @@ const PRIORITY_META: Record<Priority, { label: string; color: string; dot: strin
 };
 
 const MAX_ATTACHMENT_SIZE_MB = 10;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "video/mp4", "video/quicktime"];
+const MAX_ATTACHMENTS = 3;
+const ALLOWED_TYPES = [
+	"image/jpeg",
+	"image/png",
+	"application/pdf",
+	"application/msword",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
 
 function formatBytes(bytes: number) {
 	if (bytes < 1024) return `${bytes} B`;
@@ -188,8 +195,8 @@ export default function SubmitReportPage() {
 		}
 
 		const combined = [...form.attachments, ...files];
-		if (combined.length > 5) {
-			setAttachmentError("You can attach a maximum of 5 files.");
+		if (combined.length > MAX_ATTACHMENTS) {
+			setAttachmentError(`You can attach a maximum of ${MAX_ATTACHMENTS} files.`);
 			return;
 		}
 
@@ -223,6 +230,7 @@ export default function SubmitReportPage() {
 				category: Number(form.category_id),
 				title: form.title.trim(),
 				description: form.description.trim(),
+				attachments: form.attachments,
 			});
 			setCreatedTicket(ticket);
 			setSubmitted(true);
@@ -467,7 +475,7 @@ export default function SubmitReportPage() {
 									Click to attach files
 								</p>
 								<p className="mt-1 text-xs text-slate-500">
-									Images, PDFs, videos — up to {MAX_ATTACHMENT_SIZE_MB} MB each · max 5 files
+									PDF, DOC, DOCX, JPG, or PNG — up to {MAX_ATTACHMENT_SIZE_MB} MB each · max {MAX_ATTACHMENTS} files
 								</p>
 							</button>
 							<input

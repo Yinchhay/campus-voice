@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import axios from "axios";
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CalendarClock,
@@ -20,12 +20,14 @@ import {
   TriangleAlert,
   Users,
   Video,
+  X,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import { attachmentHref, attachmentName } from "@/lib/attachments";
 import {
+  createStaffTicketResolution,
   createStaffTicketMessage,
   getStaffTicket,
-  updateStaffTicketStatus,
   type StaffTicket,
   type StaffTicketMessage,
 } from "@/lib/staff-api";
@@ -74,6 +76,16 @@ const meetingTypeLabel: Record<MeetingType, string> = {
   IN_PERSON: "In-Person",
   HYBRID: "Hybrid",
 };
+
+const RESOLUTION_MAX_ATTACHMENTS = 3;
+const RESOLUTION_ALLOWED_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+];
+const MESSAGE_ALLOWED_TYPES = RESOLUTION_ALLOWED_TYPES;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -138,6 +150,9 @@ export default function StaffTicketDetailPage({
 }) {
   const { id } = use(params);
 
+  const resolutionFileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageFileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [ticket, setTicket] = useState<StaffTicket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -145,16 +160,18 @@ export default function StaffTicketDetailPage({
   // Local state for status/priority overrides and messages
   const [currentStatus, setCurrentStatus] = useState<TicketStatus>("SUBMITTED");
   const [currentPriority, setCurrentPriority] = useState<TicketPriority>("LOW");
-  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(
-    null,
-  );
-  const [updatingStatus, setUpdatingStatus] = useState<TicketStatus | null>(
-    null,
-  );
   const [replyText, setReplyText] = useState("");
+  const [replyAttachment, setReplyAttachment] = useState<File | null>(null);
   const [messageError, setMessageError] = useState<string | null>(null);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [localMessages, setLocalMessages] = useState<StaffTicketMessage[]>([]);
+  const [showResolutionForm, setShowResolutionForm] = useState(false);
+  const [resolutionNote, setResolutionNote] = useState("");
+  const [resolutionAttachments, setResolutionAttachments] = useState<File[]>(
+    [],
+  );
+  const [resolutionError, setResolutionError] = useState<string | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
 
   // Meeting slot creation form state
   const [showMeetingForm, setShowMeetingForm] = useState(false);
@@ -216,9 +233,15 @@ export default function StaffTicketDetailPage({
     setMessageError(null);
 
     try {
-      const message = await createStaffTicketMessage(ticket.id, text);
+      const message = await createStaffTicketMessage(
+        ticket.id,
+        text,
+        replyAttachment,
+      );
       setLocalMessages((prev) => [...prev, message]);
       setReplyText("");
+      setReplyAttachment(null);
+      if (messageFileInputRef.current) messageFileInputRef.current.value = "";
 
       if (currentStatus === "SUBMITTED") {
         setCurrentStatus("IN_PROGRESS");
@@ -238,29 +261,87 @@ export default function StaffTicketDetailPage({
     }
   }
 
-  async function handleStatusChange(nextStatus: TicketStatus) {
-    if (!ticket || nextStatus === currentStatus || updatingStatus) return;
+  function handleReplyFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setMessageError(null);
+    if (!file) return;
 
-    const previousStatus = currentStatus;
-    setCurrentStatus(nextStatus);
-    setStatusUpdateError(null);
-    setUpdatingStatus(nextStatus);
+    if (!MESSAGE_ALLOWED_TYPES.includes(file.type)) {
+      setMessageError(`"${file.name}" is not a supported file type.`);
+      return;
+    }
+
+    setReplyAttachment(file);
+  }
+
+  function handleResolveClick() {
+    if (!ticket || currentStatus === "RESOLVED" || isResolving) return;
+    setShowResolutionForm(true);
+    setResolutionError(null);
+  }
+
+  function handleResolutionFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    setResolutionError(null);
+
+    const invalid = files.find(
+      (file) => !RESOLUTION_ALLOWED_TYPES.includes(file.type),
+    );
+    if (invalid) {
+      setResolutionError(`"${invalid.name}" is not a supported file type.`);
+      return;
+    }
+
+    const combined = [...resolutionAttachments, ...files];
+    if (combined.length > RESOLUTION_MAX_ATTACHMENTS) {
+      setResolutionError(
+        `You can attach a maximum of ${RESOLUTION_MAX_ATTACHMENTS} files.`,
+      );
+      return;
+    }
+
+    setResolutionAttachments(combined);
+    if (resolutionFileInputRef.current) resolutionFileInputRef.current.value = "";
+  }
+
+  function removeResolutionAttachment(index: number) {
+    setResolutionAttachments((current) =>
+      current.filter((_, attachmentIndex) => attachmentIndex !== index),
+    );
+  }
+
+  async function handleResolutionSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ticket || isResolving) return;
+
+    const note = resolutionNote.trim();
+    if (!note) {
+      setResolutionError("Resolution note is required.");
+      return;
+    }
+
+    setIsResolving(true);
+    setResolutionError(null);
 
     try {
-      const updatedTicket = await updateStaffTicketStatus(
+      await createStaffTicketResolution(
         ticket.id,
-        nextStatus,
+        note,
+        resolutionAttachments,
       );
+      const updatedTicket = await getStaffTicket(ticket.id);
       setTicket(updatedTicket);
       setCurrentStatus(updatedTicket.status);
       setCurrentPriority(updatedTicket.priority);
+      setResolutionNote("");
+      setResolutionAttachments([]);
+      setShowResolutionForm(false);
     } catch (error) {
-      setCurrentStatus(previousStatus);
-      setStatusUpdateError(
-        extractApiError(error, "Failed to update ticket status."),
+      setResolutionError(
+        extractApiError(error, "Failed to resolve this ticket."),
       );
     } finally {
-      setUpdatingStatus(null);
+      setIsResolving(false);
     }
   }
 
@@ -354,10 +435,11 @@ export default function StaffTicketDetailPage({
                 >
                   {currentPriority}
                 </span>
-                {ticket.attachment && (
+                {ticket.attachments.length > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
                     <Paperclip className="h-3 w-3" />
-                    Has attachment
+                    {ticket.attachments.length} attachment
+                    {ticket.attachments.length !== 1 ? "s" : ""}
                   </span>
                 )}
               </div>
@@ -395,7 +477,60 @@ export default function StaffTicketDetailPage({
               <p className="leading-7 text-sm text-slate-700">
                 {ticket.description}
               </p>
+              {ticket.attachments.length > 0 && (
+                <div className="mt-5 space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Attachments
+                  </h3>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {ticket.attachments.map((attachment) => (
+                      <a
+                        key={attachment.id}
+                        href={attachmentHref(attachment)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-white"
+                      >
+                        <Paperclip className="h-4 w-4 shrink-0 text-slate-400" />
+                        <span className="truncate">
+                          {attachmentName(attachment)}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+
+            {ticket.resolution && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  Resolution
+                </h2>
+                <p className="leading-7 text-sm text-emerald-900">
+                  {ticket.resolution.note}
+                </p>
+                {ticket.resolution.attachments.length > 0 && (
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {ticket.resolution.attachments.map((attachment) => (
+                      <a
+                        key={attachment.id}
+                        href={attachmentHref(attachment)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex min-w-0 items-center gap-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm text-emerald-800 transition hover:bg-white"
+                      >
+                        <Paperclip className="h-4 w-4 shrink-0" />
+                        <span className="truncate">
+                          {attachmentName(attachment)}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Chat thread */}
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -447,11 +582,16 @@ export default function StaffTicketDetailPage({
                             }`}
                           >
                             {msg.content}
-                            {msg.attachment_name && (
-                              <div className="mt-2 flex items-center gap-1.5 text-xs opacity-70">
+                            {msg.attachment && (
+                              <a
+                                href={attachmentHref(msg.attachment)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 flex items-center gap-1.5 text-xs opacity-80 underline-offset-2 hover:underline"
+                              >
                                 <Paperclip className="h-3 w-3" />
-                                {msg.attachment_name}
-                              </div>
+                                {attachmentName(msg.attachment)}
+                              </a>
                             )}
                           </div>
                           <span className="px-1 text-xs text-slate-400">
@@ -467,21 +607,68 @@ export default function StaffTicketDetailPage({
               {/* Reply box */}
               <div className="border-t border-slate-100 px-6 py-4">
                 <div className="flex items-end gap-3">
-                  <textarea
-                    id="staff-reply-input"
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
+                  <div className="flex-1">
+                    <textarea
+                      id="staff-reply-input"
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                      rows={3}
+                      placeholder="Type a response to the student… (Enter to send)"
+                      disabled={
+                        isSendingMessage || currentStatus === "RESOLVED"
                       }
-                    }}
-                    rows={3}
-                    placeholder="Type a response to the student… (Enter to send)"
-                    disabled={isSendingMessage || currentStatus === "RESOLVED"}
-                    className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
-                  />
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
+                    />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <input
+                        ref={messageFileInputRef}
+                        type="file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={handleReplyFileChange}
+                        disabled={
+                          isSendingMessage || currentStatus === "RESOLVED"
+                        }
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => messageFileInputRef.current?.click()}
+                        disabled={
+                          isSendingMessage || currentStatus === "RESOLVED"
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 disabled:opacity-50"
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        Attach
+                      </button>
+                      {replyAttachment && (
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
+                          <span className="truncate">
+                            {replyAttachment.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplyAttachment(null);
+                              if (messageFileInputRef.current) {
+                                messageFileInputRef.current.value = "";
+                              }
+                            }}
+                            className="text-slate-400 hover:text-red-600"
+                            aria-label={`Remove ${replyAttachment.name}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={handleSend}
@@ -525,19 +712,16 @@ export default function StaffTicketDetailPage({
               </h2>
               <div className="flex flex-col gap-2">
                 {statusFlow.map((s) => (
-                  <button
+                  <div
                     key={s}
-                    type="button"
-                    onClick={() => handleStatusChange(s)}
-                    disabled={!!updatingStatus || currentStatus === s}
                     className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
                       currentStatus === s
                         ? s === "RESOLVED"
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : s === "IN_PROGRESS"
                             ? "border-blue-200 bg-blue-50 text-blue-700"
-                            : "border-slate-300 bg-slate-100 text-slate-700"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 disabled:cursor-wait disabled:opacity-60"
+                          : "border-slate-300 bg-slate-100 text-slate-700"
+                        : "border-slate-200 bg-white text-slate-600"
                     }`}
                   >
                     {s === "SUBMITTED" && (
@@ -549,15 +733,125 @@ export default function StaffTicketDetailPage({
                     {s === "RESOLVED" && (
                       <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
                     )}
-                    {updatingStatus === s ? "Updating..." : statusLabel[s]}
-                  </button>
+                    {statusLabel[s]}
+                  </div>
                 ))}
               </div>
-              {statusUpdateError && (
+              {currentStatus !== "RESOLVED" && (
+                <button
+                  type="button"
+                  onClick={handleResolveClick}
+                  disabled={isResolving}
+                  className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Resolve Ticket
+                </button>
+              )}
+              {showResolutionForm && currentStatus !== "RESOLVED" && (
+                <form
+                  onSubmit={handleResolutionSubmit}
+                  className="mt-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3"
+                >
+                  <div>
+                    <label
+                      htmlFor="resolution-note"
+                      className="mb-1 block text-xs font-medium text-slate-700"
+                    >
+                      Resolution note
+                    </label>
+                    <textarea
+                      id="resolution-note"
+                      value={resolutionNote}
+                      onChange={(e) => setResolutionNote(e.target.value)}
+                      rows={4}
+                      placeholder="Describe how this ticket was resolved."
+                      disabled={isResolving}
+                      className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="resolution-attachments"
+                      className="mb-1 block text-xs font-medium text-slate-700"
+                    >
+                      Attachments
+                    </label>
+                    <input
+                      ref={resolutionFileInputRef}
+                      id="resolution-attachments"
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={handleResolutionFileChange}
+                      disabled={
+                        isResolving ||
+                        resolutionAttachments.length >=
+                          RESOLUTION_MAX_ATTACHMENTS
+                      }
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-2.5 file:py-1 file:text-xs file:font-medium file:text-slate-700 disabled:opacity-60"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                      Optional, up to {RESOLUTION_MAX_ATTACHMENTS} PDF, DOC,
+                      DOCX, JPG, or PNG files.
+                    </p>
+                  </div>
+
+                  {resolutionAttachments.length > 0 && (
+                    <div className="space-y-1">
+                      {resolutionAttachments.map((file, index) => (
+                        <div
+                          key={`${file.name}-${file.lastModified}`}
+                          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
+                        >
+                          <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                          <span className="min-w-0 flex-1 truncate">
+                            {file.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeResolutionAttachment(index)}
+                            disabled={isResolving}
+                            className="font-medium text-slate-500 hover:text-red-600 disabled:opacity-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={!resolutionNote.trim() || isResolving}
+                      className="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {isResolving ? "Resolving..." : "Submit Resolution"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowResolutionForm(false);
+                        setResolutionError(null);
+                      }}
+                      disabled={isResolving}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+              {resolutionError && (
                 <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {statusUpdateError}
+                  {resolutionError}
                 </p>
               )}
+              <p className="mt-3 text-xs text-slate-400">
+                Direct status updates are not available in the current backend.
+                Resolution uses the ticket resolution endpoint.
+              </p>
             </div>
 
             {/* Priority control */}
