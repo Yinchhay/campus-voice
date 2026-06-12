@@ -9,14 +9,11 @@ import {
   CheckCircle2,
   Clock,
   FileText,
-  LayoutDashboard,
-  ListChecks,
   MapPin,
   MessageSquare,
   Paperclip,
   Plus,
   Send,
-  Settings,
   TriangleAlert,
   Users,
   Video,
@@ -24,6 +21,7 @@ import {
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { attachmentHref, attachmentName } from "@/lib/attachments";
+import { staffNav } from "@/lib/staff-nav";
 import {
   createStaffTicketResolution,
   createStaffTicketMessage,
@@ -37,15 +35,6 @@ import type {
   TicketPriority,
   TicketStatus,
 } from "@/lib/types";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-const navItems = [
-  { label: "Dashboard", href: "/staff/dashboard", Icon: LayoutDashboard },
-  { label: "Ticket Queue", href: "/staff/tickets", Icon: ListChecks },
-  { label: "Settings", href: "/staff/settings", Icon: Settings },
-];
 
 const statusBadgeClass: Record<TicketStatus, string> = {
   SUBMITTED: "bg-slate-100 text-slate-700 border-slate-200",
@@ -357,7 +346,7 @@ export default function StaffTicketDetailPage({
         roleName="Staff"
         title="Loading Ticket"
         description=""
-        navItems={navItems}
+        navItems={staffNav}
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1E3A8A]" />
@@ -375,7 +364,7 @@ export default function StaffTicketDetailPage({
         roleName="Staff"
         title="Ticket Unavailable"
         description=""
-        navItems={navItems}
+        navItems={staffNav}
       >
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
           <TriangleAlert className="mx-auto h-10 w-10 text-amber-500" />
@@ -404,7 +393,7 @@ export default function StaffTicketDetailPage({
       roleName="Staff"
       title={ticket.public_ticket_id}
       description={ticket.title}
-      navItems={navItems}
+      navItems={staffNav}
     >
       <div className="space-y-5">
         {/* Back */}
