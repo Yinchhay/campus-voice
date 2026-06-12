@@ -11,6 +11,7 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Trash2,
   UserCircle,
   UserPlus,
   Users,
@@ -1036,9 +1037,15 @@ export default function AdminUsersPage() {
                           disabled={
                             deletingId === user.id || updatingId === user.id
                           }
-                          className="inline-flex h-8 w-[84px] items-center justify-center rounded-full border border-red-200 bg-white px-2 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-white text-red-600 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          title="Delete user"
+                          aria-label={`Delete ${user.email}`}
                         >
-                          {deletingId === user.id ? "Deleting..." : "Delete"}
+                          {deletingId === user.id ? (
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-200 border-t-red-600" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
                         </button>
                       )}
                     </div>
