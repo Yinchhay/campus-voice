@@ -258,11 +258,18 @@ export default function AdminTicketsPage() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {filtered.map((ticket) => (
+              {filtered.map((ticket) => {
+                const isHighPriority = ticket.priority === "HIGH";
+
+                return (
                 <Link
                   key={ticket.id}
                   href={`/admin/tickets/${ticket.id}`}
-                  className="flex flex-col gap-3 px-5 py-4 transition hover:bg-slate-50 sm:grid sm:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] sm:items-center sm:gap-4"
+                  className={`flex flex-col gap-3 px-5 py-4 transition sm:grid sm:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] sm:items-center sm:gap-4 ${
+                    isHighPriority
+                      ? "bg-red-50/70 hover:bg-red-50"
+                      : "hover:bg-slate-50"
+                  }`}
                 >
                   <div>
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -301,7 +308,8 @@ export default function AdminTicketsPage() {
 
                   <ArrowRight className="hidden h-4 w-4 text-slate-300 sm:block" />
                 </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
