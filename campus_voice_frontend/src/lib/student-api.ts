@@ -1,6 +1,11 @@
 import api from "@/lib/axios";
 import axios from "axios";
-import type { CategoryIssueType, TicketPriority, TicketStatus } from "@/lib/types";
+import type {
+  Attachment,
+  CategoryIssueType,
+  TicketPriority,
+  TicketStatus,
+} from "@/lib/types";
 
 export type StudentCategory = {
   id: number;
@@ -24,6 +29,8 @@ export type StudentTicket = {
   status: TicketStatus;
   status_display?: string;
   has_media: boolean;
+  attachments: Attachment[];
+  resolution?: StudentTicketResolution | null;
   created_at?: string;
   updated_at?: string;
   resolved_at: string | null;
@@ -34,16 +41,27 @@ export type StudentTicketMessage = {
   id: number;
   sender?: string | null;
   content: string;
-  attachment?: string | null;
+  attachment?: Attachment | null;
   is_staff_message: boolean;
   created_at: string;
-  attachment_name?: string | null;
 };
 
-type BackendStudentTicket = Omit<StudentTicket, "category" | "category_id" | "category_name" | "has_media"> & {
+export type StudentTicketResolution = {
+  note: string;
+  attachments: Attachment[];
+  resolved_by?: string | null;
+  created_at: string;
+  updated_at?: string;
+};
+
+type BackendStudentTicket = Omit<
+  StudentTicket,
+  "category" | "category_id" | "category_name" | "has_media" | "attachments"
+> & {
   category: number | { id: number | string; name?: string };
   category_name?: string;
   has_media?: boolean;
+  attachments?: Attachment[];
   messages?: StudentTicketMessage[];
 };
 
@@ -51,6 +69,7 @@ export type CreateStudentTicketPayload = {
   category: number;
   title: string;
   description: string;
+  attachments?: File[];
 };
 
 function normalizeTicket(ticket: BackendStudentTicket): StudentTicket {
@@ -63,7 +82,8 @@ function normalizeTicket(ticket: BackendStudentTicket): StudentTicket {
     ...ticket,
     category: categoryId,
     category_id: categoryId,
-    has_media: Boolean(ticket.has_media),
+    attachments: ticket.attachments ?? [],
+    has_media: Boolean(ticket.has_media || ticket.attachments?.length),
     category_name:
       ticket.category_name ||
       (typeof ticket.category === "object" ? ticket.category.name ?? "Unknown" : "Unknown"),
@@ -77,7 +97,13 @@ export async function listStudentCategories() {
 
 export async function createStudentTicket(payload: CreateStudentTicketPayload) {
   try {
-    const response = await api.post<BackendStudentTicket>("/v1/tickets", payload);
+    const { attachments = [], ...ticketPayload } = payload;
+    const requestBody =
+      attachments.length > 0
+        ? buildStudentTicketFormData(ticketPayload, attachments)
+        : ticketPayload;
+
+    const response = await api.post<BackendStudentTicket>("/v1/tickets", requestBody);
     return normalizeTicket(response.data);
   } catch (error) {
     if (!axios.isAxiosError(error) || error.response?.status !== 500) {
@@ -129,9 +155,37 @@ export async function listStudentTicketMessages(ticketId: string) {
   return response.data;
 }
 
-export async function createStudentTicketMessage(ticketId: string, content: string) {
-  const response = await api.post<StudentTicketMessage>(`/v1/tickets/${ticketId}/messages`, {
-    content,
-  });
+export async function createStudentTicketMessage(
+  ticketId: string,
+  content: string,
+  attachment?: File | null,
+) {
+  const requestBody = attachment
+    ? buildMessageFormData(content, attachment)
+    : { content };
+
+  const response = await api.post<StudentTicketMessage>(
+    `/v1/tickets/${ticketId}/messages`,
+    requestBody,
+  );
   return response.data;
+}
+
+function buildStudentTicketFormData(
+  payload: Omit<CreateStudentTicketPayload, "attachments">,
+  attachments: File[],
+) {
+  const formData = new FormData();
+  formData.append("category", String(payload.category));
+  formData.append("title", payload.title);
+  formData.append("description", payload.description);
+  attachments.forEach((file) => formData.append("attachments", file));
+  return formData;
+}
+
+function buildMessageFormData(content: string, attachment: File) {
+  const formData = new FormData();
+  formData.append("content", content);
+  formData.append("attachment", attachment);
+  return formData;
 }

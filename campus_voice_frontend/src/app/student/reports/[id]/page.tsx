@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import axios from "axios";
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CalendarClock,
@@ -17,7 +17,9 @@ import {
   TriangleAlert,
   Video,
   Users,
+  X,
 } from "lucide-react";
+import { attachmentHref, attachmentName } from "@/lib/attachments";
 import { mockBookings, mockMeetingSlots } from "@/lib/mock-data";
 import {
   createStudentTicketMessage,
@@ -72,6 +74,14 @@ const meetingTypeLabel: Record<MeetingType, string> = {
   IN_PERSON: "In-Person",
   HYBRID: "Hybrid",
 };
+
+const MESSAGE_ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -246,12 +256,14 @@ export default function StudentReportDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const messageFileInputRef = useRef<HTMLInputElement | null>(null);
   const [ticket, setTicket] = useState<StudentTicket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [messageError, setMessageError] = useState<string | null>(null);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [messageAttachment, setMessageAttachment] = useState<File | null>(null);
   const [localMessages, setLocalMessages] = useState<StudentTicketMessage[]>(
     [],
   );
@@ -306,14 +318,33 @@ export default function StudentReportDetailPage({
     setMessageError(null);
 
     try {
-      const message = await createStudentTicketMessage(ticket.id, text);
+      const message = await createStudentTicketMessage(
+        ticket.id,
+        text,
+        messageAttachment,
+      );
       setLocalMessages((prev) => [...prev, message]);
       setReplyText("");
+      setMessageAttachment(null);
+      if (messageFileInputRef.current) messageFileInputRef.current.value = "";
     } catch (error) {
       setMessageError(extractApiError(error, "Failed to send message."));
     } finally {
       setIsSendingMessage(false);
     }
+  }
+
+  function handleMessageFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setMessageError(null);
+    if (!file) return;
+
+    if (!MESSAGE_ALLOWED_TYPES.includes(file.type)) {
+      setMessageError(`"${file.name}" is not a supported file type.`);
+      return;
+    }
+
+    setMessageAttachment(file);
   }
 
   if (isLoading) {
@@ -434,7 +465,56 @@ export default function StudentReportDetailPage({
               Report Description
             </h2>
             <p className="leading-7 text-slate-700">{ticket.description}</p>
+            {ticket.attachments.length > 0 && (
+              <div className="mt-5 space-y-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Attachments
+                </h3>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {ticket.attachments.map((attachment) => (
+                    <a
+                      key={attachment.id}
+                      href={attachmentHref(attachment)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-white"
+                    >
+                      <Paperclip className="h-4 w-4 shrink-0 text-slate-400" />
+                      <span className="truncate">{attachmentName(attachment)}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+
+          {ticket.resolution && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+              <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-emerald-900">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                Resolution
+              </h2>
+              <p className="leading-7 text-sm text-emerald-900">
+                {ticket.resolution.note}
+              </p>
+              {ticket.resolution.attachments.length > 0 && (
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {ticket.resolution.attachments.map((attachment) => (
+                    <a
+                      key={attachment.id}
+                      href={attachmentHref(attachment)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex min-w-0 items-center gap-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm text-emerald-800 transition hover:bg-white"
+                    >
+                      <Paperclip className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{attachmentName(attachment)}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Meeting Slot ───────────────────────────────────── */}
           {meetingSlot && (
@@ -491,15 +571,20 @@ export default function StudentReportDetailPage({
                           }`}
                         >
                           {msg.content}
-                          {msg.attachment_name && (
-                            <div
+                          {msg.attachment && (
+                            <a
+                              href={attachmentHref(msg.attachment)}
+                              target="_blank"
+                              rel="noreferrer"
                               className={`mt-2 flex items-center gap-1.5 text-xs ${
                                 isStaff ? "text-slate-500" : "text-blue-200"
                               }`}
                             >
                               <Paperclip className="h-3 w-3" />
-                              {msg.attachment_name}
-                            </div>
+                              <span className="underline-offset-2 hover:underline">
+                                {attachmentName(msg.attachment)}
+                              </span>
+                            </a>
                           )}
                         </div>
                         <span className="px-1 text-xs text-slate-400">
@@ -516,25 +601,66 @@ export default function StudentReportDetailPage({
             {ticket.status !== "RESOLVED" ? (
               <div className="border-t border-slate-100 px-6 py-4">
                 <div className="flex items-end gap-3">
-                  <textarea
-                    id="reply-input"
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
-                    rows={3}
-                    placeholder="Add a message or update… (Enter to send, Shift+Enter for new line)"
-                    disabled={isSendingMessage}
-                    className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
-                  />
+                  <div className="flex-1">
+                    <textarea
+                      id="reply-input"
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                      rows={3}
+                      placeholder="Add a message or update… (Enter to send, Shift+Enter for new line)"
+                      disabled={isSendingMessage}
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
+                    />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <input
+                        ref={messageFileInputRef}
+                        type="file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={handleMessageFileChange}
+                        disabled={isSendingMessage}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => messageFileInputRef.current?.click()}
+                        disabled={isSendingMessage}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 disabled:opacity-50"
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        Attach
+                      </button>
+                      {messageAttachment && (
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
+                          <span className="truncate">{messageAttachment.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMessageAttachment(null);
+                              if (messageFileInputRef.current) {
+                                messageFileInputRef.current.value = "";
+                              }
+                            }}
+                            className="text-slate-400 hover:text-red-600"
+                            aria-label={`Remove ${messageAttachment.name}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={handleSend}
-                    disabled={!replyText.trim() || isSendingMessage}
+                    disabled={
+                      !replyText.trim() || isSendingMessage
+                    }
                     className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E3A8A] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Send message"
                     title="Send message"
