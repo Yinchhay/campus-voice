@@ -115,7 +115,7 @@ export default function AdminTicketsPage() {
       })
       .sort(
         (a, b) =>
-          new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime(),
+          new Date(b.resolved_at ?? "").getTime() - new Date(a.resolved_at ?? "").getTime(),
       );
   }, [tickets, statusFilter, priorityFilter, categoryFilter, search]);
 
@@ -295,7 +295,9 @@ export default function AdminTicketsPage() {
                     {statusLabel[ticket.status]}
                   </span>
 
-                  <span className="text-xs text-slate-400">{formatDate(ticket.created_at)}</span>
+                  <span className="text-xs text-slate-400">
+                    {formatDate(ticket.resolved_at ?? undefined)}
+                  </span>
 
                   <ArrowRight className="hidden h-4 w-4 text-slate-300 sm:block" />
                 </Link>

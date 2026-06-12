@@ -157,8 +157,8 @@ export default function StaffTicketsPage() {
         return true;
       })
       .sort((a, b) => {
-        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        const aTime = a.resolved_at ? new Date(a.resolved_at).getTime() : 0;
+        const bTime = b.resolved_at ? new Date(b.resolved_at).getTime() : 0;
         return bTime - aTime;
       });
   }, [tickets, statusFilter, priorityFilter, categoryFilter, search]);
@@ -317,7 +317,7 @@ export default function StaffTicketsPage() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-3 text-xs text-slate-400">
-                  <span>{formatDate(ticket.created_at)}</span>
+                  <span>{formatDate(ticket.resolved_at ?? undefined)}</span>
                   <ArrowRight className="h-4 w-4 text-slate-300" />
                 </div>
               </Link>
