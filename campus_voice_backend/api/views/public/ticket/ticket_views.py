@@ -48,7 +48,7 @@ class TicketListView(APIView):
                 logger.info(f"Ticket created by {request.user.email}")
                 
                 # Send email notification to all admins
-                send_new_ticket_notification_to_admins(ticket)
+                send_new_ticket_notification_to_admin(ticket)
                 
                 return Response(
                     PublicTicketDetailSerializer(ticket).data,
