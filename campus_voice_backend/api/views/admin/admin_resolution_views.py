@@ -10,6 +10,8 @@ from django.utils import timezone
 from api.utils import get_admin_ticket
 from api.models import Ticket, Resolution
 from api.serializers import ResolutionSerializer
+from api.services.email_service import send_ticket_resolved_notification_to_student
+
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +52,7 @@ class AdminResolutionView(APIView):
             context={'request': request} 
         )
         if serializer.is_valid():
-            serializer.save(
+            resolution = serializer.save(
                 ticket=ticket,
                 resolved_by=request.user,
             )
@@ -58,6 +60,9 @@ class AdminResolutionView(APIView):
             ticket.status = Ticket.Status.RESOLVED
             ticket.resolved_at = timezone.now()
             ticket.save(update_fields=['status', 'resolved_at', 'updated_at'])
+            
+            # Send email notification to the student
+            send_ticket_resolved_notification_to_student(ticket, resolution)
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

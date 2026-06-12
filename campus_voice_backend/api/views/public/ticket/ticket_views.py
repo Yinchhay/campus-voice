@@ -11,6 +11,7 @@ from django.utils import timezone
 from api.models import Ticket, Category
 
 from api.serializers import PublicTicketSerializer, PublicTicketDetailSerializer
+from api.services.email_service import send_new_ticket_notification_to_admin
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,10 @@ class TicketListView(APIView):
                     priority=category.priority_level
                 )
                 logger.info(f"Ticket created by {request.user.email}")
+                
+                # Send email notification to all admins
+                send_new_ticket_notification_to_admins(ticket)
+                
                 return Response(
                     PublicTicketDetailSerializer(ticket).data,
                     status=status.HTTP_201_CREATED

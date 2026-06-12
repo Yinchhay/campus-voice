@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Ticket Submitted</title>
+</head>
+<body style="margin: 0; padding: 20px; background-color: #f1f5f9; font-family: 'Segoe UI', Arial, sans-serif;">
+    <div style="max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 22px;">📋 New Ticket Submitted</h1>
+        </div>
+        <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-size: 14px; width: 140px;">Ticket ID</td>
+                    <td style="padding: 10px 0; font-weight: 600; color: #1e293b;">{{ ticket.public_ticket_id }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-size: 14px;">Title</td>
+                    <td style="padding: 10px 0; font-weight: 600; color: #1e293b;">{{ ticket.title }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-size: 14px;">Submitted By</td>
+                    <td style="padding: 10px 0; color: #1e293b;">{{ submitted_by_email }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-size: 14px;">Category</td>
+                    <td style="padding: 10px 0; color: #1e293b;">{{ ticket.category.name }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-size: 14px;">Priority</td>
+                    <td style="padding: 10px 0;">
+                        <span style="padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+                            {% if ticket.priority == 'HIGH' %}
+                                background: #fee2e2; color: #dc2626;
+                            {% elif ticket.priority == 'MEDIUM' %}
+                                background: #fef3c7; color: #d97706;
+                            {% else %}
+                                background: #dcfce7; color: #16a34a;
+                            {% endif %}
+                        ">
+                            {{ ticket.get_priority_display }}
+                        </span>
+                    </td>
+                </tr>
+            </table>
+            <div style="margin-top: 20px; padding: 16px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #667eea;">
+                <p style="color: #64748b; font-size: 13px; margin: 0 0 8px 0; font-weight: 600;">Description</p>
+                <p style="color: #334155; margin: 0; font-size: 14px; line-height: 1.6;">{{ description_preview }}</p>
+            </div>
+        </div>
+        <div style="background: #f1f5f9; padding: 20px 30px; border-radius: 0 0 12px 12px; border: 1px solid #e2e8f0; border-top: none;">
+            <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">
+                This is an automated notification from Campus Voice. Please log in to the admin panel to review this ticket.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

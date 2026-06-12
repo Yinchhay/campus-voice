@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Resolved</title>
+</head>
+<body style="margin: 0; padding: 20px; background-color: #f1f5f9; font-family: 'Segoe UI', Arial, sans-serif;">
+    <div style="max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 12px 12px 0 0;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 22px;">✅ Ticket Resolved</h1>
+        </div>
+        <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none;">
+            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin-top: 0;">
+                Hi <strong>{{ student_name }}</strong>,
+            </p>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+                Your ticket has been reviewed and resolved. Here are the details:
+            </p>
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-size: 14px; width: 140px;">Ticket ID</td>
+                    <td style="padding: 10px 0; font-weight: 600; color: #1e293b;">{{ ticket.public_ticket_id }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-size: 14px;">Title</td>
+                    <td style="padding: 10px 0; font-weight: 600; color: #1e293b;">{{ ticket.title }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-size: 14px;">Status</td>
+                    <td style="padding: 10px 0;">
+                        <span style="background: #dcfce7; color: #16a34a; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                            Resolved
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-size: 14px;">Resolved By</td>
+                    <td style="padding: 10px 0; color: #1e293b;">{{ resolved_by_name }}</td>
+                </tr>
+            </table>
+            <div style="margin-top: 20px; padding: 16px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
+                <p style="color: #064e3b; font-size: 13px; margin: 0 0 8px 0; font-weight: 600;">Resolution Note</p>
+                <p style="color: #334155; margin: 0; font-size: 14px; line-height: 1.6;">{{ resolution.note }}</p>
+            </div>
+            <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin-top: 24px;">
+                If you have any further questions or concerns, feel free to submit a new ticket.
+            </p>
+        </div>
+        <div style="background: #f1f5f9; padding: 20px 30px; border-radius: 0 0 12px 12px; border: 1px solid #e2e8f0; border-top: none;">
+            <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">
+                This is an automated notification from Campus Voice.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
