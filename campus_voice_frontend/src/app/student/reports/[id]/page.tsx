@@ -480,7 +480,9 @@ export default function StudentReportDetailPage({
                       className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-white"
                     >
                       <Paperclip className="h-4 w-4 shrink-0 text-slate-400" />
-                      <span className="truncate">{attachmentName(attachment)}</span>
+                      <span className="truncate">
+                        {attachmentName(attachment)}
+                      </span>
                     </a>
                   ))}
                 </div>
@@ -508,7 +510,9 @@ export default function StudentReportDetailPage({
                       className="flex min-w-0 items-center gap-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm text-emerald-800 transition hover:bg-white"
                     >
                       <Paperclip className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{attachmentName(attachment)}</span>
+                      <span className="truncate">
+                        {attachmentName(attachment)}
+                      </span>
                     </a>
                   ))}
                 </div>
@@ -637,7 +641,9 @@ export default function StudentReportDetailPage({
                       </button>
                       {messageAttachment && (
                         <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
-                          <span className="truncate">{messageAttachment.name}</span>
+                          <span className="truncate">
+                            {messageAttachment.name}
+                          </span>
                           <button
                             type="button"
                             onClick={() => {
@@ -658,9 +664,7 @@ export default function StudentReportDetailPage({
                   <button
                     type="button"
                     onClick={handleSend}
-                    disabled={
-                      !replyText.trim() || isSendingMessage
-                    }
+                    disabled={!replyText.trim() || isSendingMessage}
                     className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E3A8A] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Send message"
                     title="Send message"
