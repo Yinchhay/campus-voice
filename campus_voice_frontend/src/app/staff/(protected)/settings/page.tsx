@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  Bell,
-  Check,
   KeyRound,
   Lock,
   LogOut,
@@ -17,36 +15,6 @@ import {
   type CurrentStaffAccount,
 } from "@/lib/admin-api";
 import { staffNav } from "@/lib/staff-nav";
-
-// ---------------------------------------------------------------------------
-// Shared sub-components
-// ---------------------------------------------------------------------------
-function Toggle({
-  id,
-  checked,
-  onChange,
-}: {
-  id: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <button
-      id={id}
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors ${checked ? "border-[#1E3A8A] bg-[#1E3A8A]" : "border-slate-300 bg-slate-200"
-        }`}
-    >
-      <span
-        className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"
-          }`}
-      />
-    </button>
-  );
-}
 
 function Section({
   icon,
@@ -137,42 +105,6 @@ function roleLabel(role?: string) {
   return role ?? "Account";
 }
 
-function ToggleRow({
-  id,
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  description?: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <p className="text-sm font-medium text-slate-800">{label}</p>
-        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
-      </div>
-      <Toggle id={id} checked={checked} onChange={onChange} />
-    </div>
-  );
-}
-
-function SavedBadge({ visible }: { visible: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"
-        }`}
-    >
-      <Check className="h-3.5 w-3.5" />
-      Saved
-    </span>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -180,20 +112,6 @@ export default function StaffSettingsPage() {
   const [account, setAccount] = useState<CurrentStaffAccount | null>(null);
   const [accountLoading, setAccountLoading] = useState(true);
   const [accountError, setAccountError] = useState<string | null>(null);
-
-  // Notifications
-  const [notifyAssigned, setNotifyAssigned] = useState(true);
-  const [notifyHighPriority, setNotifyHighPriority] = useState(true);
-  const [notifyStudentMessage, setNotifyStudentMessage] = useState(true);
-  const [notifyDigest, setNotifyDigest] = useState(false);
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [notifSaved, setNotifSaved] = useState(false);
-
-  // Preferences
-  const [defaultView, setDefaultView] = useState<"ALL" | "IN_PROGRESS" | "SUBMITTED">("ALL");
-  const [showAnonymous, setShowAnonymous] = useState(true);
-  const [confirmStatusChange, setConfirmStatusChange] = useState(true);
-  const [prefSaved, setPrefSaved] = useState(false);
 
   // Security
   const [currentPw, setCurrentPw] = useState("");
@@ -224,11 +142,6 @@ export default function StaffSettingsPage() {
       isMounted = false;
     };
   }, []);
-
-  function flash(setter: (v: boolean) => void) {
-    setter(true);
-    setTimeout(() => setter(false), 2500);
-  }
 
   function handleChangePassword() {
     if (!currentPw || !newPw || !confirmPw) {

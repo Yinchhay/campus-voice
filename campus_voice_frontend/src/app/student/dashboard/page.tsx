@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import axios from "axios";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -79,22 +79,6 @@ const columns: ColumnConfig[] = [
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
-function StatCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: string;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-sm text-slate-600">{label}</p>
-      <p className={`mt-1 text-2xl font-semibold ${tone}`}>{value}</p>
-    </div>
-  );
-}
 
 function TicketCard({ ticket }: { ticket: StudentTicket }) {
   return (
@@ -193,16 +177,6 @@ export default function StudentDashboardPage() {
       isMounted = false;
     };
   }, []);
-
-  const stats = useMemo(() => {
-    const total = myTickets.length;
-    const open = myTickets.filter((t) => t.status !== "RESOLVED").length;
-    const inProgress = myTickets.filter(
-      (t) => t.status === "IN_PROGRESS",
-    ).length;
-    const highPriority = myTickets.filter((t) => t.priority === "HIGH").length;
-    return { total, open, inProgress, highPriority };
-  }, [myTickets]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">

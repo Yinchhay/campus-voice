@@ -206,13 +206,6 @@ export default function AdminSettingsPage() {
   const [accountLoading, setAccountLoading] = useState(true);
   const [accountError, setAccountError] = useState<string | null>(null);
 
-  // Notifications
-  const [notifyNewTicket, setNotifyNewTicket] = useState(true);
-  const [notifyHighPriority, setNotifyHighPriority] = useState(true);
-  const [notifyResolved, setNotifyResolved] = useState(false);
-  const [notifyDigest, setNotifyDigest] = useState(true);
-  const [emailAlerts, setEmailAlerts] = useState(true);
-
   // Platform
   const [allowAnonymous, setAllowAnonymous] = useState(true);
   const [autoEscalate, setAutoEscalate] = useState(true);
@@ -355,49 +348,6 @@ export default function AdminSettingsPage() {
             />
           </FieldRow>
         </Section>
-
-        {/* ── Notification preferences ──────────────────────── */}
-        {/* <Section
-          icon={<Bell className="h-5 w-5 text-slate-600" />}
-          title="Notification Preferences"
-          description="Choose when and how you receive alerts about campus reports."
-        >
-          <ToggleRow
-            id="notify-new-ticket"
-            label="New ticket submitted"
-            description="Notify when any student submits a new report."
-            checked={notifyNewTicket}
-            onChange={setNotifyNewTicket}
-          />
-          <ToggleRow
-            id="notify-high-priority"
-            label="High priority escalation"
-            description="Immediate alert when a ticket is marked High priority."
-            checked={notifyHighPriority}
-            onChange={setNotifyHighPriority}
-          />
-          <ToggleRow
-            id="notify-resolved"
-            label="Ticket resolved"
-            description="Notify when a staff member closes a case."
-            checked={notifyResolved}
-            onChange={setNotifyResolved}
-          />
-          <ToggleRow
-            id="notify-digest"
-            label="Daily digest email"
-            description="Receive a morning summary of open cases and activity."
-            checked={notifyDigest}
-            onChange={setNotifyDigest}
-          />
-          <ToggleRow
-            id="notify-email-alerts"
-            label="Email alerts"
-            description="Send all notifications to your registered email."
-            checked={emailAlerts}
-            onChange={setEmailAlerts}
-          />
-        </Section> */}
 
         {/* ── Platform configuration ────────────────────────── */}
         <Section
