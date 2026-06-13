@@ -58,25 +58,25 @@ prod-up:
 	@echo "PostgreSQL is running in a container."
 
 prod-down:
-	docker compose -f docker-compose.prod.yml down
+	docker compose -f docker-compose.prod.yml --env-file .env.prod down
 
 prod-build:
-	docker compose -f docker-compose.prod.yml build
+	docker compose -f docker-compose.prod.yml --env-file .env.prod build
 
 prod-logs:
-	docker compose -f docker-compose.prod.yml logs -f
+	docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f
 
 prod-shell:
-	docker compose -f docker-compose.prod.yml exec backend python manage.py shell
+	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend python manage.py shell
 
 # Django commands
 prod-db-migrate:
-	docker compose -f docker-compose.prod.yml exec backend python manage.py makemigrations
-	docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend python manage.py makemigrations
+	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend python manage.py migrate
 
 prod-db-shell:
-	docker compose -f docker-compose.prod.yml exec db psql -U admin@admin.com -d campus-voice-db
+	docker compose -f docker-compose.prod.yml --env-file .env.prod exec db psql -U admin@admin.com -d campus-voice-db
 
 prod-db-seed:
-	docker compose -f docker-compose.prod.yml exec backend python manage.py seed_categories
-	docker compose -f docker-compose.prod.yml exec backend python manage.py seed_rbac
+	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend python manage.py seed_categories
+	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend python manage.py seed_rbac
