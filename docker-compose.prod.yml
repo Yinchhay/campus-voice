@@ -60,9 +60,6 @@ services:
       - NEXT_PUBLIC_API_URL=/api
       - SERVER_API_URL=http://backend:8000/api
       - BACKEND_ORIGIN=http://backend:8000
-    volumes:
-      - ./campus_voice_frontend:/app
-      - /app/node_modules
     restart: unless-stopped
     depends_on:
       - backend
