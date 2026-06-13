@@ -96,11 +96,7 @@ function StatCard({
   );
 }
 
-function TicketCard({
-  ticket,
-}: {
-  ticket: StudentTicket;
-}) {
+function TicketCard({ ticket }: { ticket: StudentTicket }) {
   return (
     <article className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
       {/* ID row */}
@@ -184,7 +180,8 @@ export default function StudentDashboardPage() {
         const tickets = await listMyTickets();
         if (isMounted) setMyTickets(tickets);
       } catch (error) {
-        if (isMounted) setPageError(extractApiError(error, "Failed to load your reports."));
+        if (isMounted)
+          setPageError(extractApiError(error, "Failed to load your reports."));
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -200,7 +197,9 @@ export default function StudentDashboardPage() {
   const stats = useMemo(() => {
     const total = myTickets.length;
     const open = myTickets.filter((t) => t.status !== "RESOLVED").length;
-    const inProgress = myTickets.filter((t) => t.status === "IN_PROGRESS").length;
+    const inProgress = myTickets.filter(
+      (t) => t.status === "IN_PROGRESS",
+    ).length;
     const highPriority = myTickets.filter((t) => t.priority === "HIGH").length;
     return { total, open, inProgress, highPriority };
   }, [myTickets]);
@@ -208,7 +207,6 @@ export default function StudentDashboardPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
       <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-
         {/* ── Header ──────────────────────────────────────────── */}
         <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -221,8 +219,9 @@ export default function StudentDashboardPage() {
                 My Reports Dashboard
               </h1>
               <p className="mt-3 max-w-2xl text-slate-600">
-                Track every report with a unique tracking ID. Your identity is authenticated to prevent
-                spam — report content stays anonymous to staff.
+                Track every report with a unique tracking ID. Your identity is
+                authenticated to prevent spam — report content stays anonymous
+                to staff.
               </p>
             </div>
 
@@ -244,20 +243,14 @@ export default function StudentDashboardPage() {
               </button>
             </div>
           </div>
-
-          {/* Stats */}
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Total Reports" value={stats.total} tone="text-slate-900" />
-            <StatCard label="Open Cases" value={stats.open} tone="text-blue-700" />
-            <StatCard label="In Progress" value={stats.inProgress} tone="text-amber-700" />
-            <StatCard label="High Priority" value={stats.highPriority} tone="text-red-700" />
-          </div>
         </div>
 
         {isLoading && (
           <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1E3A8A]" />
-            <p className="mt-4 text-sm text-slate-600">Loading your reports...</p>
+            <p className="mt-4 text-sm text-slate-600">
+              Loading your reports...
+            </p>
           </div>
         )}
 
@@ -273,7 +266,9 @@ export default function StudentDashboardPage() {
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
               <FileText className="h-6 w-6 text-slate-400" />
             </div>
-            <h3 className="mt-4 text-base font-semibold text-slate-900">No reports yet</h3>
+            <h3 className="mt-4 text-base font-semibold text-slate-900">
+              No reports yet
+            </h3>
             <p className="mt-2 text-sm text-slate-600">
               Submit a new report to start tracking its progress.
             </p>
@@ -298,8 +293,12 @@ export default function StudentDashboardPage() {
                   <div
                     className={`flex items-center justify-between rounded-xl border px-4 py-3 ${col.headerBg} ${col.headerBorder}`}
                   >
-                    <div className={`flex items-center gap-2 text-sm font-semibold ${col.accentText}`}>
-                      <span className={`h-2 w-2 rounded-full ${col.dotColor}`} />
+                    <div
+                      className={`flex items-center gap-2 text-sm font-semibold ${col.accentText}`}
+                    >
+                      <span
+                        className={`h-2 w-2 rounded-full ${col.dotColor}`}
+                      />
                       {col.icon}
                       {col.label}
                     </div>
@@ -313,14 +312,13 @@ export default function StudentDashboardPage() {
                   {/* Cards */}
                   {tickets.length > 0 ? (
                     tickets.map((ticket) => (
-                      <TicketCard
-                        key={ticket.id}
-                        ticket={ticket}
-                      />
+                      <TicketCard key={ticket.id} ticket={ticket} />
                     ))
                   ) : (
                     <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center">
-                      <p className="text-xs text-slate-400">No tickets in this stage</p>
+                      <p className="text-xs text-slate-400">
+                        No tickets in this stage
+                      </p>
                     </div>
                   )}
                 </div>
