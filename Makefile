@@ -57,3 +57,26 @@ prod-up:
 	@echo "Web application will be available at http://localhost:80"
 	@echo "PostgreSQL is running in a container."
 
+prod-down:
+	docker compose -f docker-compose.prod.yml down
+
+prod-build:
+	docker compose -f docker-compose.prod.yml build
+
+prod-logs:
+	docker compose -f docker-compose.prod.yml logs -f
+
+prod-shell:
+	docker compose -f docker-compose.prod.yml exec backend python manage.py shell
+
+# Django commands
+prod-db-migrate:
+	docker compose -f docker-compose.prod.yml exec backend python manage.py makemigrations
+	docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+
+prod-db-shell:
+	docker compose -f docker-compose.prod.yml exec db psql -U admin@admin.com -d campus-voice-db
+
+prod-db-seed:
+	docker compose -f docker-compose.prod.yml exec backend python manage.py seed_categories
+	docker compose -f docker-compose.prod.yml exec backend python manage.py seed_rbac

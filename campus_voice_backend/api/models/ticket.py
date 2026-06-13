@@ -34,7 +34,8 @@ class Ticket(models.Model):
         default=Status.SUBMITTED
     )
 
-    public_ticket_id = models.CharField(max_length=12, unique=True, editable=False)
+    public_ticket_id = models.CharField(max_length=20, unique=True, editable=False)
+    is_anonymous = models.BooleanField(default=False, help_text="If True, submitter identity is hidden from admins")
     resolved_at = models.DateTimeField(null=True, blank=True)
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -54,8 +55,20 @@ class Ticket(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.public_ticket_id:
-            # Generate a short public ID (e.g., CV-2024-001234)
-            import random
-            self.public_ticket_id = f"CV-{random.randint(100000, 999999)}"
+            from django.utils import timezone
+            year = timezone.now().year
+            # Count existing tickets for this year and increment
+            last_ticket = (
+                Ticket.objects
+                .filter(public_ticket_id__startswith=f"CV-{year}-")
+                .order_by('-public_ticket_id')
+                .values_list('public_ticket_id', flat=True)
+                .first()
+            )
+            if last_ticket:
+                last_number = int(last_ticket.split('-')[-1])
+                next_number = last_number + 1
+            else:
+                next_number = 1
+            self.public_ticket_id = f"CV-{year}-{next_number:06d}"
         super().save(*args, **kwargs)
-    
