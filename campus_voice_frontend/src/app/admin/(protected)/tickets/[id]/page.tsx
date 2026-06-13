@@ -12,6 +12,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import { attachmentHref, attachmentName } from "@/lib/attachments";
 import { getAdminTicket, type AdminTicket } from "@/lib/admin-api";
 import { adminNav } from "../../dashboard/page";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
@@ -161,10 +162,11 @@ export default function AdminTicketDetailPage({
                 >
                   {ticket.priority}
                 </span>
-                {ticket.attachment && (
+                {ticket.attachments.length > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
                     <Paperclip className="h-3 w-3" />
-                    Has attachment
+                    {ticket.attachments.length} attachment
+                    {ticket.attachments.length !== 1 ? "s" : ""}
                   </span>
                 )}
               </div>
@@ -201,7 +203,56 @@ export default function AdminTicketDetailPage({
                 Report Description
               </h2>
               <p className="leading-7 text-sm text-slate-700">{ticket.description}</p>
+              {ticket.attachments.length > 0 && (
+                <div className="mt-5 space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Attachments
+                  </h3>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {ticket.attachments.map((attachment) => (
+                      <a
+                        key={attachment.id}
+                        href={attachmentHref(attachment)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-white"
+                      >
+                        <Paperclip className="h-4 w-4 shrink-0 text-slate-400" />
+                        <span className="truncate">{attachmentName(attachment)}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+
+            {ticket.resolution && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  Resolution
+                </h2>
+                <p className="leading-7 text-sm text-emerald-900">
+                  {ticket.resolution.note}
+                </p>
+                {ticket.resolution.attachments.length > 0 && (
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {ticket.resolution.attachments.map((attachment) => (
+                      <a
+                        key={attachment.id}
+                        href={attachmentHref(attachment)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex min-w-0 items-center gap-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm text-emerald-800 transition hover:bg-white"
+                      >
+                        <Paperclip className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{attachmentName(attachment)}</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Chat (read-only for admin) */}
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -246,11 +297,16 @@ export default function AdminTicketDetailPage({
                             }`}
                           >
                             {msg.content}
-                            {msg.attachment_name && (
-                              <div className="mt-2 flex items-center gap-1.5 text-xs opacity-70">
+                            {msg.attachment && (
+                              <a
+                                href={attachmentHref(msg.attachment)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 flex items-center gap-1.5 text-xs opacity-80 underline-offset-2 hover:underline"
+                              >
                                 <Paperclip className="h-3 w-3" />
-                                {msg.attachment_name}
-                              </div>
+                                {attachmentName(msg.attachment)}
+                              </a>
                             )}
                           </div>
                           <span className="px-1 text-xs text-slate-400">

@@ -4,6 +4,13 @@ export type TicketPriority = "HIGH" | "MEDIUM" | "LOW";
 export type TicketStatus = "SUBMITTED" | "IN_PROGRESS" | "RESOLVED";
 export type MeetingType = "IN_PERSON" | "VIRTUAL" | "HYBRID";
 
+export interface Attachment {
+  id: number;
+  file: string;
+  original_name?: string | null;
+  uploaded_at?: string;
+}
+
 export interface User {
   id: string; // uuid
   google_id?: string | null;
@@ -46,8 +53,7 @@ export interface Message {
   ticket_id: string; // uuid
   user_id: string | null; // uuid — null for anonymous student
   content: string;
-  attachment: string | null;
-  attachment_name: string | null;
+  attachment: Attachment | null;
   is_staff_message: boolean;
   created_at: string;
   updated_at: string;

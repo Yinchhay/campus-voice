@@ -2,10 +2,7 @@ import axios from "axios";
 import { getSession, signOut } from "next-auth/react";
 import { dashboardPathForRole, loginPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
 
-const apiBaseURL =
-  process.env.NEXT_PUBLIC_API_URL && /^https?:\/\//.test(process.env.NEXT_PUBLIC_API_URL)
-    ? process.env.NEXT_PUBLIC_API_URL
-    : "http://localhost:8000/api";
+const apiBaseURL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
 const api = axios.create({
   baseURL: apiBaseURL,
@@ -27,6 +24,9 @@ api.interceptors.request.use(async (config) => {
   if (session?.accessToken) {
     config.headers.Authorization = `Bearer ${session.accessToken}`;
   }
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  }
   return config;
 });
 
@@ -34,6 +34,9 @@ studentApi.interceptors.request.use(async (config) => {
   const session = await getSession();
   if (session?.accessToken) {
     config.headers.Authorization = `Bearer ${session.accessToken}`;
+  }
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
   }
   return config;
 });

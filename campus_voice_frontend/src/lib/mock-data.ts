@@ -294,7 +294,6 @@ export const mockMessages: Message[] = [
     content:
       "Just wanted to add — I also noticed the same person was checking the bike rack area on the evening of 27 May. I have photos if you need them.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: false,
     created_at: "2026-05-28T22:45:00Z",
     updated_at: "2026-05-28T22:45:00Z",
@@ -306,7 +305,6 @@ export const mockMessages: Message[] = [
     content:
       "Thank you for this report. We have alerted campus security and they will be conducting increased patrols in the B-block parking area starting tonight. Could you please share any photos or video footage you have? This will be very helpful for our investigation.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: true,
     created_at: "2026-05-29T09:00:00Z",
     updated_at: "2026-05-29T09:00:00Z",
@@ -316,8 +314,12 @@ export const mockMessages: Message[] = [
     ticket_id: "t-001",
     user_id: "u-001",
     content: "I have uploaded two photos. They are a bit dark but you can clearly see the person examining the car handles. Please keep me updated.",
-    attachment: "/uploads/parking-lot-photo.jpg",
-    attachment_name: "parking-lot-photo.jpg",
+    attachment: {
+      id: 1,
+      file: "/uploads/parking-lot-photo.jpg",
+      original_name: "parking-lot-photo.jpg",
+      uploaded_at: "2026-05-29T10:30:00Z",
+    },
     is_staff_message: false,
     created_at: "2026-05-29T10:30:00Z",
     updated_at: "2026-05-29T10:30:00Z",
@@ -329,7 +331,6 @@ export const mockMessages: Message[] = [
     content:
       "We have received the photos. Our security team is reviewing CCTV footage from the same period to corroborate. We will update you within 48 hours. In the meantime, please avoid the parking area alone at night.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: true,
     created_at: "2026-05-30T08:15:00Z",
     updated_at: "2026-05-30T08:15:00Z",
@@ -343,7 +344,6 @@ export const mockMessages: Message[] = [
     content:
       "I have screenshots of the group chat where the answers were shared. The timestamps clearly show they were sent the evening before the exam. I can provide these privately.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: false,
     created_at: "2026-05-24T17:00:00Z",
     updated_at: "2026-05-24T17:00:00Z",
@@ -355,7 +355,6 @@ export const mockMessages: Message[] = [
     content:
       "This is a serious allegation and we are treating it with the utmost priority. We have escalated this to the Academic Integrity Committee. Do NOT share the screenshots publicly — please send them directly to our secure email: integrity@paragoniu.edu.kh with your ticket ID as the subject.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: true,
     created_at: "2026-05-25T09:30:00Z",
     updated_at: "2026-05-25T09:30:00Z",
@@ -366,7 +365,6 @@ export const mockMessages: Message[] = [
     user_id: "u-002",
     content: "Sent. Reference: RPT-2026-0003. Please let me know once received.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: false,
     created_at: "2026-05-25T11:15:00Z",
     updated_at: "2026-05-25T11:15:00Z",
@@ -378,7 +376,6 @@ export const mockMessages: Message[] = [
     content:
       "Confirmed receipt. The committee will convene on 30 May to review the evidence. All affected students have been notified that a re-assessment may be required. We will update this ticket with the outcome.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: true,
     created_at: "2026-05-27T11:00:00Z",
     updated_at: "2026-05-27T11:00:00Z",
@@ -392,7 +389,6 @@ export const mockMessages: Message[] = [
     content:
       "Thank you for this suggestion. We have forwarded it to the campus facilities and communications team. New directional signage and a floor map have been approved for installation.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: true,
     created_at: "2026-05-12T10:00:00Z",
     updated_at: "2026-05-12T10:00:00Z",
@@ -404,7 +400,6 @@ export const mockMessages: Message[] = [
     content:
       "Update: new signage has been installed at all service counters and a floor guide map is now displayed at the entrance. This ticket is now resolved. Thank you for helping us improve the student experience.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: true,
     created_at: "2026-05-20T14:00:00Z",
     updated_at: "2026-05-20T14:00:00Z",
@@ -418,7 +413,6 @@ export const mockMessages: Message[] = [
     content:
       "We appreciate you reaching out on behalf of your friend. Our counsellor will make a discreet, non-intrusive contact. You do not need to share their identity at this time — if you are comfortable, you may share their student ID securely.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: true,
     created_at: "2026-05-15T09:00:00Z",
     updated_at: "2026-05-15T09:00:00Z",
@@ -429,7 +423,6 @@ export const mockMessages: Message[] = [
     user_id: "u-003",
     content: "Thank you. I have sent the student ID via the secure email. I really appreciate how quickly you responded.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: false,
     created_at: "2026-05-15T10:30:00Z",
     updated_at: "2026-05-15T10:30:00Z",
@@ -441,7 +434,6 @@ export const mockMessages: Message[] = [
     content:
       "Confirmed. Our counsellor has successfully made contact and the student has agreed to weekly sessions. This case is now resolved. If you have further concerns, please don't hesitate to open a new report.",
     attachment: null,
-    attachment_name: null,
     is_staff_message: true,
     created_at: "2026-05-22T10:30:00Z",
     updated_at: "2026-05-22T10:30:00Z",

@@ -157,8 +157,8 @@ export default function StaffTicketsPage() {
         return true;
       })
       .sort((a, b) => {
-        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        const aTime = a.resolved_at ? new Date(a.resolved_at).getTime() : 0;
+        const bTime = b.resolved_at ? new Date(b.resolved_at).getTime() : 0;
         return bTime - aTime;
       });
   }, [tickets, statusFilter, priorityFilter, categoryFilter, search]);
@@ -289,11 +289,18 @@ export default function StaffTicketsPage() {
               </p>
             </div>
           ) : (
-            filtered.map((ticket) => (
+            filtered.map((ticket) => {
+              const isHighPriority = ticket.priority === "HIGH";
+
+              return (
               <Link
                 key={ticket.id}
                 href={`/staff/tickets/${ticket.id}`}
-                className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
+                className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:shadow-md sm:flex-row sm:items-center sm:justify-between ${
+                  isHighPriority
+                    ? "border-red-200 bg-red-50 hover:border-red-300"
+                    : "border-slate-200 bg-white hover:border-blue-200"
+                }`}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -317,11 +324,12 @@ export default function StaffTicketsPage() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-3 text-xs text-slate-400">
-                  <span>{formatDate(ticket.created_at)}</span>
+                  <span>{formatDate(ticket.resolved_at ?? undefined)}</span>
                   <ArrowRight className="h-4 w-4 text-slate-300" />
                 </div>
               </Link>
-            ))
+              );
+            })
           )}
         </div>
       </div>
