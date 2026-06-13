@@ -24,7 +24,7 @@ services:
       context: ./campus_voice_backend
       target: prod
     env_file:
-      - ./.env
+      - ./.env.prod
     command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
     ports:
       - "8000:8000"
@@ -49,7 +49,7 @@ services:
       context: ./campus_voice_frontend
       target: prod
     env_file:
-      - ./.env
+      - ./.env.prod
     command: npm run start -- --hostname 0.0.0.0 --port 3000
     environment:
       - NEXTAUTH_URL=http://localhost:3000
