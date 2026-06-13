@@ -51,15 +51,6 @@ services:
     env_file:
       - ./.env.prod
     command: npm run start -- --hostname 0.0.0.0 --port 3000
-    environment:
-      - NEXTAUTH_URL=http://localhost:3000
-      - AUTH_SECRET=${AUTH_SECRET}
-      # Google OAuth
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - NEXT_PUBLIC_API_URL=/api
-      - SERVER_API_URL=http://backend:8000/api
-      - BACKEND_ORIGIN=http://backend:8000
     restart: unless-stopped
     depends_on:
       - backend
