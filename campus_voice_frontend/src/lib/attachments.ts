@@ -1,8 +1,9 @@
 import type { Attachment } from "@/lib/types";
+import { apiBaseURL } from "@/lib/axios";
 
-const apiBaseURL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
-
-const apiOrigin = apiBaseURL.replace(/\/api\/?$/, "");
+const apiOrigin = apiBaseURL.startsWith("http")
+  ? apiBaseURL.replace(/\/api\/?$/, "")
+  : "";
 
 export function attachmentName(attachment: Attachment) {
   return (
