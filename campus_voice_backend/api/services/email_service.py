@@ -37,9 +37,15 @@ def send_new_ticket_notification_to_admin(ticket):
 
     subject = f"[Campus Voice] New Ticket Submitted: {ticket.public_ticket_id}"
     
+    # Respect anonymity
+    if ticket.is_anonymous:
+        submitted_by_display = 'Anonymous Student'
+    else:
+        submitted_by_display = ticket.submitted_by.email if ticket.submitted_by else 'Unknown'
+
     context = {
         'ticket': ticket,
-        'submitted_by_email': ticket.submitted_by.email if ticket.submitted_by else 'Unknown',
+        'submitted_by_email': submitted_by_display,
         'description_preview': (
             ticket.description[:500] + '...'
             if len(ticket.description) > 500

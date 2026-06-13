@@ -20,6 +20,7 @@ class PublicTicketSerializer(serializers.ModelSerializer):
             'category_name',
             'title',
             'description',
+            'is_anonymous',
             'priority',
             'priority_display',
             'status',
@@ -64,6 +65,7 @@ class PublicTicketDetailSerializer(serializers.ModelSerializer):
             'category',
             'title',
             'description',
+            'is_anonymous',
             'priority',
             'priority_display',
             'status',
@@ -145,7 +147,7 @@ class TicketDetailSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    submitted_by_email = serializers.CharField(source='submitted_by.email', read_only=True, allow_null=True)
+    submitted_by_email = serializers.SerializerMethodField()
     messages = serializers.SerializerMethodField()
     resolution = serializers.SerializerMethodField()
     attachments = serializers.SerializerMethodField()
@@ -159,6 +161,7 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             'category_name',
             'title',
             'description',
+            'is_anonymous',
             'priority',
             'priority_display',
             'status',
@@ -172,6 +175,12 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             'messages',
         ]
         read_only_fields = ['id', 'public_ticket_id', 'priority', 'created_at', 'updated_at']
+        
+    def get_submitted_by_email(self, obj):
+        """Hide submitter email if ticket is anonymous"""
+        if obj.is_anonymous:
+            return 'Anonymous'
+        return obj.submitted_by.email if obj.submitted_by else None
 
     def get_category(self, obj):
         return {
