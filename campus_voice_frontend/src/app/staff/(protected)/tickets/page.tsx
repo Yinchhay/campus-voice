@@ -318,6 +318,11 @@ export default function StaffTicketsPage() {
                     >
                       {statusLabel[ticket.status]}
                     </span>
+                    {ticket.is_anonymous && (
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">
+                        Anon
+                      </span>
+                    )}
                   </div>
                   <p className="mt-2 truncate text-sm font-medium text-slate-900">{ticket.title}</p>
                   <p className="mt-0.5 text-xs text-slate-500">{ticket.category_name}</p>

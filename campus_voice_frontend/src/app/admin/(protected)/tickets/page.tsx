@@ -276,7 +276,7 @@ export default function AdminTicketsPage() {
                       <span className="rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
                         {ticket.public_ticket_id}
                       </span>
-                      {!ticket.submitted_by_email && (
+                      {ticket.is_anonymous && (
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">
                           Anon
                         </span>

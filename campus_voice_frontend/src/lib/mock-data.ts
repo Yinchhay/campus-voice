@@ -152,6 +152,7 @@ export const mockTickets: Ticket[] = [
     title: "Suspicious individual loitering near parking lot",
     description:
       "For the past three nights I have observed an unknown individual loitering near the B-block parking lot between 10 PM and midnight. The person has been photographing cars and checking door handles. Campus security should be alerted immediately.",
+    is_anonymous: false,
     priority: "HIGH",
     status: "IN_PROGRESS",
     has_media: true,
@@ -167,6 +168,7 @@ export const mockTickets: Ticket[] = [
     title: "Air conditioning failure in Room 302",
     description:
       "The air conditioning unit in Room 302 (Engineering Building) has not been working for over two weeks. Temperatures inside the room reach 35°C during afternoon lectures, making it nearly impossible to concentrate. Multiple students have experienced heat exhaustion symptoms.",
+    is_anonymous: false,
     priority: "MEDIUM",
     status: "SUBMITTED",
     has_media: false,
@@ -182,6 +184,7 @@ export const mockTickets: Ticket[] = [
     title: "Exam answer sheet leak before midterm",
     description:
       "I have credible evidence that the midterm exam answer sheet for CS301 was circulating in a student group chat before the exam took place. At least 15 students had access to the answers prior to the test, significantly skewing the grade distribution.",
+    is_anonymous: false,
     priority: "HIGH",
     status: "IN_PROGRESS",
     has_media: true,
@@ -197,6 +200,7 @@ export const mockTickets: Ticket[] = [
     title: "Student services counter signage unclear for new students",
     description:
       "The directional signage for the student services counter is confusing for first-year students. Many students queue at the wrong window for transcript requests versus financial aid queries. Adding clearer labels and a floor map would significantly improve the experience.",
+    is_anonymous: false,
     priority: "LOW",
     status: "RESOLVED",
     has_media: false,
@@ -212,6 +216,7 @@ export const mockTickets: Ticket[] = [
     title: "Verbal harassment by senior student in cafeteria",
     description:
       "I was verbally harassed by a senior student in the main cafeteria on 28 May at approximately 12:30 PM. The individual used offensive language and made threatening remarks in front of multiple witnesses. I feel unsafe returning to the cafeteria alone.",
+    is_anonymous: false,
     priority: "HIGH",
     status: "SUBMITTED",
     has_media: false,
@@ -227,6 +232,7 @@ export const mockTickets: Ticket[] = [
     title: "Peer struggling with severe anxiety — needs counselling referral",
     description:
       "A close friend of mine has been showing signs of severe anxiety and depression for the past month. They have expressed reluctance to seek help themselves. I am reporting this on their behalf and requesting that the counselling office reach out discreetly.",
+    is_anonymous: false,
     priority: "HIGH",
     status: "RESOLVED",
     has_media: false,
@@ -242,6 +248,7 @@ export const mockTickets: Ticket[] = [
     title: "Broken water fountain on second floor of Library",
     description:
       "The water fountain on the second floor of the library has been out of order for three weeks. A handwritten 'out of order' note is taped to it, but no repair has been made. Students rely on this as the nearest water source to the reading area.",
+    is_anonymous: true,
     priority: "LOW",
     status: "IN_PROGRESS",
     has_media: false,
@@ -257,6 +264,7 @@ export const mockTickets: Ticket[] = [
     title: "Broken CCTV camera at main gate",
     description:
       "The CCTV camera mounted above the main entrance gate appears to have been damaged — the casing is cracked and the camera is pointed downward at an unusable angle. This is a significant security gap, especially at night.",
+    is_anonymous: true,
     priority: "HIGH",
     status: "SUBMITTED",
     has_media: false,
@@ -272,6 +280,7 @@ export const mockTickets: Ticket[] = [
     title: "Instructor reading directly from slides without explanation",
     description:
       "The instructor for BUS201 spends the entire lecture reading text directly from slides with no additional explanation or engagement. Several students have raised concerns but no changes have been made. The course pass rate is noticeably lower than similar courses.",
+    is_anonymous: false,
     priority: "MEDIUM",
     status: "RESOLVED",
     has_media: false,
