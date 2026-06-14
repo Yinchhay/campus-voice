@@ -5,7 +5,7 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.db import models
 
-from api.models import User, UserRole
+from api.models import User, UserRole, EmailSetting
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +30,12 @@ def send_new_ticket_notification_to_admin(ticket):
     Send email notification to all admins when a student submits a new ticket.
     """
     
-    admin_emails = get_admin_emails()
-    if not admin_emails:
-        logger.warning("No admin emails found. Skipping new ticket notification.")
+    email_setting = EmailSetting.get_setting()
+    if not email_setting or not email_setting.ticket_notification_email:
+        logger.warning("No designated admin email configured. Skipping new ticket notification.")
         return
+    
+    recipient_email = email_setting.ticket_notification_email
 
     subject = f"[Campus Voice] New Ticket Submitted: {ticket.public_ticket_id}"
     
@@ -61,12 +63,12 @@ def send_new_ticket_notification_to_admin(ticket):
             subject=subject,
             message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=admin_emails,
+            recipient_list=[recipient_email],
             html_message=html_message,
             fail_silently=False,
         )
         logger.info(
-            f"New ticket notification sent to {len(admin_emails)} admin(s) "
+            f"New ticket notification sent to {recipient_email} admin(s) "
             f"for ticket {ticket.public_ticket_id}"
         )
     except Exception as e:

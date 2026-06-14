@@ -28,6 +28,7 @@ from .admin.admin_category_views import AdminCategoryListView, AdminCategoryDeta
 from .admin.admin_ticket_views import AdminTicketListView, AdminTicketDetailView
 from .admin.admin_message_views import AdminMessageView
 from .admin.admin_resolution_views import AdminResolutionView
+from .admin.admin_email_setting_views import AdminEmailSettingView
 
 
 __all__ = [
@@ -84,5 +85,8 @@ __all__ = [
     
     # Admin Resolution
     'AdminResolutionView',
+    
+    # Admin Setting
+    'AdminEmailSettingView',
 
 ]
