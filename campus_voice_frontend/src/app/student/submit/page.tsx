@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
+  ChevronDown,
   CheckCircle2,
   FileText,
   Paperclip,
@@ -20,17 +21,13 @@ import {
   type StudentCategory,
   type StudentTicket,
 } from "@/lib/student-api";
-import type { TicketPriority } from "@/lib/types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-type Priority = TicketPriority;
-
 type FormState = {
   category_id: string;
   title: string;
   description: string;
   is_anonymous: boolean;
-  priority: Priority;
   attachments: File[];
 };
 
@@ -39,27 +36,6 @@ type FormErrors = Partial<
 >;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-const PRIORITY_META: Record<
-  Priority,
-  { label: string; color: string; dot: string }
-> = {
-  HIGH: {
-    label: "High",
-    color: "text-red-700 bg-red-50 border-red-200",
-    dot: "bg-red-500",
-  },
-  MEDIUM: {
-    label: "Medium",
-    color: "text-amber-700 bg-amber-50 border-amber-200",
-    dot: "bg-amber-500",
-  },
-  LOW: {
-    label: "Low",
-    color: "text-slate-700 bg-slate-100 border-slate-200",
-    dot: "bg-slate-400",
-  },
-};
-
 const MAX_ATTACHMENT_SIZE_MB = 10;
 const MAX_ATTACHMENTS = 3;
 const ALLOWED_TYPES = [
@@ -157,7 +133,6 @@ export default function SubmitReportPage() {
     title: "",
     description: "",
     is_anonymous: true,
-    priority: "LOW",
     attachments: [],
   });
 
@@ -194,13 +169,10 @@ export default function SubmitReportPage() {
     };
   }, []);
 
-  // Auto-suggest priority from selected category
   function handleCategoryChange(id: string) {
-    const cat = categories.find((c) => c.id === Number(id));
     setForm((prev) => ({
       ...prev,
       category_id: id,
-      priority: cat ? cat.priority_level : prev.priority,
     }));
     setTouched((prev) => ({ ...prev, category_id: true }));
   }
@@ -267,7 +239,6 @@ export default function SubmitReportPage() {
       category_id: true,
       title: true,
       description: true,
-      priority: true,
     });
 
     const newErrors = validate(form);
@@ -334,7 +305,6 @@ export default function SubmitReportPage() {
                     title: "",
                     description: "",
                     is_anonymous: true,
-                    priority: "LOW",
                     attachments: [],
                   });
                   setErrors({});
@@ -387,43 +357,46 @@ export default function SubmitReportPage() {
             noValidate
             className="divide-y divide-slate-100"
           >
-            {/* ── Section 1: Category & Priority ── */}
+            {/* ── Section 1: Category ── */}
             <div className="p-6 sm:p-8">
               <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
                 <Tag className="h-4 w-4" />
                 Classification
               </h2>
 
-              <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-5">
                 {/* Category */}
                 <div className="sm:col-span-2">
                   <FormLabel htmlFor="category_id" required>
                     Report Category
                   </FormLabel>
-                  <select
-                    id="category_id"
-                    name="category_id"
-                    value={form.category_id}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
-                    onBlur={() => handleBlur("category_id")}
-                    disabled={isLoadingCategories || Boolean(categoryError)}
-                    className={`w-full rounded-xl border px-3.5 py-3 text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-teal-500/40 ${
-                      touched.category_id && errors.category_id
-                        ? "border-red-300 bg-red-50/40"
-                        : "border-slate-200 bg-slate-50 hover:border-slate-300 focus:border-teal-400 focus:bg-white"
-                    }`}
-                  >
-                    <option value="" disabled>
-                      {isLoadingCategories
-                        ? "Loading categories..."
-                        : "Select a category..."}
-                    </option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
+                  <div className="relative">
+                    <select
+                      id="category_id"
+                      name="category_id"
+                      value={form.category_id}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                      onBlur={() => handleBlur("category_id")}
+                      disabled={isLoadingCategories || Boolean(categoryError)}
+                      className={`w-full appearance-none rounded-xl border px-3.5 py-3 pr-12 text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-teal-500/40 ${
+                        touched.category_id && errors.category_id
+                          ? "border-red-300 bg-red-50/40"
+                          : "border-slate-200 bg-slate-50 hover:border-slate-300 focus:border-teal-400 focus:bg-white"
+                      }`}
+                    >
+                      <option value="" disabled>
+                        {isLoadingCategories
+                          ? "Loading categories..."
+                          : "Select a category..."}
                       </option>
-                    ))}
-                  </select>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  </div>
                   {/* Category description hint */}
                   {selectedCategory && (
                     <p className="mt-1.5 text-xs text-slate-500">
