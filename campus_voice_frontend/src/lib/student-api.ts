@@ -24,6 +24,7 @@ export type StudentTicket = {
   category_name: string;
   title: string;
   description: string;
+  is_anonymous: boolean;
   priority: TicketPriority;
   priority_display?: string;
   status: TicketStatus;
@@ -69,6 +70,7 @@ export type CreateStudentTicketPayload = {
   category: number;
   title: string;
   description: string;
+  is_anonymous: boolean;
   attachments?: File[];
 };
 
@@ -116,7 +118,8 @@ export async function createStudentTicket(payload: CreateStudentTicketPayload) {
         (ticket) =>
           ticket.category_id === payload.category &&
           ticket.title === payload.title &&
-          ticket.description === payload.description,
+          ticket.description === payload.description &&
+          ticket.is_anonymous === payload.is_anonymous,
       )
       .sort((a, b) => {
         const aTime = a.created_at ? Date.parse(a.created_at) : 0;
@@ -179,6 +182,7 @@ function buildStudentTicketFormData(
   formData.append("category", String(payload.category));
   formData.append("title", payload.title);
   formData.append("description", payload.description);
+  formData.append("is_anonymous", String(payload.is_anonymous));
   attachments.forEach((file) => formData.append("attachments", file));
   return formData;
 }

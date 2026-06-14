@@ -31,6 +31,7 @@ type BackendStaffTicket = {
   category_name?: string;
   title: string;
   description: string;
+  is_anonymous?: boolean;
   priority: TicketPriority;
   priority_display?: string;
   status: TicketStatus;
@@ -57,6 +58,7 @@ export type StaffTicket = {
   category_name: string;
   title: string;
   description: string;
+  is_anonymous: boolean;
   priority: TicketPriority;
   priority_display?: string;
   status: TicketStatus;
@@ -85,6 +87,7 @@ function normalizeTicket(ticket: BackendStaffTicket): StaffTicket {
     ...ticket,
     category: categoryId,
     category_id: categoryId,
+    is_anonymous: Boolean(ticket.is_anonymous),
     category_name:
       ticket.category_name ||
       (typeof ticket.category === "object" ? ticket.category.name ?? "Unknown" : "Unknown"),

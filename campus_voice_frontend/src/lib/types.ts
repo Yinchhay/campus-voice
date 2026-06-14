@@ -36,9 +36,10 @@ export interface Category {
 export interface Ticket {
   id: string; // uuid
   category_id: number;
-  submitted_by: string | null; // uuid — null for anonymous
+  submitted_by: string | null; // uuid — stored privately for ticket tracking
   title: string;
   description: string;
+  is_anonymous: boolean;
   priority: TicketPriority;
   status: TicketStatus;
   has_media: boolean;

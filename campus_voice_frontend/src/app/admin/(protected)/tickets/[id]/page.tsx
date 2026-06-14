@@ -184,13 +184,17 @@ export default function AdminTicketDetailPage({
                     Resolved {formatDate(ticket.resolved_at)}
                   </span>
                 )}
-                {ticket.submitted_by_email ? (
+                {ticket.is_anonymous ? (
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
-                    Authenticated student
+                    Anonymous
+                  </span>
+                ) : ticket.submitted_by_email ? (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
+                    {ticket.submitted_by_email}
                   </span>
                 ) : (
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
-                    Anonymous
+                    Authenticated student
                   </span>
                 )}
               </div>
