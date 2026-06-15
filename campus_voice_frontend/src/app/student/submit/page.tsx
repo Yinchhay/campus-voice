@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -115,6 +116,7 @@ function FormLabel({
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function SubmitReportPage() {
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -164,6 +166,16 @@ export default function SubmitReportPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!submitted) return;
+
+    const redirectTimer = window.setTimeout(() => {
+      router.replace("/student/dashboard");
+    }, 3000);
+
+    return () => window.clearTimeout(redirectTimer);
+  }, [router, submitted]);
 
   function handleCategoryChange(id: string) {
     setForm((prev) => ({
@@ -276,6 +288,9 @@ export default function SubmitReportPage() {
               Your report has been received. You can track its status from your
               dashboard.
             </p>
+            <p className="mt-2 text-sm text-slate-500">
+              Redirecting to your dashboard in a few seconds...
+            </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/student/dashboard"
@@ -283,25 +298,6 @@ export default function SubmitReportPage() {
               >
                 Go to Dashboard
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setSubmitted(false);
-                  setForm({
-                    category_id: "",
-                    title: "",
-                    description: "",
-                    is_anonymous: true,
-                    attachments: [],
-                  });
-                  setErrors({});
-                  setTouched({});
-                  setSubmitError(null);
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-              >
-                Submit Another Report
-              </button>
             </div>
           </div>
         </section>
