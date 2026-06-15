@@ -16,25 +16,10 @@ import {
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { listMyTickets, type StudentTicket } from "@/lib/student-api";
-import type { TicketPriority, TicketStatus } from "@/lib/types";
+import type { TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Lookups & constants
-// ---------------------------------------------------------------------------
-const priorityBadgeClass: Record<TicketPriority, string> = {
-  HIGH: "bg-red-50 text-red-700 border-red-200",
-  MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
-  LOW: "bg-slate-100 text-slate-600 border-slate-200",
-};
-
-const priorityLabel: Record<TicketPriority, string> = {
-  HIGH: "High",
-  MEDIUM: "Medium",
-  LOW: "Low",
-};
-
-// ---------------------------------------------------------------------------
-// Column config — one entry per status
 // ---------------------------------------------------------------------------
 type ColumnConfig = {
   status: TicketStatus;
@@ -83,15 +68,10 @@ const columns: ColumnConfig[] = [
 function TicketCard({ ticket }: { ticket: StudentTicket }) {
   return (
     <article className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
-      {/* ID row */}
+      {/* Metadata row */}
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="rounded-md bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
-          {ticket.public_ticket_id}
-        </span>
-        <span
-          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${priorityBadgeClass[ticket.priority]}`}
-        >
-          {priorityLabel[ticket.priority]} Priority
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500">
+          {ticket.category_name}
         </span>
         {ticket.has_media && (
           <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">
@@ -105,9 +85,6 @@ function TicketCard({ ticket }: { ticket: StudentTicket }) {
       <h3 className="mt-2.5 line-clamp-2 text-sm font-semibold leading-snug text-slate-900 transition group-hover:text-[#1E3A8A]">
         {ticket.title}
       </h3>
-
-      {/* Category */}
-      <p className="mt-0.5 text-xs text-slate-400">{ticket.category_name}</p>
 
       {/* Description */}
       <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
@@ -193,9 +170,9 @@ export default function StudentDashboardPage() {
                 My Reports Dashboard
               </h1>
               <p className="mt-3 max-w-2xl text-slate-600">
-                Track every report with a unique tracking ID. Your identity is
-                authenticated to prevent spam — report content stays anonymous
-                to staff.
+                Track the progress of your submitted reports. Your identity is
+                authenticated to prevent spam while report content stays
+                anonymous to staff.
               </p>
             </div>
 

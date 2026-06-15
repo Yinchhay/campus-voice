@@ -278,16 +278,9 @@ export default function SubmitReportPage() {
               Report Submitted
             </h1>
             <p className="mt-3 text-slate-600">
-              Your report has been received. You can track its status using the
-              tracking ID on your dashboard.
+              Your report has been received. You can track its status from your
+              dashboard.
             </p>
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              <span className="font-medium">
-                Tracking ID:{" "}
-                {createdTicket?.public_ticket_id ??
-                  "Available on your dashboard"}
-              </span>
-            </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/student/dashboard"
