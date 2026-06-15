@@ -19,7 +19,6 @@ import {
   createStudentTicket,
   listStudentCategories,
   type StudentCategory,
-  type StudentTicket,
 } from "@/lib/student-api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -124,9 +123,6 @@ export default function SubmitReportPage() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [createdTicket, setCreatedTicket] = useState<StudentTicket | null>(
-    null,
-  );
 
   const [form, setForm] = useState<FormState>({
     category_id: "",
@@ -249,14 +245,13 @@ export default function SubmitReportPage() {
     setSubmitError(null);
 
     try {
-      const ticket = await createStudentTicket({
+      await createStudentTicket({
         category: Number(form.category_id),
         title: form.title.trim(),
         description: form.description.trim(),
         is_anonymous: form.is_anonymous,
         attachments: form.attachments,
       });
-      setCreatedTicket(ticket);
       setSubmitted(true);
     } catch (error) {
       setSubmitError(extractApiError(error, "Failed to submit report."));
@@ -292,7 +287,6 @@ export default function SubmitReportPage() {
                 type="button"
                 onClick={() => {
                   setSubmitted(false);
-                  setCreatedTicket(null);
                   setForm({
                     category_id: "",
                     title: "",
