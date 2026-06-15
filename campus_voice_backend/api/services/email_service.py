@@ -31,11 +31,14 @@ def send_new_ticket_notification_to_admin(ticket):
     """
     
     email_setting = EmailSetting.get_setting()
-    if not email_setting or not email_setting.ticket_notification_email:
-        logger.warning("No designated admin email configured. Skipping new ticket notification.")
-        return
+    recipient_email = getattr(settings, 'EMAIL_HOST_USER', None)
     
-    recipient_email = email_setting.ticket_notification_email
+    if email_setting and email_setting.ticket_notification_email:
+        recipient_email = email_setting.ticket_notification_email
+        
+    if not recipient_email:
+        logger.warning("No designated admin email configured (and no default). Skipping new ticket notification.")
+        return
 
     subject = f"[Campus Voice] New Ticket Submitted: {ticket.public_ticket_id}"
     

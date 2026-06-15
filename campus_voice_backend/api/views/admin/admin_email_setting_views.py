@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from api.permissions import HasResourcePermission
 
+from django.conf import settings
 from api.models import EmailSetting
 
 logger = logging.getLogger(__name__)
@@ -17,19 +18,21 @@ class AdminEmailSettingView(APIView):
     resource = 'setting'
 
     def get(self, request):
-        """Get the current email notification setting."""
         setting = EmailSetting.get_setting()
-        if not setting:
-            return Response({
-                'ticket_notification_email': None,
-                'updated_by': None,
-                'updated_at': None,
-            }, status=status.HTTP_200_OK)
+        
+        email_to_return = settings.EMAIL_HOST_USER
+        updated_by_email = None
+        updated_at = None
+
+        if setting and setting.ticket_notification_email:
+            email_to_return = setting.ticket_notification_email
+            updated_by_email = setting.updated_by.email if setting.updated_by else None
+            updated_at = setting.updated_at
 
         return Response({
-            'ticket_notification_email': setting.ticket_notification_email,
-            'updated_by': setting.updated_by.email if setting.updated_by else None,
-            'updated_at': setting.updated_at,
+            'ticket_notification_email': email_to_return,
+            'updated_by': updated_by_email,
+            'updated_at': updated_at,
         }, status=status.HTTP_200_OK)
 
     def put(self, request):

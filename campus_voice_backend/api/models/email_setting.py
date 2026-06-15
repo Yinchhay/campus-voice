@@ -3,10 +3,7 @@ from django.conf import settings
 
 
 class EmailSetting(models.Model):
-    """
-    Singleton settings table for email notifications.
-    The superadmin sets which admin email receives new ticket notifications.
-    """
+
     ticket_notification_email = models.EmailField(
         help_text="The admin email address that receives new ticket notifications"
     )
