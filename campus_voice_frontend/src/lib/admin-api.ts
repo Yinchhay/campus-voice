@@ -141,6 +141,12 @@ export type UpdateAdminUserPayload = Partial<
   role_ids?: number[];
 };
 
+export type AdminEmailSetting = {
+  ticket_notification_email: string | null;
+  updated_by: string | null;
+  updated_at: string | null;
+};
+
 export async function getCurrentStaffAccount() {
   const response = await api.get<BackendAdminMeResponse>("/admin/me");
   const { id: _id, ...account } = response.data.user;
@@ -200,6 +206,18 @@ export async function updateAdminUser(userId: string, payload: UpdateAdminUserPa
 
 export async function deleteAdminUser(userId: string) {
   const response = await api.delete<{ message: string }>(`/admin/users/${userId}`);
+  return response.data;
+}
+
+export async function getAdminEmailSetting() {
+  const response = await api.get<AdminEmailSetting>("/admin/settings/email");
+  return response.data;
+}
+
+export async function updateAdminEmailSetting(ticket_notification_email: string) {
+  const response = await api.put<AdminEmailSetting>("/admin/settings/email", {
+    ticket_notification_email,
+  });
   return response.data;
 }
 

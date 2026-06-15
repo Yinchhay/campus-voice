@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import { EmailNotificationSettings } from "@/components/settings/EmailNotificationSettings";
 import {
   getCurrentStaffAccount,
   type CurrentStaffAccount,
@@ -348,6 +349,8 @@ export default function AdminSettingsPage() {
             />
           </FieldRow>
         </Section>
+
+        <EmailNotificationSettings />
 
         {/* ── Platform configuration ────────────────────────── */}
         <Section
