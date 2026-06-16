@@ -23,9 +23,12 @@ class MeetingSlotSerializer(serializers.ModelSerializer):
             'is_available',
             'meeting_link',
             'is_expired_status',
+            'campus_location',
+            'room_number',
+            'google_event_id',
             'created_at'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'ticket', 'staff_member']
 
     def get_duration_minutes(self, obj):
         """Calculate duration in minutes"""
@@ -41,8 +44,28 @@ class MeetingSlotDetailSerializer(MeetingSlotSerializer):
     """Detailed serializer for individual meeting slot"""
     student_booking = serializers.SerializerMethodField()
     
-    class Meta(MeetingSlotSerializer.Meta):
-        fields = MeetingSlotSerializer.Meta.fields + ['student_booking']
+    class Meta:
+        model = MeetingSlot
+        fields = [
+            'id',
+            'ticket',
+            'staff_member',
+            'staff_name',
+            'start_time',
+            'end_time',
+            'duration_minutes',
+            'meeting_type',
+            'location_or_details',
+            'is_available',
+            'meeting_link',
+            'is_expired_status',
+            'campus_location',
+            'room_number',
+            'google_event_id',
+            'created_at',
+            'student_booking'
+        ]
+        read_only_fields = ['id', 'created_at']
 
     def get_student_booking(self, obj):
         """Get student booking info if exists"""
@@ -90,5 +113,19 @@ class StudentMeetingBookingDetailSerializer(StudentMeetingBookingSerializer):
     """Detailed serializer with full meeting slot info"""
     meeting_slot_detail = MeetingSlotDetailSerializer(source='meeting_slot', read_only=True)
     
-    class Meta(StudentMeetingBookingSerializer.Meta):
-        fields = StudentMeetingBookingSerializer.Meta.fields + ['meeting_slot_detail']
+    class Meta:
+        model = StudentMeetingBooking
+        fields = [
+            'id',
+            'meeting_slot',
+            'ticket',
+            'scheduled_time',
+            'is_confirmed',
+            'meeting_completed',
+            'completion_notes',
+            'meeting_details',
+            'booked_at',
+            'cancelled_at',
+            'meeting_slot_detail'
+        ]
+        read_only_fields = ['id', 'booked_at', 'cancelled_at']

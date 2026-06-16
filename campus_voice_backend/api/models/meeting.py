@@ -21,6 +21,7 @@ class MeetingSlot(models.Model):
     
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='meeting_slots')
     staff_member = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='offered_meeting_slots')
+    google_event_id = models.CharField(max_length=255, null=True, blank=True)
     
     # Meeting details
     start_time = models.DateTimeField()
@@ -38,7 +39,7 @@ class MeetingSlot(models.Model):
     room_number = models.CharField(max_length=10, null=True, blank=True)
     location_or_details = models.TextField(null=True, blank=True)
     is_available = models.BooleanField(default=True)
-    meeting_link = models.URLField(null=True, blank=True) # Meeting link for virtual meetings
+    meeting_link = models.URLField(null=True, blank=True) # Meeting link for Online meetings
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

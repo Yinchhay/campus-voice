@@ -228,3 +228,9 @@ AUTH_USER_MODEL = 'api.User'
 
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
+GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
+
+GOOGLE_CALENDAR_REDIRECT_URI = config(
+    'GOOGLE_CALENDAR_REDIRECT_URI',
+    'http://localhost:3000/admin/google-calendar/callback'
+)

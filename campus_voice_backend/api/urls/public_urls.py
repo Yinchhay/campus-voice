@@ -44,4 +44,12 @@ urlpatterns = [
     # ---------------------------------------------------------------------------- #
     path('tickets/<str:ticket_id>/resolution', views.ResolutionView.as_view(), name='resolution'),
     
+    # ---------------------------------------------------------------------------- #
+    #                                  Meetings                                    #
+    # ---------------------------------------------------------------------------- #
+    path('tickets/<str:ticket_id>/meetings', views.StudentMeetingSlotsView.as_view(), name='meeting_slots'),
+    path('tickets/<str:ticket_id>/meetings/<int:slot_id>/confirm', views.StudentConfirmMeetingView.as_view(), name='confirm_meeting'),
+    path('tickets/<str:ticket_id>/bookings/<int:booking_id>/cancel', views.StudentCancelMeetingView.as_view(), name='cancel_meeting'),
+    path('my-bookings', views.StudentMyBookingsView.as_view(), name='my_bookings'),
+    
 ]

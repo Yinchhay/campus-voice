@@ -16,6 +16,13 @@ from api.views import (
     AdminMessageView,
     AdminResolutionView,
     AdminEmailSettingView,
+    AdminMeetingSlotListView,
+    AdminMeetingSlotDetailView,
+    AdminBookingListView,
+    AdminMarkMeetingCompleteView,
+    GoogleCalendarConnectView,
+    GoogleCalendarCallbackView,
+    GoogleCalendarStatusView,
 )
 
 app_name = 'admin'
@@ -57,17 +64,32 @@ urlpatterns = [
     path('tickets/<str:ticket_id>', AdminTicketDetailView.as_view(), name='admin_ticket_detail'),
     
     # ---------------------------------------------------------------------------- #
-    #                              Message Management                              #
+    #                          Admin Message Management                            #
     # ---------------------------------------------------------------------------- #
     path('tickets/<str:ticket_id>/messages', AdminMessageView.as_view(), name='admin_message_list'),
     
     # ---------------------------------------------------------------------------- #
-    #                             Resolution Management                            #
+    #                        Admin Resolution Management                           #
     # ---------------------------------------------------------------------------- #
     path('tickets/<str:ticket_id>/resolution', AdminResolutionView.as_view(), name='admin_resolution'),
+    
+    # ---------------------------------------------------------------------------- #
+    #                            Meeting Management                                #
+    # ---------------------------------------------------------------------------- #
+    path('tickets/<str:ticket_id>/meetings', AdminMeetingSlotListView.as_view(), name='admin_meeting_list'),
+    path('tickets/<str:ticket_id>/meetings/<int:slot_id>', AdminMeetingSlotDetailView.as_view(), name='admin_meeting_detail'),
+    path('bookings', AdminBookingListView.as_view(), name='admin_booking_list'),
+    path('tickets/<str:ticket_id>/bookings/<int:booking_id>/complete', AdminMarkMeetingCompleteView.as_view(), name='admin_mark_meeting_complete'),
+    
+    # ---------------------------------------------------------------------------- #
+    #                          Google Calendar Integration                         #
+    # ---------------------------------------------------------------------------- #
+    path('google-calendar/connect', GoogleCalendarConnectView.as_view(), name='google_calendar_connect'),
+    path('google-calendar/callback', GoogleCalendarCallbackView.as_view(), name='google_calendar_callback'),
+    path('google-calendar/status', GoogleCalendarStatusView.as_view(), name='google_calendar_status'),
 
     # ---------------------------------------------------------------------------- #
-    #                             Email Setting Management                            #
+    #                       Admin Email Setting Management                         #
     # ---------------------------------------------------------------------------- #
     path('settings/email', AdminEmailSettingView.as_view(), name='admin_email_setting'),
 ]

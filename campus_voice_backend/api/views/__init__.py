@@ -18,6 +18,12 @@ from .public.message.message_views import MessageView
 # Resolution
 from .public.resolution.resolution_views import ResolutionView
 
+from .public.meeting.meeting_views import (
+    StudentMeetingSlotsView,
+    StudentConfirmMeetingView,
+    StudentCancelMeetingView,
+    StudentMyBookingsView,
+)
 
 # Admin
 from .admin.admin_login_views import AdminLoginView
@@ -29,7 +35,15 @@ from .admin.admin_ticket_views import AdminTicketListView, AdminTicketDetailView
 from .admin.admin_message_views import AdminMessageView
 from .admin.admin_resolution_views import AdminResolutionView
 from .admin.admin_email_setting_views import AdminEmailSettingView
-
+from .admin.admin_meeting_views import (
+    AdminMeetingSlotListView,
+    AdminMeetingSlotDetailView,
+    AdminBookingListView,
+    AdminMarkMeetingCompleteView,
+    GoogleCalendarConnectView,
+    GoogleCalendarCallbackView,
+    GoogleCalendarStatusView,
+)
 
 __all__ = [
 
@@ -56,6 +70,11 @@ __all__ = [
     # Public Resolution
     'ResolutionView',
     
+    # Public Student Meeting Booking
+    'StudentMeetingSlotsView',
+    'StudentConfirmMeetingView',
+    'StudentCancelMeetingView',
+    'StudentMyBookingsView',
     
     # Admin
     'AdminLoginView',
@@ -88,5 +107,14 @@ __all__ = [
     
     # Admin Setting
     'AdminEmailSettingView',
+    
+    # Admin Meeting
+    'AdminMeetingSlotListView',
+    'AdminMeetingSlotDetailView',
+    'AdminBookingListView',
+    'AdminMarkMeetingCompleteView',
+    'GoogleCalendarConnectView',
+    'GoogleCalendarCallbackView',
+    'GoogleCalendarStatusView',
 
 ]
