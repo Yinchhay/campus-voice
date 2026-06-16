@@ -91,7 +91,16 @@ function formatRelative(iso?: string) {
 }
 
 function ticketCreatedTime(ticket: StaffTicket) {
-  return ticket.created_at ? new Date(ticket.created_at).getTime() : 0;
+  return ticket.created_at ? Date.parse(ticket.created_at) : 0;
+}
+
+function isSameLocalDay(timestamp: string, reference: Date) {
+  const date = new Date(timestamp);
+  return (
+    date.getFullYear() === reference.getFullYear() &&
+    date.getMonth() === reference.getMonth() &&
+    date.getDate() === reference.getDate()
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -160,43 +169,54 @@ export default function StaffDashboardPage() {
   const canViewPermissions =
     canViewRoles && hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission);
 
-  const total = tickets.length;
-  const open = tickets.filter((t) => t.status !== "RESOLVED").length;
-  const inProgress = tickets.filter((t) => t.status === "IN_PROGRESS").length;
-  const highPriority = tickets.filter((t) => t.priority === "HIGH" && t.status !== "RESOLVED").length;
-  const submitted = tickets.filter((t) => t.status === "SUBMITTED").length;
-  const resolvedToday = tickets.filter((t) => {
-    if (!t.resolved_at) return false;
-    const d = new Date(t.resolved_at);
-    const now = new Date();
-    return d.getFullYear() === now.getFullYear() &&
-      d.getMonth() === now.getMonth() &&
-      d.getDate() === now.getDate();
-  }).length;
-
-  const recentTickets = useMemo(
-    () =>
-      [...tickets]
+  const ticketSummary = useMemo(() => {
+    const today = new Date();
+    const summary = {
+      total: tickets.length,
+      open: 0,
+      inProgress: 0,
+      highPriority: 0,
+      submitted: 0,
+      resolvedToday: 0,
+      recentTickets: [...tickets]
         .sort((a, b) => ticketCreatedTime(b) - ticketCreatedTime(a))
         .slice(0, 5),
-    [tickets],
+    };
+
+    for (const ticket of tickets) {
+      const isOpen = ticket.status !== "RESOLVED";
+      if (isOpen) summary.open += 1;
+      if (ticket.status === "IN_PROGRESS") summary.inProgress += 1;
+      if (ticket.status === "SUBMITTED") summary.submitted += 1;
+      if (ticket.priority === "HIGH" && isOpen) summary.highPriority += 1;
+      if (ticket.resolved_at && isSameLocalDay(ticket.resolved_at, today)) {
+        summary.resolvedToday += 1;
+      }
+    }
+
+    return summary;
+  }, [tickets]);
+
+  const activeCategories = useMemo(
+    () => categories.filter((category) => category.is_active),
+    [categories],
   );
 
   const stats = [
     ...(canViewTickets
       ? [
-          { label: "All Tickets", value: total, tone: "text-slate-900" },
-          { label: "Open Cases", value: open, tone: "text-blue-700" },
-          { label: "In Progress", value: inProgress, tone: "text-amber-700" },
-          { label: "High Priority", value: highPriority, tone: "text-red-700" },
-          { label: "Resolved Today", value: resolvedToday, tone: "text-emerald-700" },
+          { label: "All Tickets", value: ticketSummary.total, tone: "text-slate-900" },
+          { label: "Open Cases", value: ticketSummary.open, tone: "text-blue-700" },
+          { label: "In Progress", value: ticketSummary.inProgress, tone: "text-amber-700" },
+          { label: "High Priority", value: ticketSummary.highPriority, tone: "text-red-700" },
+          { label: "Resolved Today", value: ticketSummary.resolvedToday, tone: "text-emerald-700" },
         ]
       : []),
     ...(canViewCategories
       ? [
           {
             label: "Active Categories",
-            value: categories.filter((category) => category.is_active).length,
+            value: activeCategories.length,
             tone: "text-violet-700",
           },
           {
@@ -289,13 +309,13 @@ export default function StaffDashboardPage() {
               </div>
             )}
 
-            {!isLoading && recentTickets.length === 0 && !pageError && (
+            {!isLoading && ticketSummary.recentTickets.length === 0 && !pageError && (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
                 No tickets are available yet.
               </div>
             )}
 
-            {!isLoading && recentTickets.map((ticket) => (
+            {!isLoading && ticketSummary.recentTickets.map((ticket) => (
               <Link
                 key={ticket.id}
                 href={`/staff/tickets/${ticket.id}`}
@@ -402,7 +422,7 @@ export default function StaffDashboardPage() {
             <div>
               <p className="font-semibold text-red-900">High Priority Queue</p>
               <p className="mt-0.5 text-sm text-red-700">
-                {highPriority} urgent case{highPriority !== 1 ? "s" : ""} need attention
+                {ticketSummary.highPriority} urgent case{ticketSummary.highPriority !== 1 ? "s" : ""} need attention
               </p>
             </div>
             <ArrowRight className="ml-auto h-4 w-4 text-red-400" />
@@ -420,7 +440,7 @@ export default function StaffDashboardPage() {
             <div>
               <p className="font-semibold text-slate-900">New Submissions</p>
               <p className="mt-0.5 text-sm text-slate-600">
-                {submitted} ticket{submitted !== 1 ? "s" : ""} awaiting review
+                {ticketSummary.submitted} ticket{ticketSummary.submitted !== 1 ? "s" : ""} awaiting review
               </p>
             </div>
             <ArrowRight className="ml-auto h-4 w-4 text-slate-400" />
@@ -440,8 +460,8 @@ export default function StaffDashboardPage() {
                   {DASHBOARD_MODULES.categoryManagement.label}
                 </p>
                 <p className="mt-0.5 text-sm text-violet-700">
-                  {categories.filter((category) => category.is_active).length} active categor
-                  {categories.filter((category) => category.is_active).length === 1 ? "y" : "ies"}
+                  {activeCategories.length} active categor
+                  {activeCategories.length === 1 ? "y" : "ies"}
                 </p>
               </div>
               <ArrowRight className="ml-auto h-4 w-4 text-violet-400" />

@@ -98,16 +98,17 @@ export default function AdminTicketsPage() {
   }, []);
 
   const filtered = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+
     return tickets
       .filter((t) => {
         if (statusFilter !== "ALL" && t.status !== statusFilter) return false;
         if (priorityFilter !== "ALL" && t.priority !== priorityFilter) return false;
         if (categoryFilter !== "ALL" && t.category_id !== categoryFilter) return false;
-        if (search) {
-          const q = search.toLowerCase();
+        if (normalizedSearch) {
           if (
-            !t.public_ticket_id.toLowerCase().includes(q) &&
-            !t.title.toLowerCase().includes(q)
+            !t.public_ticket_id.toLowerCase().includes(normalizedSearch) &&
+            !t.title.toLowerCase().includes(normalizedSearch)
           )
             return false;
         }
@@ -119,26 +120,46 @@ export default function AdminTicketsPage() {
       );
   }, [tickets, statusFilter, priorityFilter, categoryFilter, search]);
 
+  const categoryById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category.name])),
+    [categories],
+  );
+
   function categoryName(id: number) {
-    return categories.find((c) => c.id === id)?.name ?? "Unknown";
+    return categoryById.get(id) ?? "Unknown";
   }
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<TicketStatus | "ALL", number> = {
+      ALL: tickets.length,
+      SUBMITTED: 0,
+      IN_PROGRESS: 0,
+      RESOLVED: 0,
+    };
+
+    for (const ticket of tickets) {
+      counts[ticket.status] += 1;
+    }
+
+    return counts;
+  }, [tickets]);
+
   const statusTabs: Array<{ key: TicketStatus | "ALL"; label: string; count: number }> = [
-    { key: "ALL", label: "All", count: tickets.length },
+    { key: "ALL", label: "All", count: statusCounts.ALL },
     {
       key: "SUBMITTED",
       label: "Submitted",
-      count: tickets.filter((t) => t.status === "SUBMITTED").length,
+      count: statusCounts.SUBMITTED,
     },
     {
       key: "IN_PROGRESS",
       label: "In Progress",
-      count: tickets.filter((t) => t.status === "IN_PROGRESS").length,
+      count: statusCounts.IN_PROGRESS,
     },
     {
       key: "RESOLVED",
       label: "Resolved",
-      count: tickets.filter((t) => t.status === "RESOLVED").length,
+      count: statusCounts.RESOLVED,
     },
   ];
 

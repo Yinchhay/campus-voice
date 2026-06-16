@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { attachmentHref, attachmentName } from "@/lib/attachments";
-import { mockBookings, mockMeetingSlots } from "@/lib/mock-data";
+import { mockBookings, mockMeetingSlots } from "@/lib/mock-meetings";
 import {
   createStudentTicketMessage,
   getMyTicket,

@@ -61,6 +61,10 @@ type DashboardQuickLink = {
   sub: string;
 };
 
+function ticketCreatedTime(ticket: AdminTicket) {
+  return ticket.created_at ? Date.parse(ticket.created_at) : 0;
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -127,27 +131,59 @@ export default function AdminDashboardPage() {
   const canViewRoles = hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission);
   const canViewPermissions = hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission);
 
-  const total = tickets.length;
-  const open = tickets.filter((t) => t.status !== "RESOLVED").length;
-  const resolved = tickets.filter((t) => t.status === "RESOLVED").length;
-  const inProgress = tickets.filter((t) => t.status === "IN_PROGRESS").length;
-  const highPriority = tickets.filter((t) => t.priority === "HIGH" && t.status !== "RESOLVED").length;
+  const ticketSummary = useMemo(() => {
+    const categoryCounts = new Map<number, { count: number; open: number }>();
+    const summary = {
+      total: tickets.length,
+      open: 0,
+      resolved: 0,
+      inProgress: 0,
+      highPriority: 0,
+      categoryCounts,
+      recentTickets: [...tickets]
+        .sort((a, b) => ticketCreatedTime(b) - ticketCreatedTime(a))
+        .slice(0, 5),
+    };
+
+    for (const ticket of tickets) {
+      const isOpen = ticket.status !== "RESOLVED";
+      if (isOpen) summary.open += 1;
+      if (ticket.status === "RESOLVED") summary.resolved += 1;
+      if (ticket.status === "IN_PROGRESS") summary.inProgress += 1;
+      if (ticket.priority === "HIGH" && isOpen) summary.highPriority += 1;
+
+      const categoryStats = categoryCounts.get(ticket.category_id) ?? {
+        count: 0,
+        open: 0,
+      };
+      categoryStats.count += 1;
+      if (isOpen) categoryStats.open += 1;
+      categoryCounts.set(ticket.category_id, categoryStats);
+    }
+
+    return summary;
+  }, [tickets]);
+
+  const activeCategories = useMemo(
+    () => categories.filter((category) => category.is_active),
+    [categories],
+  );
 
   const stats = [
     ...(canViewTickets
       ? [
-          { label: "Total Tickets", value: total, tone: "text-slate-900" },
-          { label: "Open Cases", value: open, tone: "text-blue-700" },
-          { label: "In Progress", value: inProgress, tone: "text-amber-700" },
-          { label: "Resolved", value: resolved, tone: "text-emerald-700" },
-          { label: "High Priority", value: highPriority, tone: "text-red-700" },
+          { label: "Total Tickets", value: ticketSummary.total, tone: "text-slate-900" },
+          { label: "Open Cases", value: ticketSummary.open, tone: "text-blue-700" },
+          { label: "In Progress", value: ticketSummary.inProgress, tone: "text-amber-700" },
+          { label: "Resolved", value: ticketSummary.resolved, tone: "text-emerald-700" },
+          { label: "High Priority", value: ticketSummary.highPriority, tone: "text-red-700" },
         ]
       : []),
     ...(canViewCategories
       ? [
           {
             label: "Categories",
-            value: categories.filter((category) => category.is_active).length,
+            value: activeCategories.length,
             tone: "text-violet-700",
           },
         ]
@@ -163,28 +199,19 @@ export default function AdminDashboardPage() {
       : []),
   ];
 
-  const recentTickets = useMemo(
-    () =>
-      [...tickets]
-        .sort(
-          (a, b) =>
-            new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime(),
-        )
-        .slice(0, 5),
-    [tickets],
-  );
-
   const categoryBreakdown = useMemo(
     () =>
-      categories
-        .filter((c) => c.is_active)
-        .map((c) => ({
-          ...c,
-          count: tickets.filter((t) => t.category_id === c.id).length,
-          open: tickets.filter((t) => t.category_id === c.id && t.status !== "RESOLVED").length,
-        }))
+      activeCategories
+        .map((category) => {
+          const counts = ticketSummary.categoryCounts.get(category.id);
+          return {
+            ...category,
+            count: counts?.count ?? 0,
+            open: counts?.open ?? 0,
+          };
+        })
         .sort((a, b) => b.count - a.count),
-    [categories, tickets],
+    [activeCategories, ticketSummary.categoryCounts],
   );
 
   const categoryPriorityBadge: Record<string, string> = {
@@ -200,7 +227,7 @@ export default function AdminDashboardPage() {
       icon: <TicketCheck className="h-5 w-5 text-blue-600" />,
       bg: "bg-blue-50 border-blue-100",
       label: DASHBOARD_MODULES.ticketOverview.label,
-      sub: `${open} open cases`,
+      sub: `${ticketSummary.open} open cases`,
     });
   }
   if (canViewUsers) {
@@ -227,7 +254,7 @@ export default function AdminDashboardPage() {
       icon: <Tag className="h-5 w-5 text-violet-600" />,
       bg: "bg-violet-50 border-violet-100",
       label: DASHBOARD_MODULES.categoryManagement.label,
-      sub: `${categories.filter((c) => c.is_active).length} active categories`,
+      sub: `${activeCategories.length} active categories`,
     });
   }
   if (canViewPermissions) {
@@ -296,12 +323,12 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="space-y-2">
-              {recentTickets.length === 0 && (
+              {ticketSummary.recentTickets.length === 0 && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
                   {isLoading ? "Loading tickets..." : "No tickets found."}
                 </div>
               )}
-              {recentTickets.map((ticket) => (
+              {ticketSummary.recentTickets.map((ticket) => (
                 <Link
                   key={ticket.id}
                   href={`/admin/tickets/${ticket.id}`}
