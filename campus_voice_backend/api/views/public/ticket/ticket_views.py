@@ -45,10 +45,9 @@ class TicketListView(APIView):
                     submitted_by=request.user,
                     priority=category.priority_level
                 )
-                logger.info(f"Ticket created by {request.user.email}")
                 
-                # Send email notification to all admins
-                send_new_ticket_notification_to_admin(ticket)
+                if ticket.priority == Ticket.priority.HIGH:
+                    send_new_ticket_notification_to_admin(ticket)
                 
                 return Response(
                     PublicTicketDetailSerializer(ticket).data,
