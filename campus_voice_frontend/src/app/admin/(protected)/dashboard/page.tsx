@@ -6,14 +6,12 @@ import {
   ArrowRight,
   BarChart3,
   FileText,
-  LayoutDashboard,
-  Settings,
   ShieldCheck,
   Tag,
   TicketCheck,
   UsersRound,
 } from "lucide-react";
-import { RoleDashboardShell, type DashboardNavItem } from "@/components/layout/RoleDashboardShell";
+import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import {
   listAdminCategories,
   listAdminPermissions,
@@ -25,41 +23,10 @@ import {
   type AdminTicket,
   type AdminUser,
 } from "@/lib/admin-api";
+import { adminNav } from "@/lib/admin-nav";
 import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { Category, TicketStatus } from "@/lib/types";
-
-// ---------------------------------------------------------------------------
-// Nav
-// ---------------------------------------------------------------------------
-export const adminNav: DashboardNavItem[] = [
-  { label: "Dashboard", href: "/admin/dashboard", Icon: LayoutDashboard },
-  {
-    label: "Tickets",
-    href: DASHBOARD_MODULES.ticketOverview.href.admin,
-    Icon: TicketCheck,
-    requiredPermission: DASHBOARD_MODULES.ticketOverview.requiredPermission,
-  },
-  {
-    label: "Users",
-    href: DASHBOARD_MODULES.userManagement.href.admin,
-    Icon: UsersRound,
-    requiredPermission: DASHBOARD_MODULES.userManagement.requiredPermission,
-  },
-  {
-    label: "Roles",
-    href: DASHBOARD_MODULES.roleManagement.href.admin,
-    Icon: ShieldCheck,
-    requiredPermission: DASHBOARD_MODULES.roleManagement.requiredPermission,
-  },
-  {
-    label: "Categories",
-    href: DASHBOARD_MODULES.categoryManagement.href.admin,
-    Icon: Tag,
-    requiredPermission: DASHBOARD_MODULES.categoryManagement.requiredPermission,
-  },
-  { label: "Settings", href: "/admin/settings", Icon: Settings },
-];
 
 // ---------------------------------------------------------------------------
 // Badges

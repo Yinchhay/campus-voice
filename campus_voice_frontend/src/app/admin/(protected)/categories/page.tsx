@@ -2,7 +2,7 @@
 
 import { CategoryManagementPanel } from "@/components/categories/CategoryManagementPanel";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { adminNav } from "../dashboard/page";
+import { adminNav } from "@/lib/admin-nav";
 
 export default function AdminCategoriesPage() {
   return (

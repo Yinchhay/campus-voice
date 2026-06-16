@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -19,7 +20,6 @@ import {
   createStudentTicket,
   listStudentCategories,
   type StudentCategory,
-  type StudentTicket,
 } from "@/lib/student-api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -116,6 +116,7 @@ function FormLabel({
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function SubmitReportPage() {
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,9 +125,6 @@ export default function SubmitReportPage() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [createdTicket, setCreatedTicket] = useState<StudentTicket | null>(
-    null,
-  );
 
   const [form, setForm] = useState<FormState>({
     category_id: "",
@@ -168,6 +166,16 @@ export default function SubmitReportPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!submitted) return;
+
+    const redirectTimer = window.setTimeout(() => {
+      router.replace("/student/dashboard");
+    }, 3000);
+
+    return () => window.clearTimeout(redirectTimer);
+  }, [router, submitted]);
 
   function handleCategoryChange(id: string) {
     setForm((prev) => ({
@@ -249,14 +257,13 @@ export default function SubmitReportPage() {
     setSubmitError(null);
 
     try {
-      const ticket = await createStudentTicket({
+      await createStudentTicket({
         category: Number(form.category_id),
         title: form.title.trim(),
         description: form.description.trim(),
         is_anonymous: form.is_anonymous,
         attachments: form.attachments,
       });
-      setCreatedTicket(ticket);
       setSubmitted(true);
     } catch (error) {
       setSubmitError(extractApiError(error, "Failed to submit report."));
@@ -278,16 +285,12 @@ export default function SubmitReportPage() {
               Report Submitted
             </h1>
             <p className="mt-3 text-slate-600">
-              Your report has been received. You can track its status using the
-              tracking ID on your dashboard.
+              Your report has been received. You can track its status from your
+              dashboard.
             </p>
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              <span className="font-medium">
-                Tracking ID:{" "}
-                {createdTicket?.public_ticket_id ??
-                  "Available on your dashboard"}
-              </span>
-            </div>
+            <p className="mt-2 text-sm text-slate-500">
+              Redirecting to your dashboard in a few seconds...
+            </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/student/dashboard"
@@ -295,26 +298,6 @@ export default function SubmitReportPage() {
               >
                 Go to Dashboard
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setSubmitted(false);
-                  setCreatedTicket(null);
-                  setForm({
-                    category_id: "",
-                    title: "",
-                    description: "",
-                    is_anonymous: true,
-                    attachments: [],
-                  });
-                  setErrors({});
-                  setTouched({});
-                  setSubmitError(null);
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-              >
-                Submit Another Report
-              </button>
             </div>
           </div>
         </section>

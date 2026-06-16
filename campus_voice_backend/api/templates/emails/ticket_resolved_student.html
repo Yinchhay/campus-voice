@@ -1,57 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticket Resolved</title>
+    <title>Report Resolved</title>
 </head>
-<body style="margin: 0; padding: 20px; background-color: #f1f5f9; font-family: 'Segoe UI', Arial, sans-serif;">
-    <div style="max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 22px;">✅ Ticket Resolved</h1>
-        </div>
-        <div style="background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none;">
-            <p style="color: #334155; font-size: 15px; line-height: 1.6; margin-top: 0;">
-                Hi <strong>{{ student_name }}</strong>,
-            </p>
-            <p style="color: #334155; font-size: 15px; line-height: 1.6;">
-                Your ticket has been reviewed and resolved. Here are the details:
-            </p>
-            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                <tr>
-                    <td style="padding: 10px 0; color: #64748b; font-size: 14px; width: 140px;">Ticket ID</td>
-                    <td style="padding: 10px 0; font-weight: 600; color: #1e293b;">{{ ticket.public_ticket_id }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px 0; color: #64748b; font-size: 14px;">Title</td>
-                    <td style="padding: 10px 0; font-weight: 600; color: #1e293b;">{{ ticket.title }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px 0; color: #64748b; font-size: 14px;">Status</td>
-                    <td style="padding: 10px 0;">
-                        <span style="background: #dcfce7; color: #16a34a; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
-                            Resolved
-                        </span>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px 0; color: #64748b; font-size: 14px;">Resolved By</td>
-                    <td style="padding: 10px 0; color: #1e293b;">{{ resolved_by_name }}</td>
-                </tr>
-            </table>
-            <div style="margin-top: 20px; padding: 16px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
-                <p style="color: #064e3b; font-size: 13px; margin: 0 0 8px 0; font-weight: 600;">Resolution Note</p>
-                <p style="color: #334155; margin: 0; font-size: 14px; line-height: 1.6;">{{ resolution.note }}</p>
-            </div>
-            <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin-top: 24px;">
-                If you have any further questions or concerns, feel free to submit a new ticket.
-            </p>
-        </div>
-        <div style="background: #f1f5f9; padding: 20px 30px; border-radius: 0 0 12px 12px; border: 1px solid #e2e8f0; border-top: none;">
-            <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">
-                This is an automated notification from Campus Voice.
-            </p>
-        </div>
+
+<body
+    style="margin: 0; padding: 0; background-color: #f8fafc; font-family: Inter, 'Segoe UI', Arial, sans-serif; color: #0f172a;">
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0;">
+        Your Campus Voice report has been resolved.
     </div>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+        style="width: 100%; border-collapse: collapse; background: #f8fafc;">
+        <tr>
+            <td align="center" style="padding: 32px 16px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+                    style="width: 100%; max-width: 640px; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 0 0 16px;">
+                            <p
+                                style="margin: 0; color: #1E3A8A; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;">
+                                Campus Voice
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td
+                            style="overflow: hidden; border: 1px solid #dbe4ef; border-radius: 20px; background: #ffffff; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+                                style="border-collapse: collapse;">
+                                <tr>
+                                    <td style="background: #0f766e; padding: 28px 30px;">
+                                        <p style="margin: 0 0 10px; color: #ccfbf1; font-size: 13px; font-weight: 600;">
+                                            Report resolved
+                                        </p>
+                                        <h1
+                                            style="margin: 0; color: #ffffff; font-size: 24px; line-height: 1.25; font-weight: 700;">
+                                            Your report has been reviewed
+                                        </h1>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 28px 30px 8px;">
+                                        <p
+                                            style="margin: 0 0 14px; color: #334155; font-size: 15px; line-height: 1.65;">
+                                            Hi <strong style="color: #0f172a;">{{ student_name }}</strong>,
+                                        </p>
+                                        <p
+                                            style="margin: 0 0 22px; color: #334155; font-size: 15px; line-height: 1.65;">
+                                            Staff have reviewed your report and marked it as resolved. You can view the
+                                            full report status from your Campus Voice dashboard.
+                                        </p>
+
+                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+                                            style="border-collapse: collapse; margin: 0 0 22px;">
+                                            <tr>
+                                                <td style="padding: 0 0 16px;">
+                                                    <p
+                                                        style="margin: 0; color: #64748b; font-size: 13px; font-weight: 600;">
+                                                        Report title</p>
+                                                    <p
+                                                        style="margin: 5px 0 0; color: #0f172a; font-size: 16px; font-weight: 700;">
+                                                        {{ ticket.title }}</p>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 0 0 16px;">
+                                                    <p
+                                                        style="margin: 0; color: #64748b; font-size: 13px; font-weight: 600;">
+                                                        Status</p>
+                                                    <span
+                                                        style="display: inline-block; margin-top: 6px; border: 1px solid #bbf7d0; border-radius: 999px; background: #f0fdf4; padding: 7px 12px; color: #15803d; font-size: 13px; font-weight: 700;">
+                                                        Resolved
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 0 0 4px;">
+                                                    <p
+                                                        style="margin: 0; color: #64748b; font-size: 13px; font-weight: 600;">
+                                                        Resolved by</p>
+                                                    <p style="margin: 5px 0 0; color: #334155; font-size: 15px;">{{
+                                                        resolved_by_name }}</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <div
+                                            style="border: 1px solid #ccfbf1; border-left: 4px solid #14b8a6; border-radius: 14px; background: #f0fdfa; padding: 18px;">
+                                            <p
+                                                style="margin: 0 0 8px; color: #0f766e; font-size: 13px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;">
+                                                Resolution note</p>
+                                            <p style="margin: 0; color: #334155; font-size: 15px; line-height: 1.65;">{{
+                                                resolution.note }}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 22px 30px 30px;">
+                                        <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.6;">
+                                            If you have another concern, submit a new report from your dashboard.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 18px 8px 0; text-align: center;">
+                            <p style="margin: 0; color: #94a3b8; font-size: 12px; line-height: 1.5;">
+                                This is an automated notification from Campus Voice.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
+
 </html>
