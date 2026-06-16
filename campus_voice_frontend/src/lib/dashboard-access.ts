@@ -1,4 +1,4 @@
-import type { PermissionCodename } from "@/lib/rbac";
+import type { PermissionCodename } from "@/lib/types";
 
 export const RBAC_PERMISSIONS = {
   ticket: {

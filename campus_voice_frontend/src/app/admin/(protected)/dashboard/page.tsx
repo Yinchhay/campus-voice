@@ -19,7 +19,7 @@ import {
   type AdminTicket,
   type AdminUser,
 } from "@/lib/admin-api";
-import { adminNav } from "@/lib/admin-nav";
+import { adminNav } from "@/lib/dashboard-nav";
 import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { TicketStatus } from "@/lib/types";

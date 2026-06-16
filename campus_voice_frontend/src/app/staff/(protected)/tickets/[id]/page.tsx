@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { attachmentHref, attachmentName } from "@/lib/attachments";
-import { staffNav } from "@/lib/staff-nav";
+import { staffNav } from "@/lib/dashboard-nav";
 import {
   createStaffTicketResolution,
   createStaffTicketMessage,

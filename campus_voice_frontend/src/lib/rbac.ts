@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentStaffAccount, type CurrentStaffAccount } from "@/lib/admin-api";
 import { STAFF_LANDING_MODULE_ORDER } from "@/lib/dashboard-access";
-
-export type PermissionCodename = `${string}.${string}` | "*";
+import type { PermissionCodename } from "@/lib/types";
 
 let cachedAccount: CurrentStaffAccount | null = null;
 let hasLoadedAccount = false;

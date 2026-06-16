@@ -15,7 +15,7 @@ import {
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
 import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
-import { staffNav } from "@/lib/staff-nav";
+import { staffNav } from "@/lib/dashboard-nav";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
 

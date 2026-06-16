@@ -29,7 +29,7 @@ import {
   type AdminRoleDetail,
   type AdminUser,
 } from "@/lib/admin-api";
-import { adminNav } from "@/lib/admin-nav";
+import { adminNav } from "@/lib/dashboard-nav";
 import { RBAC_PERMISSIONS } from "@/lib/dashboard-access";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { UserRole } from "@/lib/types";

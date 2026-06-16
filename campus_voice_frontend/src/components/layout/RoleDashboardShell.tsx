@@ -7,7 +7,8 @@ import type { LucideIcon } from "lucide-react";
 import { ChevronDown, LogOut, Menu, ShieldCheck, UserRound, X } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { loginPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
-import { useRbacPermissions, type PermissionCodename } from "@/lib/rbac";
+import { useRbacPermissions } from "@/lib/rbac";
+import type { PermissionCodename } from "@/lib/types";
 
 export type DashboardNavItem = {
 	label: string;

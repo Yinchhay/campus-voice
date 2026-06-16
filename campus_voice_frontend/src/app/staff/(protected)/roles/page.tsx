@@ -2,7 +2,7 @@
 
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { RoleManagementPanel } from "@/components/roles/RoleManagementPanel";
-import { staffNav } from "@/lib/staff-nav";
+import { staffNav } from "@/lib/dashboard-nav";
 
 export default function StaffRolesPage() {
   return (
