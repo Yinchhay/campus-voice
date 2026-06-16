@@ -37,6 +37,9 @@ PREDEFINED_PERMISSIONS = [
     ('role',       'delete', 'Can delete roles'),
     # Permission management
     ('permission', 'view',   'Can view permissions'),
+    # Setting management
+    ('setting',    'view',   'Can view settings'),
+    ('setting',    'update', 'Can update settings'),
 ]
 
 
@@ -157,13 +160,13 @@ class Command(BaseCommand):
         else:
             self.stdout.write(f'  Already exists: {SUPERADMIN_EMAIL}')
 
-        super_admin_role = role_objects.get('Super Admin')
+        super_admin_role = role_objects.get('Admin')
         if super_admin_role:
             _, assigned = UserRole.objects.get_or_create(
                 user=superadmin_user,
                 role=super_admin_role,
             )
             if assigned:
-                self.stdout.write('  Assigned Super Admin role to superadmin user')
+                self.stdout.write('  Assigned Admin role to superadmin user')
 
         self.stdout.write(self.style.SUCCESS('\nRBAC seeding completed!'))
