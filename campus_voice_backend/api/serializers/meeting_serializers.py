@@ -39,6 +39,19 @@ class MeetingSlotSerializer(serializers.ModelSerializer):
         """Check if meeting slot is expired"""
         return obj.is_expired()
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        start_time = attrs.get('start_time') or getattr(self.instance, 'start_time', None)
+        end_time = attrs.get('end_time') or getattr(self.instance, 'end_time', None)
+
+        if start_time and end_time and end_time <= start_time:
+            raise serializers.ValidationError({
+                'end_time': 'End time must be after start time.'
+            })
+
+        return attrs
+
 
 class MeetingSlotDetailSerializer(MeetingSlotSerializer):
     """Detailed serializer for individual meeting slot"""
@@ -78,6 +91,7 @@ class MeetingSlotDetailSerializer(MeetingSlotSerializer):
 class StudentMeetingBookingSerializer(serializers.ModelSerializer):
     """Serializer for StudentMeetingBooking model"""
     meeting_details = serializers.SerializerMethodField()
+    public_ticket_id = serializers.CharField(source='ticket.public_ticket_id', read_only=True)
     
     class Meta:
         model = StudentMeetingBooking
@@ -85,6 +99,7 @@ class StudentMeetingBookingSerializer(serializers.ModelSerializer):
             'id',
             'meeting_slot',
             'ticket',
+            'public_ticket_id',
             'scheduled_time',
             'is_confirmed',
             'meeting_completed',
@@ -119,6 +134,7 @@ class StudentMeetingBookingDetailSerializer(StudentMeetingBookingSerializer):
             'id',
             'meeting_slot',
             'ticket',
+            'public_ticket_id',
             'scheduled_time',
             'is_confirmed',
             'meeting_completed',

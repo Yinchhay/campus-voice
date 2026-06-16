@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+import requests
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
@@ -11,7 +12,12 @@ from api.models import GoogleCalendarToken
 
 logger = logging.getLogger(__name__)
 
-SCOPES = ['https://www.googleapis.com/auth/calendar.events']
+SCOPES = [
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/calendar.events',
+]
 
 
 def get_google_oauth_flow():
@@ -38,7 +44,7 @@ def get_authorization_url():
     flow = get_google_oauth_flow()
     authorization_url, state = flow.authorization_url(
         access_type='offline',
-        include_granted_scopes='true',
+        include_granted_scopes='false',
         prompt='consent'
     )
     return authorization_url, state
@@ -49,11 +55,24 @@ def exchange_code_for_tokens(authorization_code):
     flow = get_google_oauth_flow()
     flow.fetch_token(code=authorization_code)
     credentials = flow.credentials
+    calendar_email = get_google_account_email(credentials.token)
     return {
         'access_token': credentials.token,
         'refresh_token': credentials.refresh_token,
         'token_expiry': credentials.expiry,
+        'calendar_email': calendar_email,
     }
+
+
+def get_google_account_email(access_token):
+    """Fetch the email of the Google account that granted Calendar access."""
+    response = requests.get(
+        'https://openidconnect.googleapis.com/v1/userinfo',
+        headers={'Authorization': f'Bearer {access_token}'},
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response.json().get('email', '')
 
 
 def _get_credentials(google_token):
@@ -64,6 +83,7 @@ def _get_credentials(google_token):
         token_uri='https://oauth2.googleapis.com/token',
         client_id=settings.GOOGLE_CLIENT_ID,
         client_secret=settings.GOOGLE_CLIENT_SECRET,
+        scopes=SCOPES,
     )
     # Auto-refresh if expired
     if credentials.expired and credentials.refresh_token:
@@ -80,7 +100,13 @@ def _get_credentials(google_token):
 def _get_calendar_service(google_token):
     """Build a Google Calendar API service client."""
     credentials = _get_credentials(google_token)
-    return build('calendar', 'v3', credentials=credentials)
+    return build(
+        'calendar',
+        'v3',
+        credentials=credentials,
+        cache_discovery=False,
+        static_discovery=True,
+    )
 
 
 def create_calendar_event(google_token, meeting_slot, student_booking):
@@ -167,4 +193,3 @@ def delete_calendar_event(google_token, event_id):
     except Exception as e:
         logger.error(f"Failed to delete Google Calendar event: {e}", exc_info=True)
         return False
-
