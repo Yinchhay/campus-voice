@@ -7,7 +7,6 @@ from .attachment_serializers import TicketAttachmentSerializer, ResolutionAttach
 class PublicTicketSerializer(serializers.ModelSerializer):
     """Serializer for Ticket model used for both list and creation"""
     category_name = serializers.CharField(source='category.name', read_only=True)
-    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     attachments = serializers.SerializerMethodField()
 
@@ -21,14 +20,12 @@ class PublicTicketSerializer(serializers.ModelSerializer):
             'title',
             'description',
             'is_anonymous',
-            'priority',
-            'priority_display',
             'status',
             'status_display',
             'attachments',
             'resolved_at',
         ]
-        read_only_fields = ['id', 'public_ticket_id', 'priority', 'status', 'resolved_at']
+        read_only_fields = ['id', 'public_ticket_id', 'status', 'resolved_at']
 
     def get_attachments(self, obj):
         return TicketAttachmentSerializer(obj.attachments.all(), many=True).data
@@ -49,7 +46,6 @@ class PublicTicketSerializer(serializers.ModelSerializer):
 class PublicTicketDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for individual ticket view (public/student side)"""
     category = serializers.SerializerMethodField()
-    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     submitted_by_email = serializers.CharField(source='submitted_by.email', read_only=True, allow_null=True)
     message_count = serializers.SerializerMethodField()  
@@ -66,8 +62,6 @@ class PublicTicketDetailSerializer(serializers.ModelSerializer):
             'title',
             'description',
             'is_anonymous',
-            'priority',
-            'priority_display',
             'status',
             'status_display',
             'submitted_by_email',
@@ -80,7 +74,7 @@ class PublicTicketDetailSerializer(serializers.ModelSerializer):
             'messages',
         ]
         read_only_fields = [
-            'id', 'public_ticket_id', 'priority', 'status',
+            'id', 'public_ticket_id', 'status',
             'resolved_at', 'created_at', 'updated_at',
         ]
 

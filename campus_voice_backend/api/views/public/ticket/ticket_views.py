@@ -46,7 +46,7 @@ class TicketListView(APIView):
                     priority=category.priority_level
                 )
                 
-                if ticket.priority == Ticket.priority.HIGH:
+                if ticket.priority == Ticket.Priority.HIGH:
                     send_new_ticket_notification_to_admin(ticket)
                 
                 return Response(

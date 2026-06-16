@@ -6,7 +6,7 @@ class PublicCategoryListSerializer(serializers.ModelSerializer):
     """Serializer for Student to Choose Category model"""
     class Meta:
         model = Category
-        fields = ['id', 'name', 'description', 'issue_type', 'priority_level', 'is_active']
+        fields = ['id', 'name', 'description', 'issue_type', 'is_active']
         read_only_fields = ['id']
 
 class CategorySerializer(serializers.ModelSerializer):
