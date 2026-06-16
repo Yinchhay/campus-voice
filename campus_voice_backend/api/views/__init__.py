@@ -27,7 +27,7 @@ from .public.meeting.meeting_views import (
 
 # Admin
 from .admin.admin_login_views import AdminLoginView
-from .admin.admin_getme_views import AdminGetMeView
+from .admin.admin_getme_views import AdminGetMeView, AdminChangePasswordView
 from .admin.admin_user_views import AdminUserListView, AdminUserDetailView
 from .admin.admin_role_views import AdminRoleListView, AdminRoleDetailView, AdminPermissionListView, AdminUserRoleView, AdminRolePermissionsView
 from .admin.admin_category_views import AdminCategoryListView, AdminCategoryDetailView
@@ -79,6 +79,7 @@ __all__ = [
     # Admin
     'AdminLoginView',
     'AdminGetMeView',
+    'AdminChangePasswordView',
     
     # Admin User Management
     'AdminUserListView',

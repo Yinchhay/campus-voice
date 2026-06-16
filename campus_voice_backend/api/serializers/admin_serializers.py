@@ -150,3 +150,13 @@ class AdminUserSerializer(serializers.ModelSerializer):
             }
             for ur in user_roles
         ]
+
+class AdminChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=8)
+    confirm_new_password = serializers.CharField(required=True, min_length=8)
+
+    def validate(self, data):
+        if data['new_password'] != data['confirm_new_password']:
+            raise serializers.ValidationError({"confirm_new_password": "New passwords do not match."})
+        return data

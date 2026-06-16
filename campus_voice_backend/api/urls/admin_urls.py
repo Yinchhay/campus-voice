@@ -2,6 +2,7 @@ from django.urls import path
 from api.views import (
     AdminLoginView, 
     AdminGetMeView,
+    AdminChangePasswordView,
     AdminUserListView,
     AdminUserDetailView,
     AdminRoleListView,
@@ -35,6 +36,7 @@ urlpatterns = [
     path('login', AdminLoginView.as_view(), name='admin_login'),
     
     path('me', AdminGetMeView.as_view(), name='admin_me'),
+    path('change-password', AdminChangePasswordView.as_view(), name='admin_change_password'),
     
     # ---------------------------------------------------------------------------- #
     #                           Admin User Management                              #
