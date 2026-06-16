@@ -16,7 +16,7 @@ import {
   listAdminTickets,
   type AdminTicket,
 } from "@/lib/admin-api";
-import { adminNav } from "../dashboard/page";
+import { adminNav } from "@/lib/admin-nav";
 import type { Category, TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ import {
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { attachmentHref, attachmentName } from "@/lib/attachments";
 import { getAdminTicket, type AdminTicket } from "@/lib/admin-api";
-import { adminNav } from "../../dashboard/page";
+import { adminNav } from "@/lib/admin-nav";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------

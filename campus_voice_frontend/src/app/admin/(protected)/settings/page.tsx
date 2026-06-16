@@ -17,7 +17,7 @@ import {
   getCurrentStaffAccount,
   type CurrentStaffAccount,
 } from "@/lib/admin-api";
-import { adminNav } from "../dashboard/page";
+import { adminNav } from "@/lib/admin-nav";
 
 // ---------------------------------------------------------------------------
 // Shared toggle component

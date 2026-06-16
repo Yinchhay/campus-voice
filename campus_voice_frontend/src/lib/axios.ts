@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { Session } from "next-auth";
 import { getSession, signOut } from "next-auth/react";
 import { dashboardPathForRole, loginPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
 
@@ -18,9 +19,18 @@ export const studentApi = axios.create({
   },
 });
 
+let sessionRequest: Promise<Session | null> | null = null;
+
+function getSharedSession() {
+  sessionRequest ??= getSession().finally(() => {
+    sessionRequest = null;
+  });
+  return sessionRequest;
+}
+
 // Attach auth token to every request
 api.interceptors.request.use(async (config) => {
-  const session = await getSession();
+  const session = await getSharedSession();
   if (session?.accessToken) {
     config.headers.Authorization = `Bearer ${session.accessToken}`;
   }
@@ -31,7 +41,7 @@ api.interceptors.request.use(async (config) => {
 });
 
 studentApi.interceptors.request.use(async (config) => {
-  const session = await getSession();
+  const session = await getSharedSession();
   if (session?.accessToken) {
     config.headers.Authorization = `Bearer ${session.accessToken}`;
   }
@@ -51,7 +61,7 @@ const handleAuthError = async (error: unknown) => {
     return Promise.reject(error);
   }
 
-  const session = await getSession();
+  const session = await getSharedSession();
   const role = normalizeCampusVoiceRole(session?.user?.role);
 
   if (status === 401) {
