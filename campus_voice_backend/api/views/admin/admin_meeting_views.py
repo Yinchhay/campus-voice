@@ -39,7 +39,7 @@ class AdminMeetingSlotListView(APIView):
         if error:
             return error
         
-        slots = MeetingSlot.objects.filter(ticket=ticket).select_related('staff_memeber').prefetch_related('student_booking')
+        slots = MeetingSlot.objects.filter(ticket=ticket).select_related('staff_member').prefetch_related('student_booking')
         serializer = MeetingSlotDetailSerializer(slots, many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -103,7 +103,7 @@ class AdminMeetingSlotListView(APIView):
         }
         if errors:
             response_data['partial_errors'] = errors
-        
+
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 class AdminMeetingSlotDetailView(APIView):
