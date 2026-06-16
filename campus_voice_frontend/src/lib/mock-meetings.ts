@@ -50,6 +50,7 @@ export const mockBookings: StudentMeetingBooking[] = [
     id: 1,
     meeting_slot: 1,
     ticket: "t-001",
+    public_ticket_id: "CV-2026-000001",
     scheduled_time: "2026-06-03T10:00:00Z",
     is_confirmed: true,
     meeting_completed: false,

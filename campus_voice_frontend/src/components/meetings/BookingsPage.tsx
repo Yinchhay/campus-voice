@@ -50,6 +50,10 @@ function statusClass(status: string) {
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
+function ticketLabel(booking: StudentMeetingBooking) {
+  return booking.public_ticket_id || booking.ticket;
+}
+
 export function BookingsPage({
   roleName,
   navItems,
@@ -182,7 +186,7 @@ export function BookingsPage({
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-md bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
-                          {booking.ticket}
+                          {ticketLabel(booking)}
                         </span>
                         <span
                           className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(status)}`}

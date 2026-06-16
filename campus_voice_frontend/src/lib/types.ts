@@ -87,6 +87,7 @@ export interface StudentMeetingBooking {
   id: number; // serial
   meeting_slot: number;
   ticket: string; // uuid
+  public_ticket_id?: string;
   scheduled_time: string;
   is_confirmed: boolean;
   meeting_completed: boolean;
