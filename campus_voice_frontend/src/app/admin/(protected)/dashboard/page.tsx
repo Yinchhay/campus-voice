@@ -150,7 +150,7 @@ export default function AdminDashboardPage() {
 
   const workloadSignals = [
     {
-      label: "Open cases",
+      label: "Submitted",
       value: ticketSummary.open,
       detail: "Still waiting for a final resolution",
       bar: barWidth(ticketSummary.open, largestWorkloadValue),
@@ -168,7 +168,7 @@ export default function AdminDashboardPage() {
     {
       label: "High priority",
       value: ticketSummary.highPriority,
-      detail: "Open cases marked urgent",
+      detail: "Submitted cases marked urgent",
       bar: barWidth(ticketSummary.highPriority, largestWorkloadValue),
       color: "bg-red-500",
       icon: <TriangleAlert className="h-4 w-4" />,
@@ -203,7 +203,7 @@ export default function AdminDashboardPage() {
       icon: <TicketCheck className="h-5 w-5 text-blue-600" />,
       bg: "bg-blue-50 border-blue-100",
       label: DASHBOARD_MODULES.ticketOverview.label,
-      sub: `${ticketSummary.open} open cases`,
+      sub: `${ticketSummary.open} submitted cases`,
     });
   }
   if (canViewUsers) {
@@ -240,131 +240,131 @@ export default function AdminDashboardPage() {
               </div>
               {canViewTickets && (
                 <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                  {isLoading ? "Loading queue" : `${ticketSummary.open} open cases`}
+                  {isLoading ? "Loading queue" : `${ticketSummary.open} submitted cases`}
                 </span>
               )}
             </div>
           </div>
 
           {hasOverviewModules ? (
-          <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.1fr_1.5fr]">
-            <div className="space-y-5">
-              <div>
-                <p className="text-sm font-medium text-slate-500">
-                  {canViewTickets ? "Current queue" : "Platform coverage"}
-                </p>
-                <div className="mt-2 flex items-end gap-3">
-                  <p className="text-5xl font-semibold tracking-tight text-slate-950">
-                    {isLoading ? "..." : canViewTickets ? ticketSummary.open : users.length}
+            <div className="grid gap-6 p-4 sm:p-8 lg:grid-cols-[1.1fr_1.5fr]">
+              <div className="space-y-5">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    {canViewTickets ? "Current queue" : "Platform coverage"}
                   </p>
-                  <p className="pb-2 text-sm text-slate-500">
-                    {canViewTickets
-                      ? `open case${ticketSummary.open === 1 ? "" : "s"}`
-                      : `staff/admin user${users.length === 1 ? "" : "s"}`}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {canViewTickets && (
-                  <div className="border-l-4 border-red-400 bg-red-50 px-4 py-3">
-                    <p className="text-xs font-medium text-red-700">High priority</p>
-                    <p className="mt-1 text-2xl font-semibold text-red-900">
-                      {isLoading ? "..." : ticketSummary.highPriority}
+                  <div className="mt-2 flex items-end gap-3">
+                    <p className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+                      {isLoading ? "..." : canViewTickets ? ticketSummary.open : users.length}
+                    </p>
+                    <p className="pb-2 text-sm text-slate-500">
+                      {canViewTickets
+                        ? `open case${ticketSummary.open === 1 ? "" : "s"}`
+                        : `staff/admin user${users.length === 1 ? "" : "s"}`}
                     </p>
                   </div>
-                )}
-                <div className="border-l-4 border-teal-400 bg-teal-50 px-4 py-3">
-                  <p className="text-xs font-medium text-teal-700">Staff/Admin users</p>
-                  <p className="mt-1 text-2xl font-semibold text-teal-900">
-                    {isLoading ? "..." : canViewUsers ? users.length : "-"}
-                  </p>
                 </div>
-              </div>
 
-              {canViewTickets && (
-                <Link
-                  href={DASHBOARD_MODULES.ticketOverview.href.admin}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#1E3A8A] hover:text-blue-700"
-                >
-                  Review ticket queue
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              )}
-            </div>
-
-            <div className="space-y-5">
-              {canViewTickets ? (
-              <>
-              <div className="space-y-3">
-                {workloadSignals.map((signal) => (
-                  <div key={signal.label} className="grid gap-2 sm:grid-cols-[9rem_1fr_3rem] sm:items-center">
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                      <span className="text-slate-400">{signal.icon}</span>
-                      {signal.label}
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className={`h-full rounded-full ${signal.color}`}
-                        style={{ width: `${isLoading ? 0 : signal.bar}%` }}
-                      />
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <p className="text-sm font-semibold text-slate-900">
-                        {isLoading ? "..." : signal.value}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {canViewTickets && (
+                    <div className="border-l-4 border-red-400 bg-red-50 px-4 py-3">
+                      <p className="text-xs font-medium text-red-700">High priority</p>
+                      <p className="mt-1 text-2xl font-semibold text-red-900">
+                        {isLoading ? "..." : ticketSummary.highPriority}
                       </p>
                     </div>
-                    <p className="text-xs text-slate-500 sm:col-start-2 sm:col-span-2">
-                      {signal.detail}
+                  )}
+                  <div className="border-l-4 border-teal-400 bg-teal-50 px-4 py-3">
+                    <p className="text-xs font-medium text-teal-700">Staff/Admin users</p>
+                    <p className="mt-1 text-2xl font-semibold text-teal-900">
+                      {isLoading ? "..." : canViewUsers ? users.length : "-"}
                     </p>
                   </div>
-                ))}
+                </div>
+
+                {canViewTickets && (
+                  <Link
+                    href={DASHBOARD_MODULES.ticketOverview.href.admin}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#1E3A8A] hover:text-blue-700"
+                  >
+                    Review ticket queue
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                )}
               </div>
 
-              <div className="border-t border-slate-100 pt-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <Clock className="h-4 w-4 text-amber-500" />
-                  Ticket pipeline
-                </div>
-                <div className="flex h-3 overflow-hidden rounded-full bg-slate-100">
-                  {pipelineSegments.map((segment) => (
-                    <div
-                      key={segment.label}
-                      className={segment.className}
-                      style={{ width: `${isLoading ? 0 : segment.width}%` }}
-                    />
-                  ))}
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  {pipelineSegments.map((segment) => (
-                    <div key={segment.label} className="flex items-center justify-between gap-2 text-sm">
-                      <span className="text-slate-500">{segment.label}</span>
-                      <span className="font-semibold text-slate-900">
-                        {isLoading ? "..." : segment.value}
-                      </span>
+              <div className="space-y-5">
+                {canViewTickets ? (
+                  <>
+                    <div className="space-y-3">
+                      {workloadSignals.map((signal) => (
+                        <div key={signal.label} className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-[9rem_1fr_3rem] sm:items-center sm:border-0 sm:bg-transparent sm:p-0">
+                          <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <span className="text-slate-400">{signal.icon}</span>
+                            {signal.label}
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${signal.color}`}
+                              style={{ width: `${isLoading ? 0 : signal.bar}%` }}
+                            />
+                          </div>
+                          <div className="text-left sm:text-right">
+                            <p className="text-sm font-semibold text-slate-900">
+                              {isLoading ? "..." : signal.value}
+                            </p>
+                          </div>
+                          <p className="text-xs text-slate-500 sm:col-start-2 sm:col-span-2">
+                            {signal.detail}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-              </>
-              ) : (
-                <div className="flex h-full min-h-40 items-center gap-4 border-l-4 border-teal-400 bg-teal-50 px-5 py-4">
-                  <UsersRound className="h-8 w-8 shrink-0 text-teal-600" />
-                  <div>
-                    <p className="text-sm font-medium text-teal-700">Access coverage</p>
-                    <p className="mt-1 text-2xl font-semibold text-teal-950">
-                      {isLoading ? "..." : users.length} staff/admin user
-                      {users.length === 1 ? "" : "s"}
-                    </p>
-                    <p className="mt-1 text-sm text-teal-700">
-                      Manage campus response coverage from user management.
-                    </p>
-                  </div>
-                </div>
-              )}
 
+                    <div className="border-t border-slate-100 pt-4">
+                      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <Clock className="h-4 w-4 text-amber-500" />
+                        Ticket pipeline
+                      </div>
+                      <div className="flex h-3 overflow-hidden rounded-full bg-slate-100">
+                        {pipelineSegments.map((segment) => (
+                          <div
+                            key={segment.label}
+                            className={segment.className}
+                            style={{ width: `${isLoading ? 0 : segment.width}%` }}
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        {pipelineSegments.map((segment) => (
+                          <div key={segment.label} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="text-slate-500">{segment.label}</span>
+                            <span className="font-semibold text-slate-900">
+                              {isLoading ? "..." : segment.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex h-full min-h-40 items-center gap-4 border-l-4 border-teal-400 bg-teal-50 px-5 py-4">
+                    <UsersRound className="h-8 w-8 shrink-0 text-teal-600" />
+                    <div>
+                      <p className="text-sm font-medium text-teal-700">Access coverage</p>
+                      <p className="mt-1 text-2xl font-semibold text-teal-950">
+                        {isLoading ? "..." : users.length} staff/admin user
+                        {users.length === 1 ? "" : "s"}
+                      </p>
+                      <p className="mt-1 text-sm text-teal-700">
+                        Manage campus response coverage from user management.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+              </div>
             </div>
-          </div>
           ) : (
             !isLoading && (
               <div className="p-6 text-sm text-slate-500 sm:p-8">
@@ -425,7 +425,7 @@ export default function AdminDashboardPage() {
         )}
 
         {/* ── Quick links ───────────────────────────────────── */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {quickLinks.map((item) => (
             <Link
               key={item.href}

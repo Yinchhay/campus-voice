@@ -104,10 +104,8 @@ function barWidth(value: number, max: number) {
 // Page
 // ---------------------------------------------------------------------------
 export default function StaffDashboardPage() {
-  const {
-    hasPermission,
-    isLoading: isPermissionLoading,
-  } = useRbacPermissions();
+  const { hasPermission, isLoading: isPermissionLoading } =
+    useRbacPermissions();
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -122,14 +120,18 @@ export default function StaffDashboardPage() {
       setPageError(null);
 
       try {
-        const ticketRows = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)
+        const ticketRows = hasPermission(
+          DASHBOARD_MODULES.ticketOverview.requiredPermission,
+        )
           ? await listStaffTickets()
           : [];
         if (!isMounted) return;
         setTickets(ticketRows);
       } catch (error) {
         if (isMounted) {
-          setPageError(extractApiError(error, "Failed to load staff dashboard."));
+          setPageError(
+            extractApiError(error, "Failed to load staff dashboard."),
+          );
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -143,7 +145,9 @@ export default function StaffDashboardPage() {
     };
   }, [hasPermission, isPermissionLoading]);
 
-  const canViewTickets = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
+  const canViewTickets = hasPermission(
+    DASHBOARD_MODULES.ticketOverview.requiredPermission,
+  );
 
   const ticketSummary = useMemo(() => {
     const today = new Date();
@@ -211,16 +215,16 @@ export default function StaffDashboardPage() {
 
   const focusTiles = [
     {
-      label: "Open cases",
-      value: ticketSummary.open,
-      detail: "Assigned cases not resolved yet",
+      label: "Submitted",
+      value: ticketSummary.submitted,
+      detail: "Cases submitted for review",
       className: "border-blue-200 bg-blue-50 text-blue-900",
     },
     {
-      label: "Resolved today",
-      value: ticketSummary.resolvedToday,
-      detail: "Cleared in this local day",
-      className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+      label: "High priority",
+      value: ticketSummary.highPriority,
+      detail: "Urgent open cases",
+      className: "border-red-200 bg-red-50 text-red-900",
     },
   ];
 
@@ -238,7 +242,9 @@ export default function StaffDashboardPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-slate-700">
                 <BarChart3 className="h-5 w-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-slate-900">Overview</h2>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Overview
+                </h2>
               </div>
               {canViewTickets && (
                 <span className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
@@ -253,91 +259,105 @@ export default function StaffDashboardPage() {
           </div>
 
           {hasOverviewModules ? (
-          <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_1.6fr]">
-            <div className="space-y-5">
-              <div>
-                <p className="text-sm font-medium text-slate-500">Triage focus</p>
-                <div className="mt-2 flex items-end gap-3">
-                  <p className="text-5xl font-semibold tracking-tight text-slate-950">
-                    {isLoading ? "..." : ticketSummary.submitted}
+            <div className="grid gap-6 p-4 sm:p-8 lg:grid-cols-[1fr_1.6fr]">
+              <div className="space-y-5">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Tickets focus
                   </p>
-                  <p className="pb-2 text-sm text-slate-500">
-                    new submission{ticketSummary.submitted === 1 ? "" : "s"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {focusTiles.map((tile) => (
-                  <div key={tile.label} className={`border-l-4 px-4 py-3 ${tile.className}`}>
-                    <p className="text-xs font-medium">{tile.label}</p>
-                    <p className="mt-1 text-2xl font-semibold">{isLoading ? "..." : tile.value}</p>
-                    <p className="mt-1 text-xs opacity-75">{tile.detail}</p>
+                  <div className="mt-2 flex items-end gap-3">
+                    <p className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+                      {isLoading ? "..." : ticketSummary.submitted}
+                    </p>
+                    <p className="pb-2 text-sm text-slate-500">
+                      new submission{ticketSummary.submitted === 1 ? "" : "s"}
+                    </p>
                   </div>
-                ))}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {focusTiles.map((tile) => (
+                    <div
+                      key={tile.label}
+                      className={`border-l-4 px-4 py-3 ${tile.className}`}
+                    >
+                      <p className="text-xs font-medium">{tile.label}</p>
+                      <p className="mt-1 text-2xl font-semibold">
+                        {isLoading ? "..." : tile.value}
+                      </p>
+                      <p className="mt-1 text-xs opacity-75">{tile.detail}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {canViewTickets && (
+                  <Link
+                    href="/staff/tickets?filter=SUBMITTED"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#1E3A8A] hover:text-blue-700"
+                  >
+                    Start Review
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                )}
               </div>
 
-              {canViewTickets && (
-                <Link
-                  href="/staff/tickets?filter=SUBMITTED"
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#1E3A8A] hover:text-blue-700"
-                >
-                  Start triage
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              )}
-            </div>
-
-            <div className="space-y-5">
-              <div className="space-y-3">
-                {focusSignals.map((signal) => (
-                  <div key={signal.label} className="grid gap-2 sm:grid-cols-[9rem_1fr_3rem] sm:items-center">
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                      <span className="text-slate-400">{signal.icon}</span>
-                      {signal.label}
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className={`h-full rounded-full ${signal.color}`}
-                        style={{ width: `${isLoading ? 0 : signal.bar}%` }}
-                      />
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <p className="text-sm font-semibold text-slate-900">
-                        {isLoading ? "..." : signal.value}
+              <div className="space-y-5">
+                <div className="space-y-3">
+                  {focusSignals.map((signal) => (
+                    <div
+                      key={signal.label}
+                      className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-[9rem_1fr_3rem] sm:items-center sm:border-0 sm:bg-transparent sm:p-0"
+                    >
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <span className="text-slate-400">{signal.icon}</span>
+                        {signal.label}
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className={`h-full rounded-full ${signal.color}`}
+                          style={{ width: `${isLoading ? 0 : signal.bar}%` }}
+                        />
+                      </div>
+                      <div className="text-left sm:text-right">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {isLoading ? "..." : signal.value}
+                        </p>
+                      </div>
+                      <p className="text-xs text-slate-500 sm:col-start-2 sm:col-span-2">
+                        {signal.detail}
                       </p>
                     </div>
-                    <p className="text-xs text-slate-500 sm:col-start-2 sm:col-span-2">
-                      {signal.detail}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-slate-100 pt-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <Activity className="h-4 w-4 text-blue-500" />
-                  Ticket summary
+                  ))}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 text-sm sm:block sm:border-b-0 sm:pb-0">
-                    <span className="text-slate-500">All assigned</span>
-                    <p className="font-semibold text-slate-900">{isLoading ? "..." : ticketSummary.total}</p>
+
+                <div className="border-t border-slate-100 pt-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <Activity className="h-4 w-4 text-blue-500" />
+                    Ticket summary
                   </div>
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 text-sm sm:block sm:border-b-0 sm:pb-0">
-                    <span className="text-slate-500">Open cases</span>
-                    <p className="font-semibold text-blue-700">{isLoading ? "..." : ticketSummary.open}</p>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 text-sm sm:block">
-                    <span className="text-slate-500">Cleared today</span>
-                    <p className="font-semibold text-emerald-700">
-                      {isLoading ? "..." : ticketSummary.resolvedToday}
-                    </p>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 text-sm sm:block sm:border-b-0 sm:pb-0">
+                      <span className="text-slate-500">All assigned</span>
+                      <p className="font-semibold text-slate-900">
+                        {isLoading ? "..." : ticketSummary.total}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 text-sm sm:block sm:border-b-0 sm:pb-0">
+                      <span className="text-slate-500">Submitted</span>
+                      <p className="font-semibold text-blue-700">
+                        {isLoading ? "..." : ticketSummary.open}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-sm sm:block">
+                      <span className="text-slate-500">Cleared today</span>
+                      <p className="font-semibold text-emerald-700">
+                        {isLoading ? "..." : ticketSummary.resolvedToday}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
           ) : (
             !isLoading && (
               <div className="p-6 text-sm text-slate-500 sm:p-8">
@@ -349,114 +369,129 @@ export default function StaffDashboardPage() {
 
         {/* ── Recent tickets ────────────────────────────────── */}
         {canViewTickets && (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Inbox className="h-5 w-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Recent Tickets</h2>
-            </div>
-            <Link
-              href="/staff/tickets"
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#1E3A8A] hover:text-blue-700"
-            >
-              View all
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          {pageError && (
-            <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              <TriangleAlert className="h-4 w-4 shrink-0" />
-              {pageError}
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {isLoading && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                Loading recent tickets...
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Inbox className="h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Recent Tickets
+                </h2>
               </div>
-            )}
-
-            {!isLoading && ticketSummary.recentTickets.length === 0 && !pageError && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                No tickets are available yet.
-              </div>
-            )}
-
-            {!isLoading && ticketSummary.recentTickets.map((ticket) => (
               <Link
-                key={ticket.id}
-                href={`/staff/tickets/${ticket.id}`}
-                className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-200 hover:bg-white sm:flex-row sm:items-center sm:justify-between"
+                href="/staff/tickets"
+                className="inline-flex items-center gap-1 text-sm font-medium text-[#1E3A8A] hover:text-blue-700"
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
-                      {ticket.public_ticket_id}
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${priorityBadgeClass[ticket.priority]}`}
-                    >
-                      {priorityIcon[ticket.priority]}
-                      {ticket.priority}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 truncate text-sm font-medium text-slate-900">{ticket.title}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">{ticket.category_name}</p>
-                </div>
-
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass[ticket.status]}`}
-                  >
-                    {statusLabel[ticket.status]}
-                  </span>
-                  <span className="text-xs text-slate-400">{formatRelative(ticket.created_at)}</span>
-                  <ArrowRight className="h-4 w-4 text-slate-300" />
-                </div>
+                View all
+                <ArrowRight className="h-4 w-4" />
               </Link>
-            ))}
+            </div>
+
+            {pageError && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <TriangleAlert className="h-4 w-4 shrink-0" />
+                {pageError}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {isLoading && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                  Loading recent tickets...
+                </div>
+              )}
+
+              {!isLoading &&
+                ticketSummary.recentTickets.length === 0 &&
+                !pageError && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                    No tickets are available yet.
+                  </div>
+                )}
+
+              {!isLoading &&
+                ticketSummary.recentTickets.map((ticket) => (
+                  <Link
+                    key={ticket.id}
+                    href={`/staff/tickets/${ticket.id}`}
+                    className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-200 hover:bg-white sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
+                          {ticket.public_ticket_id}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${priorityBadgeClass[ticket.priority]}`}
+                        >
+                          {priorityIcon[ticket.priority]}
+                          {ticket.priority}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 truncate text-sm font-medium text-slate-900">
+                        {ticket.title}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {ticket.category_name}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass[ticket.status]}`}
+                      >
+                        {statusLabel[ticket.status]}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {formatRelative(ticket.created_at)}
+                      </span>
+                      <ArrowRight className="h-4 w-4 text-slate-300" />
+                    </div>
+                  </Link>
+                ))}
+            </div>
           </div>
-        </div>
         )}
 
         {/* ── Quick actions ─────────────────────────────────── */}
         <div className="grid gap-4 sm:grid-cols-2">
           {canViewTickets && (
-          <Link
-            href="/staff/tickets?filter=HIGH"
-            className="flex items-center gap-4 rounded-2xl border border-red-100 bg-red-50 p-5 transition hover:border-red-200"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
-              <TriangleAlert className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="font-semibold text-red-900">High Priority Queue</p>
-              <p className="mt-0.5 text-sm text-red-700">
-                {ticketSummary.highPriority} urgent case{ticketSummary.highPriority !== 1 ? "s" : ""} need attention
-              </p>
-            </div>
-            <ArrowRight className="ml-auto h-4 w-4 text-red-400" />
-          </Link>
+            <Link
+              href="/staff/tickets?filter=HIGH"
+              className="flex items-center gap-4 rounded-2xl border border-red-100 bg-red-50 p-5 transition hover:border-red-200"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
+                <TriangleAlert className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-red-900">
+                  High Priority Queue
+                </p>
+                <p className="mt-0.5 text-sm text-red-700">
+                  {ticketSummary.highPriority} urgent case
+                  {ticketSummary.highPriority !== 1 ? "s" : ""} need attention
+                </p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-red-400" />
+            </Link>
           )}
 
           {canViewTickets && (
-          <Link
-            href="/staff/tickets?filter=SUBMITTED"
-            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
-              <FileText className="h-5 w-5 text-slate-600" />
-            </div>
-            <div>
-              <p className="font-semibold text-slate-900">New Submissions</p>
-              <p className="mt-0.5 text-sm text-slate-600">
-                {ticketSummary.submitted} ticket{ticketSummary.submitted !== 1 ? "s" : ""} awaiting review
-              </p>
-            </div>
-            <ArrowRight className="ml-auto h-4 w-4 text-slate-400" />
-          </Link>
+            <Link
+              href="/staff/tickets?filter=SUBMITTED"
+              className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                <FileText className="h-5 w-5 text-slate-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">New Submissions</p>
+                <p className="mt-0.5 text-sm text-slate-600">
+                  {ticketSummary.submitted} ticket
+                  {ticketSummary.submitted !== 1 ? "s" : ""} awaiting review
+                </p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-slate-400" />
+            </Link>
           )}
         </div>
       </div>
