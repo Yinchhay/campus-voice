@@ -60,6 +60,15 @@ export function useRbacPermissions() {
   const [isLoading, setIsLoading] = useState(!hasLoadedAccount);
 
   useEffect(() => {
+    // Skip the network call entirely if we already have a cached result.
+    // Multiple components on the same page all call this hook; without
+    // this guard every mount triggers a fresh /api/auth/session round-trip.
+    if (hasLoadedAccount) {
+      setAccount(cachedAccount);
+      setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function loadAccount() {

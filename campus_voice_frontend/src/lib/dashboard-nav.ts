@@ -1,4 +1,5 @@
 import {
+  CalendarCheck,
   LayoutDashboard,
   ListChecks,
   Settings,
@@ -36,6 +37,12 @@ export const adminNav: DashboardNavItem[] = [
     Icon: Tag,
     requiredPermission: DASHBOARD_MODULES.categoryManagement.requiredPermission,
   },
+  {
+    label: "Bookings",
+    href: DASHBOARD_MODULES.bookings.href.admin,
+    Icon: CalendarCheck,
+    requiredPermission: DASHBOARD_MODULES.bookings.requiredPermission,
+  },
   { label: "Settings", href: "/admin/settings", Icon: Settings },
 ];
 
@@ -63,6 +70,12 @@ export const staffNav: DashboardNavItem[] = [
     href: DASHBOARD_MODULES.roleManagement.href.staff,
     Icon: ShieldCheck,
     requiredPermission: DASHBOARD_MODULES.roleManagement.requiredPermission,
+  },
+  {
+    label: "Bookings",
+    href: DASHBOARD_MODULES.bookings.href.staff,
+    Icon: CalendarCheck,
+    requiredPermission: DASHBOARD_MODULES.bookings.requiredPermission,
   },
   { label: "Settings", href: "/staff/settings", Icon: Settings },
 ];
