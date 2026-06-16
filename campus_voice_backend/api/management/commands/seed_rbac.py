@@ -40,6 +40,11 @@ PREDEFINED_PERMISSIONS = [
     # Setting management
     ('setting',    'view',   'Can view settings'),
     ('setting',    'update', 'Can update settings'),
+    # Meeting
+    ('meeting',    'view',   'Can view meetings'),
+    ('meeting',    'create', 'Can create meeting slots'),
+    ('meeting',    'update', 'Can update meeting slots'),
+    ('meeting',    'delete', 'Can delete meeting slots'),
 ]
 
 
@@ -66,6 +71,10 @@ ROLES = [
             ('category', 'create'),
             ('category', 'update'),
             ('category', 'delete'),
+            ('meeting',  'view'),
+            ('meeting',  'create'),
+            ('meeting',  'update'),
+            ('meeting',  'delete'),
         ],
     },
     {
