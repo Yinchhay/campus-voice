@@ -291,7 +291,7 @@ class GoogleCalendarCallbackView(APIView):
                 'access_token': tokens['access_token'],
                 'refresh_token': tokens['refresh_token'],
                 'token_expiry': tokens['token_expiry'],
-                'calendar_email': request.user.email,
+                'calendar_email': tokens.get('calendar_email') or request.user.email,
                 'is_active': True,
             }
         )

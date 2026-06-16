@@ -38,6 +38,12 @@ export const RBAC_PERMISSIONS = {
   permission: {
     view: "permission.view",
   },
+  meeting: {
+    view: "meeting.view",
+    create: "meeting.create",
+    update: "meeting.update",
+    delete: "meeting.delete",
+  },
 } as const satisfies Record<string, Record<string, PermissionCodename>>;
 
 export const DASHBOARD_MODULES = {
@@ -79,6 +85,14 @@ export const DASHBOARD_MODULES = {
       staff: "/staff/roles?view=permissions",
     },
     requiredPermission: RBAC_PERMISSIONS.permission.view,
+  },
+  bookings: {
+    label: "Bookings",
+    href: {
+      admin: "/admin/bookings",
+      staff: "/staff/bookings",
+    },
+    requiredPermission: RBAC_PERMISSIONS.meeting.view,
   },
 } as const;
 

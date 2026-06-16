@@ -12,10 +12,11 @@ import {
   MapPin,
   MessageSquare,
   Paperclip,
+  Pencil,
   Plus,
   Send,
   TriangleAlert,
-  Users,
+  Trash2,
   Video,
   X,
 } from "lucide-react";
@@ -23,13 +24,18 @@ import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { attachmentHref, attachmentName } from "@/lib/attachments";
 import { staffNav } from "@/lib/dashboard-nav";
 import {
+  createAdminTicketMeetingSlots,
   createStaffTicketResolution,
   createStaffTicketMessage,
+  deleteAdminTicketMeetingSlot,
   getStaffTicket,
+  listAdminTicketMeetingSlots,
   type StaffTicket,
   type StaffTicketMessage,
+  updateAdminTicketMeetingSlot,
 } from "@/lib/staff-api";
 import type {
+  CampusLocation,
   MeetingSlot,
   MeetingType,
   TicketPriority,
@@ -55,15 +61,13 @@ const priorityBadgeClass: Record<TicketPriority, string> = {
 };
 
 const meetingTypeIcon: Record<MeetingType, React.ReactNode> = {
-  VIRTUAL: <Video className="h-4 w-4" />,
+  ONLINE: <Video className="h-4 w-4" />,
   IN_PERSON: <MapPin className="h-4 w-4" />,
-  HYBRID: <Users className="h-4 w-4" />,
 };
 
 const meetingTypeLabel: Record<MeetingType, string> = {
-  VIRTUAL: "Virtual",
+  ONLINE: "Online",
   IN_PERSON: "In-Person",
-  HYBRID: "Hybrid",
 };
 
 const RESOLUTION_MAX_ATTACHMENTS = 3;
@@ -129,6 +133,39 @@ function formatChatTime(iso?: string) {
   });
 }
 
+function toDateTimeLocalValue(iso: string) {
+  const date = new Date(iso);
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function fromDateTimeLocalValue(value: string) {
+  return new Date(value).toISOString();
+}
+
+function groupMeetingSlotsByDate(slots: MeetingSlot[]) {
+  return slots.reduce<Record<string, MeetingSlot[]>>((groups, slot) => {
+    const key = formatDate(slot.start_time);
+    groups[key] ??= [];
+    groups[key].push(slot);
+    return groups;
+  }, {});
+}
+
+function meetingLocationText(slot: MeetingSlot) {
+  if (slot.meeting_type === "ONLINE") {
+    return slot.meeting_link ? "Google Meet ready" : "Online meeting";
+  }
+
+  return [
+    slot.campus_location === "EAS" ? "EAS Campus" : "Main Campus",
+    slot.room_number ? `Room ${slot.room_number}` : null,
+    slot.location_or_details,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -164,13 +201,19 @@ export default function StaffTicketDetailPage({
 
   // Meeting slot creation form state
   const [showMeetingForm, setShowMeetingForm] = useState(false);
-  const [meetingType, setMeetingType] = useState<MeetingType>("VIRTUAL");
+  const [meetingSlots, setMeetingSlots] = useState<MeetingSlot[]>([]);
+  const [isLoadingMeetings, setIsLoadingMeetings] = useState(false);
+  const [meetingError, setMeetingError] = useState<string | null>(null);
+  const [isSavingMeeting, setIsSavingMeeting] = useState(false);
+  const [editingMeetingId, setEditingMeetingId] = useState<number | null>(null);
+  const [deletingMeetingId, setDeletingMeetingId] = useState<number | null>(null);
+  const [meetingType, setMeetingType] = useState<MeetingType>("ONLINE");
+  const [meetingCampus, setMeetingCampus] = useState<CampusLocation>("MAIN");
+  const [meetingRoom, setMeetingRoom] = useState("");
   const [meetingLink, setMeetingLink] = useState("");
   const [meetingLocation, setMeetingLocation] = useState("");
   const [meetingStart, setMeetingStart] = useState("");
   const [meetingEnd, setMeetingEnd] = useState("");
-  const [meetingCreated, setMeetingCreated] = useState(false);
-  const [meetingSlot] = useState<MeetingSlot | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -178,6 +221,7 @@ export default function StaffTicketDetailPage({
     async function loadTicket() {
       setIsLoading(true);
       setPageError(null);
+      setMeetingError(null);
 
       try {
         const data = await getStaffTicket(id);
@@ -185,6 +229,20 @@ export default function StaffTicketDetailPage({
         setTicket(data);
         setCurrentStatus(data.status);
         setCurrentPriority(data.priority);
+
+        setIsLoadingMeetings(true);
+        try {
+          const slots = await listAdminTicketMeetingSlots(data.id);
+          if (isMounted) setMeetingSlots(slots);
+        } catch (error) {
+          if (isMounted) {
+            setMeetingError(
+              extractApiError(error, "Failed to load meeting slots."),
+            );
+          }
+        } finally {
+          if (isMounted) setIsLoadingMeetings(false);
+        }
       } catch (error) {
         if (isMounted) {
           setPageError(
@@ -213,6 +271,26 @@ export default function StaffTicketDetailPage({
   );
 
   const allMessages = [...serverMessages, ...localMessages];
+
+  const groupedMeetingSlots = useMemo(
+    () => groupMeetingSlotsByDate(meetingSlots),
+    [meetingSlots],
+  );
+
+  async function refreshMeetingSlots(ticketId = ticket?.id) {
+    if (!ticketId) return;
+    setIsLoadingMeetings(true);
+    setMeetingError(null);
+
+    try {
+      const slots = await listAdminTicketMeetingSlots(ticketId);
+      setMeetingSlots(slots);
+    } catch (error) {
+      setMeetingError(extractApiError(error, "Failed to load meeting slots."));
+    } finally {
+      setIsLoadingMeetings(false);
+    }
+  }
 
   async function handleSend() {
     const text = replyText.trim();
@@ -334,10 +412,86 @@ export default function StaffTicketDetailPage({
     }
   }
 
-  function handleCreateMeeting() {
-    if (!meetingStart || !meetingEnd) return;
-    setMeetingCreated(true);
-    setShowMeetingForm(false);
+  function resetMeetingForm() {
+    setMeetingType("ONLINE");
+    setMeetingCampus("MAIN");
+    setMeetingRoom("");
+    setMeetingLink("");
+    setMeetingLocation("");
+    setMeetingStart("");
+    setMeetingEnd("");
+    setEditingMeetingId(null);
+  }
+
+  function handleEditMeeting(slot: MeetingSlot) {
+    setMeetingError(null);
+    setEditingMeetingId(slot.id);
+    setMeetingType(slot.meeting_type);
+    setMeetingCampus(slot.campus_location);
+    setMeetingRoom(slot.room_number ?? "");
+    setMeetingLink(slot.meeting_link ?? "");
+    setMeetingLocation(slot.location_or_details ?? "");
+    setMeetingStart(toDateTimeLocalValue(slot.start_time));
+    setMeetingEnd(toDateTimeLocalValue(slot.end_time));
+    setShowMeetingForm(true);
+  }
+
+  async function handleDeleteMeeting(slot: MeetingSlot) {
+    if (!ticket || slot.student_booking || deletingMeetingId) return;
+
+    setDeletingMeetingId(slot.id);
+    setMeetingError(null);
+
+    try {
+      await deleteAdminTicketMeetingSlot(ticket.id, slot.id);
+      await refreshMeetingSlots(ticket.id);
+    } catch (error) {
+      setMeetingError(extractApiError(error, "Failed to delete meeting slot."));
+    } finally {
+      setDeletingMeetingId(null);
+    }
+  }
+
+  async function handleSaveMeeting() {
+    if (!ticket || !meetingStart || !meetingEnd || isSavingMeeting) return;
+
+    setIsSavingMeeting(true);
+    setMeetingError(null);
+
+    const startIso = fromDateTimeLocalValue(meetingStart);
+    const endIso = fromDateTimeLocalValue(meetingEnd);
+
+    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
+      setMeetingError("End time must be after start time.");
+      setIsSavingMeeting(false);
+      return;
+    }
+
+    const payload = {
+      start_time: startIso,
+      end_time: endIso,
+      meeting_type: meetingType,
+      campus_location: meetingCampus,
+      room_number: meetingType === "IN_PERSON" ? meetingRoom.trim() || null : null,
+      location_or_details:
+        meetingType === "IN_PERSON" ? meetingLocation.trim() || null : null,
+      meeting_link: meetingType === "ONLINE" ? meetingLink.trim() || null : null,
+    };
+
+    try {
+      if (editingMeetingId) {
+        await updateAdminTicketMeetingSlot(ticket.id, editingMeetingId, payload);
+      } else {
+        await createAdminTicketMeetingSlots(ticket.id, payload);
+      }
+      await refreshMeetingSlots(ticket.id);
+      resetMeetingForm();
+      setShowMeetingForm(false);
+    } catch (error) {
+      setMeetingError(extractApiError(error, "Failed to save meeting slot."));
+    } finally {
+      setIsSavingMeeting(false);
+    }
   }
 
   if (isLoading) {
@@ -872,70 +1026,141 @@ export default function StaffTicketDetailPage({
               </p>
             </div>
 
-            {/* Meeting slot */}
+            {/* Meeting slots */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-900">
-                  Meeting Slot
+                  Meeting Slots
                 </h2>
-                {!meetingSlot && !meetingCreated && (
-                  <button
-                    type="button"
-                    onClick={() => setShowMeetingForm((v) => !v)}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-[#1E3A8A] hover:text-blue-700"
-                  >
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showMeetingForm) {
+                      resetMeetingForm();
+                      setShowMeetingForm(false);
+                    } else {
+                      setShowMeetingForm(true);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[#1E3A8A] hover:text-blue-700"
+                >
+                  {showMeetingForm ? (
+                    <X className="h-3.5 w-3.5" />
+                  ) : (
                     <Plus className="h-3.5 w-3.5" />
-                    Create
-                  </button>
-                )}
+                  )}
+                  {showMeetingForm ? "Cancel" : "Create"}
+                </button>
               </div>
 
-              {/* Existing slot */}
-              {(meetingSlot || meetingCreated) && (
-                <div className="space-y-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-700">
-                  {meetingSlot ? (
-                    <>
-                      <div className="flex items-center gap-2">
-                        {meetingTypeIcon[meetingSlot.meeting_type]}
-                        <span>
-                          {meetingTypeLabel[meetingSlot.meeting_type]}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
-                        <span>
-                          {formatDate(meetingSlot.start_time)},{" "}
-                          {formatTime(meetingSlot.start_time)} &ndash;{" "}
-                          {formatTime(meetingSlot.end_time)}
-                        </span>
-                      </div>
-                      {meetingSlot.location_or_details && (
-                        <p className="text-slate-500">
-                          {meetingSlot.location_or_details}
-                        </p>
-                      )}
-                      {meetingSlot.meeting_link && (
-                        <a
-                          href={meetingSlot.meeting_link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          Meeting link
-                        </a>
-                      )}
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-2 text-emerald-700">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Meeting slot created successfully.
-                    </div>
-                  )}
+              {isLoadingMeetings && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                  Loading meeting slots...
                 </div>
               )}
 
-              {/* Create form */}
-              {showMeetingForm && !meetingSlot && !meetingCreated && (
+              {meetingError && (
+                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {meetingError}
+                </p>
+              )}
+
+              {Object.entries(groupedMeetingSlots).length > 0 && (
+                <div className="space-y-3">
+                  {Object.entries(groupedMeetingSlots).map(([date, slots]) => (
+                    <div key={date} className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {date}
+                      </p>
+                      {slots.map((slot) => {
+                        const isBooked = Boolean(slot.student_booking);
+                        return (
+                          <div
+                            key={slot.id}
+                            className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {meetingTypeIcon[slot.meeting_type]}
+                                  <span className="font-medium text-slate-900">
+                                    {meetingTypeLabel[slot.meeting_type]}
+                                  </span>
+                                  <span
+                                    className={`rounded-full border px-2 py-0.5 ${
+                                      isBooked
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                        : "border-blue-200 bg-blue-50 text-blue-700"
+                                    }`}
+                                  >
+                                    {isBooked ? "Booked" : "Available"}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
+                                  <span>
+                                    {formatTime(slot.start_time)} -{" "}
+                                    {formatTime(slot.end_time)}
+                                  </span>
+                                </div>
+                                <p className="text-slate-500">
+                                  {meetingLocationText(slot)}
+                                </p>
+                                {slot.meeting_link && (
+                                  <a
+                                    href={slot.meeting_link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex text-blue-600 hover:underline"
+                                  >
+                                    Meeting link
+                                  </a>
+                                )}
+                                {slot.student_booking && (
+                                  <p className="rounded-lg border border-emerald-100 bg-white px-2 py-1 text-emerald-700">
+                                    Student confirmed this slot.
+                                  </p>
+                                )}
+                              </div>
+                              {!isBooked && (
+                                <div className="flex shrink-0 gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditMeeting(slot)}
+                                    className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-blue-200 hover:text-blue-700"
+                                    aria-label="Edit meeting slot"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteMeeting(slot)}
+                                    disabled={deletingMeetingId === slot.id}
+                                    className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-red-200 hover:text-red-700 disabled:opacity-50"
+                                    aria-label="Delete meeting slot"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!isLoadingMeetings &&
+                meetingSlots.length === 0 &&
+                !showMeetingForm && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    No meeting slots created yet.
+                  </p>
+                )}
+
+              {showMeetingForm && (
                 <div className="mt-3 space-y-3">
                   <div>
                     <label
@@ -952,11 +1177,50 @@ export default function StaffTicketDetailPage({
                       }
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
                     >
-                      <option value="VIRTUAL">Virtual</option>
+                      <option value="ONLINE">Online</option>
                       <option value="IN_PERSON">In-Person</option>
-                      <option value="HYBRID">Hybrid</option>
                     </select>
                   </div>
+
+                  {meetingType === "IN_PERSON" && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label
+                          htmlFor="meeting-campus"
+                          className="mb-1 block text-xs font-medium text-slate-700"
+                        >
+                          Campus
+                        </label>
+                        <select
+                          id="meeting-campus"
+                          value={meetingCampus}
+                          onChange={(e) =>
+                            setMeetingCampus(e.target.value as CampusLocation)
+                          }
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
+                        >
+                          <option value="MAIN">Main Campus</option>
+                          <option value="EAS">EAS Campus</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="meeting-room"
+                          className="mb-1 block text-xs font-medium text-slate-700"
+                        >
+                          Room
+                        </label>
+                        <input
+                          id="meeting-room"
+                          type="text"
+                          value={meetingRoom}
+                          onChange={(e) => setMeetingRoom(e.target.value)}
+                          placeholder="A301"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label
@@ -985,12 +1249,13 @@ export default function StaffTicketDetailPage({
                       id="meeting-end"
                       type="datetime-local"
                       value={meetingEnd}
+                      min={meetingStart || undefined}
                       onChange={(e) => setMeetingEnd(e.target.value)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
                     />
                   </div>
 
-                  {(meetingType === "VIRTUAL" || meetingType === "HYBRID") && (
+                  {meetingType === "ONLINE" && (
                     <div>
                       <label
                         htmlFor="meeting-link"
@@ -1009,8 +1274,7 @@ export default function StaffTicketDetailPage({
                     </div>
                   )}
 
-                  {(meetingType === "IN_PERSON" ||
-                    meetingType === "HYBRID") && (
+                  {meetingType === "IN_PERSON" && (
                     <div>
                       <label
                         htmlFor="meeting-location"
@@ -1031,19 +1295,17 @@ export default function StaffTicketDetailPage({
 
                   <button
                     type="button"
-                    onClick={handleCreateMeeting}
-                    disabled={!meetingStart || !meetingEnd}
+                    onClick={handleSaveMeeting}
+                    disabled={!meetingStart || !meetingEnd || isSavingMeeting}
                     className="w-full rounded-xl bg-[#1E3A8A] px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-900 disabled:opacity-40"
                   >
-                    Create Slot
+                    {isSavingMeeting
+                      ? "Saving..."
+                      : editingMeetingId
+                        ? "Update Slot"
+                        : "Create Slot"}
                   </button>
                 </div>
-              )}
-
-              {!meetingSlot && !meetingCreated && !showMeetingForm && (
-                <p className="mt-2 text-xs text-slate-400">
-                  No meeting slot created yet.
-                </p>
               )}
             </div>
           </div>

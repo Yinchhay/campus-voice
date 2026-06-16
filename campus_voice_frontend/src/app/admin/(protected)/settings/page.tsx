@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from "react";
 import {
+  CalendarCheck,
   Check,
+  ExternalLink,
   KeyRound,
   Lock,
   LogOut,
+  RefreshCw,
   Shield,
   ShieldCheck,
+  Unlink,
   User,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
@@ -18,6 +22,12 @@ import {
   type CurrentStaffAccount,
 } from "@/lib/admin-api";
 import { adminNav } from "@/lib/dashboard-nav";
+import {
+  disconnectGoogleCalendar,
+  getGoogleCalendarConnectUrl,
+  getGoogleCalendarStatus,
+  type GoogleCalendarStatus,
+} from "@/lib/staff-api";
 
 // ---------------------------------------------------------------------------
 // Shared toggle component
@@ -157,6 +167,16 @@ function roleLabel(role?: string) {
   return role ?? "Account";
 }
 
+function formatCalendarDate(iso: string) {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function ToggleRow({
   id,
   label,
@@ -199,6 +219,31 @@ function SavedBadge({ visible }: { visible: boolean }) {
   );
 }
 
+function CalendarStatusBadge({
+  status,
+}: {
+  status: GoogleCalendarStatus | null;
+}) {
+  const connected = status?.connected === true;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
+        connected
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-slate-200 bg-slate-50 text-slate-600"
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          connected ? "bg-emerald-500" : "bg-slate-400"
+        }`}
+      />
+      {connected ? "Connected" : "Not connected"}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -206,6 +251,12 @@ export default function AdminSettingsPage() {
   const [account, setAccount] = useState<CurrentStaffAccount | null>(null);
   const [accountLoading, setAccountLoading] = useState(true);
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [calendarStatus, setCalendarStatus] =
+    useState<GoogleCalendarStatus | null>(null);
+  const [calendarLoading, setCalendarLoading] = useState(true);
+  const [calendarActionLoading, setCalendarActionLoading] = useState(false);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [calendarNotice, setCalendarNotice] = useState<string | null>(null);
 
   // Platform
   const [allowAnonymous, setAllowAnonymous] = useState(true);
@@ -224,21 +275,49 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadAccount() {
+    async function loadSettings() {
       setAccountLoading(true);
+      setCalendarLoading(true);
       setAccountError(null);
+      setCalendarError(null);
 
       try {
-        const data = await getCurrentStaffAccount();
-        if (isMounted) setAccount(data);
+        const accountData = await getCurrentStaffAccount();
+        if (isMounted) setAccount(accountData);
       } catch {
         if (isMounted) setAccountError("Unable to load account details.");
       } finally {
         if (isMounted) setAccountLoading(false);
       }
+
+      try {
+        const googleStatus = await getGoogleCalendarStatus();
+        if (!isMounted) return;
+        setCalendarStatus(googleStatus);
+      } catch {
+        if (!isMounted) return;
+        setCalendarError("Unable to load Google Calendar status.");
+      } finally {
+        if (isMounted) setCalendarLoading(false);
+      }
     }
 
-    loadAccount();
+    loadSettings();
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const calendar = params.get("calendar");
+      if (calendar === "connected") {
+        setCalendarNotice("Google Calendar connected successfully.");
+      }
+      if (calendar === "failed") {
+        setCalendarError("Google Calendar connection failed. Please try again.");
+      }
+      if (calendar) {
+        const cleanUrl = `${window.location.pathname}${window.location.hash}`;
+        window.history.replaceState(null, "", cleanUrl);
+      }
+    }
 
     return () => {
       isMounted = false;
@@ -252,6 +331,50 @@ export default function AdminSettingsPage() {
 
   function handleSavePlatform() {
     flash(setPlatformSaved);
+  }
+
+  async function refreshCalendarStatus() {
+    setCalendarLoading(true);
+    setCalendarError(null);
+
+    try {
+      const status = await getGoogleCalendarStatus();
+      setCalendarStatus(status);
+    } catch {
+      setCalendarError("Unable to refresh Google Calendar status.");
+    } finally {
+      setCalendarLoading(false);
+    }
+  }
+
+  async function handleConnectCalendar() {
+    setCalendarActionLoading(true);
+    setCalendarError(null);
+    setCalendarNotice(null);
+
+    try {
+      const data = await getGoogleCalendarConnectUrl();
+      window.location.assign(data.authorization_url);
+    } catch {
+      setCalendarError("Unable to start Google Calendar connection.");
+      setCalendarActionLoading(false);
+    }
+  }
+
+  async function handleDisconnectCalendar() {
+    setCalendarActionLoading(true);
+    setCalendarError(null);
+    setCalendarNotice(null);
+
+    try {
+      await disconnectGoogleCalendar();
+      setCalendarStatus({ connected: false });
+      setCalendarNotice("Google Calendar disconnected.");
+    } catch {
+      setCalendarError("Unable to disconnect Google Calendar.");
+    } finally {
+      setCalendarActionLoading(false);
+    }
   }
 
   function handleChangePassword() {
@@ -351,6 +474,111 @@ export default function AdminSettingsPage() {
         </Section>
 
         <EmailNotificationSettings />
+
+        {/* ── Google Calendar ───────────────────────────────── */}
+        <Section
+          icon={<CalendarCheck className="h-5 w-5 text-slate-600" />}
+          title="Google Calendar"
+          description="Connect your calendar so confirmed student meetings can create calendar events."
+        >
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-slate-900">
+                    Calendar sync
+                  </p>
+                  <CalendarStatusBadge status={calendarStatus} />
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  Connected calendars receive events when students confirm
+                  meeting slots.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={refreshCalendarStatus}
+                disabled={calendarLoading || calendarActionLoading}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${
+                    calendarLoading ? "animate-spin" : ""
+                  }`}
+                />
+                Refresh
+              </button>
+            </div>
+
+            {calendarLoading && (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500">
+                Checking Google Calendar status...
+              </div>
+            )}
+
+            {calendarStatus?.connected && (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-emerald-100 bg-white px-3 py-2">
+                  <p className="text-xs font-medium text-slate-500">
+                    Calendar account
+                  </p>
+                  <p className="mt-1 truncate text-sm font-medium text-slate-900">
+                    {calendarStatus.calendar_email}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-emerald-100 bg-white px-3 py-2">
+                  <p className="text-xs font-medium text-slate-500">
+                    Connected
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">
+                    {formatCalendarDate(calendarStatus.connected_at)}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {calendarNotice && (
+              <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {calendarNotice}
+              </p>
+            )}
+
+            {calendarError && (
+              <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {calendarError}
+              </p>
+            )}
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {calendarStatus?.connected ? (
+                <button
+                  type="button"
+                  onClick={handleDisconnectCalendar}
+                  disabled={calendarActionLoading}
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Unlink className="h-4 w-4" />
+                  Disconnect
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleConnectCalendar}
+                  disabled={calendarLoading || calendarActionLoading}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Connect Google Calendar
+                </button>
+              )}
+              {calendarActionLoading && (
+                <span className="text-xs text-slate-500">
+                  Processing calendar request...
+                </span>
+              )}
+            </div>
+          </div>
+        </Section>
 
         {/* ── Platform configuration ────────────────────────── */}
         <Section

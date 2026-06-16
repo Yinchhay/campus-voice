@@ -127,6 +127,11 @@ class StudentConfirmMeetingView(APIView):
         except GoogleCalendarToken.DoesNotExist:
             # Admin hasn't linked Google Calendar — that's perfectly fine
             pass
+        except Exception as e:
+            logger.error(
+                f"Google Calendar sync failed for {ticket.public_ticket_id}: {e}",
+                exc_info=True
+            )
         logger.info(
             f"Student {request.user.email} confirmed meeting "
             f"for {ticket.public_ticket_id} at {slot.start_time}"

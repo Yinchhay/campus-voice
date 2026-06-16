@@ -2,7 +2,8 @@ export type UserRole = "STUDENT" | "STAFF" | "ADMIN";
 export type CategoryIssueType = "SERVICE" | "ACADEMIC";
 export type TicketPriority = "HIGH" | "MEDIUM" | "LOW";
 export type TicketStatus = "SUBMITTED" | "IN_PROGRESS" | "RESOLVED";
-export type MeetingType = "IN_PERSON" | "VIRTUAL" | "HYBRID";
+export type MeetingType = "ONLINE" | "IN_PERSON";
+export type CampusLocation = "MAIN" | "EAS";
 export type PermissionCodename = `${string}.${string}` | "*";
 
 export interface Attachment {
@@ -63,26 +64,44 @@ export interface Message {
 
 export interface MeetingSlot {
   id: number; // serial
-  ticket_id: string; // uuid
+  ticket: string; // uuid
+  staff_member?: string | null; // uuid
+  staff_name?: string;
   start_time: string;
   end_time: string;
+  duration_minutes?: number;
   meeting_type: MeetingType;
+  campus_location: CampusLocation;
+  room_number: string | null;
   location_or_details: string | null;
   is_available: boolean;
   meeting_link: string | null;
+  is_expired_status?: boolean;
+  google_event_id?: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
+  student_booking?: StudentMeetingBooking | null;
 }
 
 export interface StudentMeetingBooking {
   id: number; // serial
-  meeting_slot_id: number;
-  ticket_id: string; // uuid
-  student_id: string | null; // uuid
+  meeting_slot: number;
+  ticket: string; // uuid
+  public_ticket_id?: string;
   scheduled_time: string;
   is_confirmed: boolean;
   meeting_completed: boolean;
   completion_notes: string | null;
+  meeting_details?: {
+    id: string;
+    start_time: string;
+    end_time: string;
+    meeting_type: string;
+    location_or_details: string | null;
+    meeting_link: string | null;
+    staff_name: string;
+  };
   booked_at: string;
   cancelled_at: string | null;
+  meeting_slot_detail?: MeetingSlot;
 }

@@ -3,6 +3,8 @@ import axios from "axios";
 import type {
   Attachment,
   CategoryIssueType,
+  MeetingSlot,
+  StudentMeetingBooking,
   TicketPriority,
   TicketStatus,
 } from "@/lib/types";
@@ -171,6 +173,39 @@ export async function createStudentTicketMessage(
     `/v1/tickets/${ticketId}/messages`,
     requestBody,
   );
+  return response.data;
+}
+
+export async function listStudentTicketMeetingSlots(ticketId: string) {
+  const response = await api.get<MeetingSlot[]>(
+    `/v1/tickets/${ticketId}/meetings`,
+  );
+  return response.data;
+}
+
+export async function confirmStudentTicketMeeting(
+  ticketId: string,
+  slotId: number,
+) {
+  const response = await api.post<{
+    message: string;
+    booking: StudentMeetingBooking;
+  }>(`/v1/tickets/${ticketId}/meetings/${slotId}/confirm`);
+  return response.data;
+}
+
+export async function cancelStudentTicketMeetingBooking(
+  ticketId: string,
+  bookingId: number,
+) {
+  const response = await api.post<{ message: string }>(
+    `/v1/tickets/${ticketId}/bookings/${bookingId}/cancel`,
+  );
+  return response.data;
+}
+
+export async function listStudentMeetingBookings() {
+  const response = await api.get<StudentMeetingBooking[]>("/v1/my-bookings");
   return response.data;
 }
 

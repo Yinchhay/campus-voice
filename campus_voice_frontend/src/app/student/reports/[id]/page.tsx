@@ -16,20 +16,21 @@ import {
   ShieldCheck,
   TriangleAlert,
   Video,
-  Users,
   X,
 } from "lucide-react";
 import { attachmentHref, attachmentName } from "@/lib/attachments";
-import { mockBookings, mockMeetingSlots } from "@/lib/mock-meetings";
 import {
+  confirmStudentTicketMeeting,
   createStudentTicketMessage,
   getMyTicket,
+  listStudentTicketMeetingSlots,
   type StudentTicket,
   type StudentTicketMessage,
 } from "@/lib/student-api";
 import type {
   MeetingSlot,
   MeetingType,
+  StudentMeetingBooking,
   TicketStatus,
 } from "@/lib/types";
 
@@ -51,15 +52,13 @@ const statusBadgeClass: Record<TicketStatus, string> = {
 const statusFlow: TicketStatus[] = ["SUBMITTED", "IN_PROGRESS", "RESOLVED"];
 
 const meetingTypeIcon: Record<MeetingType, React.ReactNode> = {
-  VIRTUAL: <Video className="h-4 w-4" />,
+  ONLINE: <Video className="h-4 w-4" />,
   IN_PERSON: <MapPin className="h-4 w-4" />,
-  HYBRID: <Users className="h-4 w-4" />,
 };
 
 const meetingTypeLabel: Record<MeetingType, string> = {
-  VIRTUAL: "Virtual",
+  ONLINE: "Online",
   IN_PERSON: "In-Person",
-  HYBRID: "Hybrid",
 };
 
 const MESSAGE_ALLOWED_TYPES = [
@@ -147,88 +146,127 @@ function StatusStepper({ status }: { status: TicketStatus }) {
 }
 
 function MeetingSection({
-  slot,
-  ticketId,
+  slots,
+  confirmedBooking,
+  isLoading,
+  error,
+  confirmingSlotId,
+  onConfirm,
 }: {
-  slot: MeetingSlot | null;
-  ticketId: string;
+  slots: MeetingSlot[];
+  confirmedBooking: StudentMeetingBooking | null;
+  isLoading: boolean;
+  error: string | null;
+  confirmingSlotId: number | null;
+  onConfirm: (slot: MeetingSlot) => void;
 }) {
-  const [booked, setBooked] = useState(false);
-
-  const existingBooking = mockBookings.find((b) => b.ticket_id === ticketId);
-  const isAlreadyBooked = !slot?.is_available || !!existingBooking || booked;
-
-  if (!slot) return null;
+  const confirmedSlot =
+    confirmedBooking?.meeting_slot_detail ??
+    slots.find((slot) => slot.id === confirmedBooking?.meeting_slot) ??
+    null;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-4 flex items-center gap-2 text-slate-900">
         <CalendarClock className="h-5 w-5 text-blue-600" />
-        <h2 className="text-lg font-semibold">Meeting Slot</h2>
-        <span
-          className={`ml-auto rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-            isAlreadyBooked
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-amber-200 bg-amber-50 text-amber-700"
-          }`}
-        >
-          {isAlreadyBooked ? "Booked" : "Available"}
-        </span>
-      </div>
-
-      <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-700">
-        <div className="flex items-start gap-3">
-          {meetingTypeIcon[slot.meeting_type]}
-          <div>
-            <p className="font-medium">{meetingTypeLabel[slot.meeting_type]}</p>
-            {slot.location_or_details && (
-              <p className="mt-0.5 text-slate-500">
-                {slot.location_or_details}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <CalendarClock className="h-4 w-4 shrink-0 text-slate-400" />
-          <div>
-            <p className="font-medium">{formatDate(slot.start_time)}</p>
-            <p className="mt-0.5 text-slate-500">
-              {formatTime(slot.start_time)} &ndash; {formatTime(slot.end_time)}
-            </p>
-          </div>
-        </div>
-        {slot.meeting_link && (
-          <div className="flex items-center gap-3">
-            <Video className="h-4 w-4 shrink-0 text-slate-400" />
-            <a
-              href={slot.meeting_link}
-              target="_blank"
-              rel="noreferrer"
-              className="truncate text-blue-600 underline-offset-2 hover:underline"
-            >
-              Join meeting link
-            </a>
-          </div>
+        <h2 className="text-lg font-semibold">Meeting Slots</h2>
+        {confirmedBooking && (
+          <span className="ml-auto rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+            Booked
+          </span>
         )}
       </div>
 
-      {isAlreadyBooked ? (
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span>
-            {existingBooking
-              ? `Booked on ${formatDate(existingBooking.booked_at)}`
-              : "Your slot has been confirmed. Check your email for details."}
-          </span>
+      {isLoading && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+          Loading available meeting slots...
         </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setBooked(true)}
-          className="mt-4 w-full rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900"
-        >
-          Book this slot
-        </button>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {confirmedBooking && confirmedSlot && (
+        <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            <div>
+              <p className="font-medium">Your meeting is confirmed.</p>
+              <p className="mt-0.5 text-emerald-700">
+                {formatDate(confirmedSlot.start_time)},{" "}
+                {formatTime(confirmedSlot.start_time)} -{" "}
+                {formatTime(confirmedSlot.end_time)}
+              </p>
+            </div>
+          </div>
+          {confirmedSlot.meeting_link && (
+            <a
+              href={confirmedSlot.meeting_link}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 font-medium text-blue-700 underline-offset-2 hover:underline"
+            >
+              <Video className="h-4 w-4" />
+              Join meeting link
+            </a>
+          )}
+        </div>
+      )}
+
+      {!isLoading && !confirmedBooking && slots.length === 0 && !error && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+          No meeting slots are available yet.
+        </div>
+      )}
+
+      {!confirmedBooking && slots.length > 0 && (
+        <div className="space-y-3">
+          {slots.map((slot) => (
+            <div
+              key={slot.id}
+              className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-700"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    {meetingTypeIcon[slot.meeting_type]}
+                    <div>
+                      <p className="font-medium">
+                        {meetingTypeLabel[slot.meeting_type]}
+                      </p>
+                      {slot.location_or_details && (
+                        <p className="mt-0.5 text-slate-500">
+                          {slot.location_or_details}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CalendarClock className="h-4 w-4 shrink-0 text-slate-400" />
+                    <div>
+                      <p className="font-medium">{formatDate(slot.start_time)}</p>
+                      <p className="mt-0.5 text-slate-500">
+                        {formatTime(slot.start_time)} -{" "}
+                        {formatTime(slot.end_time)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onConfirm(slot)}
+                  disabled={confirmingSlotId === slot.id}
+                  className="rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {confirmingSlotId === slot.id ? "Booking..." : "Book slot"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -254,6 +292,12 @@ export default function StudentReportDetailPage({
   const [localMessages, setLocalMessages] = useState<StudentTicketMessage[]>(
     [],
   );
+  const [meetingSlots, setMeetingSlots] = useState<MeetingSlot[]>([]);
+  const [confirmedBooking, setConfirmedBooking] =
+    useState<StudentMeetingBooking | null>(null);
+  const [isLoadingMeetings, setIsLoadingMeetings] = useState(false);
+  const [meetingError, setMeetingError] = useState<string | null>(null);
+  const [confirmingSlotId, setConfirmingSlotId] = useState<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -261,10 +305,26 @@ export default function StudentReportDetailPage({
     async function loadTicket() {
       setIsLoading(true);
       setPageError(null);
+      setMeetingError(null);
 
       try {
         const data = await getMyTicket(id);
-        if (isMounted) setTicket(data);
+        if (!isMounted) return;
+        setTicket(data);
+
+        setIsLoadingMeetings(true);
+        try {
+          const slots = await listStudentTicketMeetingSlots(data.id);
+          if (isMounted) setMeetingSlots(slots);
+        } catch (error) {
+          if (isMounted) {
+            setMeetingError(
+              extractApiError(error, "Failed to load meeting slots."),
+            );
+          }
+        } finally {
+          if (isMounted) setIsLoadingMeetings(false);
+        }
       } catch (error) {
         if (isMounted)
           setPageError(
@@ -289,10 +349,6 @@ export default function StudentReportDetailPage({
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       ),
     [ticket?.messages],
-  );
-  const meetingSlot = useMemo(
-    () => mockMeetingSlots.find((s) => s.ticket_id === id) ?? null,
-    [id],
   );
 
   const allMessages = [...serverMessages, ...localMessages];
@@ -332,6 +388,23 @@ export default function StudentReportDetailPage({
     }
 
     setMessageAttachment(file);
+  }
+
+  async function handleConfirmMeeting(slot: MeetingSlot) {
+    if (!ticket || confirmingSlotId) return;
+
+    setConfirmingSlotId(slot.id);
+    setMeetingError(null);
+
+    try {
+      const result = await confirmStudentTicketMeeting(ticket.id, slot.id);
+      setConfirmedBooking(result.booking);
+      setMeetingSlots((current) => current.filter((item) => item.id !== slot.id));
+    } catch (error) {
+      setMeetingError(extractApiError(error, "Failed to book meeting slot."));
+    } finally {
+      setConfirmingSlotId(null);
+    }
   }
 
   if (isLoading) {
@@ -499,10 +572,15 @@ export default function StudentReportDetailPage({
             </div>
           )}
 
-          {/* ── Meeting Slot ───────────────────────────────────── */}
-          {meetingSlot && (
-            <MeetingSection slot={meetingSlot} ticketId={ticket.id} />
-          )}
+          {/* ── Meeting Slots ──────────────────────────────────── */}
+          <MeetingSection
+            slots={meetingSlots}
+            confirmedBooking={confirmedBooking}
+            isLoading={isLoadingMeetings}
+            error={meetingError}
+            confirmingSlotId={confirmingSlotId}
+            onConfirm={handleConfirmMeeting}
+          />
 
           {/* ── Message Thread ────────────────────────────────── */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">

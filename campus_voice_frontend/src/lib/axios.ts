@@ -20,10 +20,24 @@ export const studentApi = axios.create({
 });
 
 let sessionRequest: Promise<Session | null> | null = null;
+let cachedSession: Session | null = null;
+let sessionCachedAt = 0;
+const SESSION_CACHE_TTL_MS = 30_000; // 30 s — stays well inside NextAuth's refresh window
 
 function getSharedSession() {
-  sessionRequest ??= getSession().finally(() => {
+  // Return cached value if it's still fresh
+  if (cachedSession && Date.now() - sessionCachedAt < SESSION_CACHE_TTL_MS) {
+    return Promise.resolve(cachedSession);
+  }
+  // Deduplicate concurrent in-flight requests
+  sessionRequest ??= getSession().then((session) => {
+    cachedSession = session;
+    sessionCachedAt = Date.now();
     sessionRequest = null;
+    return session;
+  }).catch((err) => {
+    sessionRequest = null;
+    throw err;
   });
   return sessionRequest;
 }

@@ -1,5 +1,13 @@
 import api from "@/lib/axios";
-import type { Attachment, TicketPriority, TicketStatus } from "@/lib/types";
+import type {
+  Attachment,
+  CampusLocation,
+  MeetingSlot,
+  MeetingType,
+  StudentMeetingBooking,
+  TicketPriority,
+  TicketStatus,
+} from "@/lib/types";
 
 export type StaffTicketMessage = {
   id: number;
@@ -77,6 +85,43 @@ export type StaffTicket = {
   updated_at?: string;
 };
 
+export type CreateMeetingSlotPayload = {
+  start_time: string;
+  end_time: string;
+  meeting_type: MeetingType;
+  campus_location?: CampusLocation;
+  room_number?: string | null;
+  location_or_details?: string | null;
+  meeting_link?: string | null;
+};
+
+export type UpdateMeetingSlotPayload = Partial<CreateMeetingSlotPayload> & {
+  is_available?: boolean;
+};
+
+export type CreateMeetingSlotsPayload =
+  | CreateMeetingSlotPayload
+  | { slots: CreateMeetingSlotPayload[] };
+
+export type GoogleCalendarStatus =
+  | {
+      connected: true;
+      calendar_email: string;
+      connected_at: string;
+    }
+  | {
+      connected: false;
+    };
+
+export type GoogleCalendarConnectResponse = {
+  authorization_url: string;
+  message: string;
+};
+
+export type GoogleCalendarCallbackResponse = {
+  message: string;
+};
+
 function normalizeTicket(ticket: BackendStaffTicket): StaffTicket {
   const categoryId =
     typeof ticket.category === "object"
@@ -152,6 +197,103 @@ export async function createStaffTicketMessage(
   const response = await api.post<StaffTicketMessage>(
     `/admin/tickets/${ticketId}/messages`,
     attachment ? buildMessageFormData(content, attachment) : { content },
+  );
+  return response.data;
+}
+
+export async function listAdminTicketMeetingSlots(ticketId: string) {
+  const response = await api.get<MeetingSlot[]>(
+    `/admin/tickets/${ticketId}/meetings`,
+  );
+  return response.data;
+}
+
+export async function createAdminTicketMeetingSlots(
+  ticketId: string,
+  payload: CreateMeetingSlotsPayload,
+) {
+  const response = await api.post<{
+    message: string;
+    slots: MeetingSlot[];
+    partial_errors?: unknown[];
+  }>(`/admin/tickets/${ticketId}/meetings`, payload);
+  return response.data;
+}
+
+export async function getAdminTicketMeetingSlot(
+  ticketId: string,
+  slotId: number,
+) {
+  const response = await api.get<MeetingSlot>(
+    `/admin/tickets/${ticketId}/meetings/${slotId}`,
+  );
+  return response.data;
+}
+
+export async function updateAdminTicketMeetingSlot(
+  ticketId: string,
+  slotId: number,
+  payload: UpdateMeetingSlotPayload,
+) {
+  const response = await api.patch<MeetingSlot>(
+    `/admin/tickets/${ticketId}/meetings/${slotId}`,
+    payload,
+  );
+  return response.data;
+}
+
+export async function deleteAdminTicketMeetingSlot(
+  ticketId: string,
+  slotId: number,
+) {
+  const response = await api.delete<{ message: string }>(
+    `/admin/tickets/${ticketId}/meetings/${slotId}`,
+  );
+  return response.data;
+}
+
+export async function listAdminBookings() {
+  const response = await api.get<StudentMeetingBooking[]>("/admin/bookings");
+  return response.data;
+}
+
+export async function markAdminMeetingComplete(
+  ticketId: string,
+  bookingId: number,
+  completionNotes = "",
+) {
+  const response = await api.patch<StudentMeetingBooking>(
+    `/admin/tickets/${ticketId}/bookings/${bookingId}/complete`,
+    { completion_notes: completionNotes },
+  );
+  return response.data;
+}
+
+export async function getGoogleCalendarConnectUrl() {
+  const response = await api.get<GoogleCalendarConnectResponse>(
+    "/admin/google-calendar/connect",
+  );
+  return response.data;
+}
+
+export async function getGoogleCalendarStatus() {
+  const response = await api.get<GoogleCalendarStatus>(
+    "/admin/google-calendar/status",
+  );
+  return response.data;
+}
+
+export async function disconnectGoogleCalendar() {
+  const response = await api.delete<{ message: string }>(
+    "/admin/google-calendar/status",
+  );
+  return response.data;
+}
+
+export async function completeGoogleCalendarConnection(code: string) {
+  const response = await api.post<GoogleCalendarCallbackResponse>(
+    "/admin/google-calendar/callback",
+    { code },
   );
   return response.data;
 }
