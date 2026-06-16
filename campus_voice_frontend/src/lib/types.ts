@@ -3,6 +3,7 @@ export type CategoryIssueType = "SERVICE" | "ACADEMIC";
 export type TicketPriority = "HIGH" | "MEDIUM" | "LOW";
 export type TicketStatus = "SUBMITTED" | "IN_PROGRESS" | "RESOLVED";
 export type MeetingType = "IN_PERSON" | "VIRTUAL" | "HYBRID";
+export type PermissionCodename = `${string}.${string}` | "*";
 
 export interface Attachment {
   id: number;

@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { dashboardPathForRole, loginPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
+import { AppSessionProvider } from "@/components/auth/SessionProvider";
 import { redirect } from "next/navigation";
 
 export default async function AdminProtectedLayout({
@@ -18,5 +19,5 @@ export default async function AdminProtectedLayout({
 		redirect(dashboardPathForRole(role));
 	}
 
-	return children;
+	return <AppSessionProvider session={session}>{children}</AppSessionProvider>;
 }

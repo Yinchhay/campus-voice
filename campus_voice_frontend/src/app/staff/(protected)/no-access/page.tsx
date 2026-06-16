@@ -2,7 +2,7 @@
 
 import { ShieldAlert } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { staffNav } from "@/lib/staff-nav";
+import { staffNav } from "@/lib/dashboard-nav";
 
 export default function StaffNoAccessPage() {
   return (

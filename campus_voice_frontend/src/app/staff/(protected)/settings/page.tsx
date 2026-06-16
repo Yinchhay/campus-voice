@@ -15,7 +15,7 @@ import {
   getCurrentStaffAccount,
   type CurrentStaffAccount,
 } from "@/lib/admin-api";
-import { staffNav } from "@/lib/staff-nav";
+import { staffNav } from "@/lib/dashboard-nav";
 
 function Section({
   icon,

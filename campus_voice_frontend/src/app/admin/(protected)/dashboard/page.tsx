@@ -3,30 +3,26 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Activity,
   ArrowRight,
-  BarChart3,
+  Clock,
   FileText,
   ShieldCheck,
-  Tag,
   TicketCheck,
+  TriangleAlert,
   UsersRound,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import {
-  listAdminCategories,
-  listAdminPermissions,
-  listAdminRoles,
   listAdminTickets,
   listAdminUsers,
-  type AdminPermission,
-  type AdminRoleDetail,
   type AdminTicket,
   type AdminUser,
 } from "@/lib/admin-api";
-import { adminNav } from "@/lib/admin-nav";
+import { adminNav } from "@/lib/dashboard-nav";
 import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
 import { useRbacPermissions } from "@/lib/rbac";
-import type { Category, TicketStatus } from "@/lib/types";
+import type { TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Badges
@@ -61,16 +57,22 @@ type DashboardQuickLink = {
   sub: string;
 };
 
+function ticketCreatedTime(ticket: AdminTicket) {
+  return ticket.created_at ? Date.parse(ticket.created_at) : 0;
+}
+
+function barWidth(value: number, max: number) {
+  if (value <= 0 || max <= 0) return 0;
+  return Math.max(8, Math.round((value / max) * 100));
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminDashboardPage() {
   const { hasPermission, isLoading: isPermissionLoading } = useRbacPermissions();
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [roles, setRoles] = useState<AdminRoleDetail[]>([]);
-  const [permissions, setPermissions] = useState<AdminPermission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
 
@@ -84,29 +86,17 @@ export default function AdminDashboardPage() {
       setPageError("");
 
       try {
-        const [ticketRows, categoryRows, userRows, roleRows, permissionRows] = await Promise.all([
+        const [ticketRows, userRows] = await Promise.all([
           hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)
             ? listAdminTickets()
-            : Promise.resolve([]),
-          hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission)
-            ? listAdminCategories()
             : Promise.resolve([]),
           hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission)
             ? listAdminUsers()
             : Promise.resolve([]),
-          hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission)
-            ? listAdminRoles()
-            : Promise.resolve([]),
-          hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission)
-            ? listAdminPermissions()
-            : Promise.resolve([]),
         ]);
         if (!isMounted) return;
         setTickets(ticketRows);
-        setCategories(categoryRows);
         setUsers(userRows);
-        setRoles(roleRows);
-        setPermissions(permissionRows);
       } catch {
         if (isMounted) setPageError("Failed to load dashboard data.");
       } finally {
@@ -122,76 +112,89 @@ export default function AdminDashboardPage() {
   }, [hasPermission, isPermissionLoading]);
 
   const canViewTickets = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
-  const canViewCategories = hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission);
   const canViewUsers = hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission);
-  const canViewRoles = hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission);
-  const canViewPermissions = hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission);
 
-  const total = tickets.length;
-  const open = tickets.filter((t) => t.status !== "RESOLVED").length;
-  const resolved = tickets.filter((t) => t.status === "RESOLVED").length;
-  const inProgress = tickets.filter((t) => t.status === "IN_PROGRESS").length;
-  const highPriority = tickets.filter((t) => t.priority === "HIGH" && t.status !== "RESOLVED").length;
+  const ticketSummary = useMemo(() => {
+    const summary = {
+      total: tickets.length,
+      open: 0,
+      submitted: 0,
+      resolved: 0,
+      inProgress: 0,
+      highPriority: 0,
+      recentTickets: [...tickets]
+        .sort((a, b) => ticketCreatedTime(b) - ticketCreatedTime(a))
+        .slice(0, 5),
+    };
 
-  const stats = [
-    ...(canViewTickets
-      ? [
-          { label: "Total Tickets", value: total, tone: "text-slate-900" },
-          { label: "Open Cases", value: open, tone: "text-blue-700" },
-          { label: "In Progress", value: inProgress, tone: "text-amber-700" },
-          { label: "Resolved", value: resolved, tone: "text-emerald-700" },
-          { label: "High Priority", value: highPriority, tone: "text-red-700" },
-        ]
-      : []),
-    ...(canViewCategories
-      ? [
-          {
-            label: "Categories",
-            value: categories.filter((category) => category.is_active).length,
-            tone: "text-violet-700",
-          },
-        ]
-      : []),
-    ...(canViewUsers
-      ? [{ label: "Staff/Admin Users", value: users.length, tone: "text-teal-700" }]
-      : []),
-    ...(canViewRoles
-      ? [{ label: "RBAC Roles", value: roles.length, tone: "text-indigo-700" }]
-      : []),
-    ...(canViewPermissions
-      ? [{ label: "Permissions", value: permissions.length, tone: "text-slate-700" }]
-      : []),
+    for (const ticket of tickets) {
+      const isOpen = ticket.status !== "RESOLVED";
+      if (isOpen) summary.open += 1;
+      if (ticket.status === "SUBMITTED") summary.submitted += 1;
+      if (ticket.status === "RESOLVED") summary.resolved += 1;
+      if (ticket.status === "IN_PROGRESS") summary.inProgress += 1;
+      if (ticket.priority === "HIGH" && isOpen) summary.highPriority += 1;
+    }
+
+    return summary;
+  }, [tickets]);
+
+  const hasOverviewModules = canViewTickets || canViewUsers;
+
+  const largestWorkloadValue = Math.max(
+    ticketSummary.open,
+    ticketSummary.inProgress,
+    ticketSummary.highPriority,
+    ticketSummary.resolved,
+  );
+
+  const workloadSignals = [
+    {
+      label: "Submitted",
+      value: ticketSummary.open,
+      detail: "Still waiting for a final resolution",
+      bar: barWidth(ticketSummary.open, largestWorkloadValue),
+      color: "bg-blue-600",
+      icon: <Activity className="h-4 w-4" />,
+    },
+    {
+      label: "In progress",
+      value: ticketSummary.inProgress,
+      detail: "Already being handled by the team",
+      bar: barWidth(ticketSummary.inProgress, largestWorkloadValue),
+      color: "bg-amber-400",
+      icon: <Clock className="h-4 w-4" />,
+    },
+    {
+      label: "High priority",
+      value: ticketSummary.highPriority,
+      detail: "Submitted cases marked urgent",
+      bar: barWidth(ticketSummary.highPriority, largestWorkloadValue),
+      color: "bg-red-500",
+      icon: <TriangleAlert className="h-4 w-4" />,
+    },
   ];
 
-  const recentTickets = useMemo(
-    () =>
-      [...tickets]
-        .sort(
-          (a, b) =>
-            new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime(),
-        )
-        .slice(0, 5),
-    [tickets],
-  );
-
-  const categoryBreakdown = useMemo(
-    () =>
-      categories
-        .filter((c) => c.is_active)
-        .map((c) => ({
-          ...c,
-          count: tickets.filter((t) => t.category_id === c.id).length,
-          open: tickets.filter((t) => t.category_id === c.id && t.status !== "RESOLVED").length,
-        }))
-        .sort((a, b) => b.count - a.count),
-    [categories, tickets],
-  );
-
-  const categoryPriorityBadge: Record<string, string> = {
-    HIGH: "bg-red-50 text-red-700 border-red-200",
-    MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
-    LOW: "bg-slate-100 text-slate-600 border-slate-200",
-  };
+  const pipelineSegments = [
+    {
+      label: "Submitted",
+      value: ticketSummary.submitted,
+      width: barWidth(ticketSummary.submitted, ticketSummary.total),
+      className: "bg-slate-500",
+    },
+    {
+      label: "In progress",
+      value: ticketSummary.inProgress,
+      width: barWidth(ticketSummary.inProgress, ticketSummary.total),
+      className: "bg-amber-400",
+    },
+    {
+      label: "Resolved",
+      value: ticketSummary.resolved,
+      width: barWidth(ticketSummary.resolved, ticketSummary.total),
+      className: "bg-emerald-500",
+    },
+  ];
 
   const quickLinks: DashboardQuickLink[] = [];
   if (canViewTickets) {
@@ -200,7 +203,7 @@ export default function AdminDashboardPage() {
       icon: <TicketCheck className="h-5 w-5 text-blue-600" />,
       bg: "bg-blue-50 border-blue-100",
       label: DASHBOARD_MODULES.ticketOverview.label,
-      sub: `${open} open cases`,
+      sub: `${ticketSummary.open} submitted cases`,
     });
   }
   if (canViewUsers) {
@@ -210,33 +213,6 @@ export default function AdminDashboardPage() {
       bg: "bg-teal-50 border-teal-100",
       label: DASHBOARD_MODULES.userManagement.label,
       sub: `${users.length} staff/admin users`,
-    });
-  }
-  if (canViewRoles) {
-    quickLinks.push({
-      href: DASHBOARD_MODULES.roleManagement.href.admin,
-      icon: <ShieldCheck className="h-5 w-5 text-indigo-600" />,
-      bg: "bg-indigo-50 border-indigo-100",
-      label: DASHBOARD_MODULES.roleManagement.label,
-      sub: `${roles.length} RBAC roles`,
-    });
-  }
-  if (canViewCategories) {
-    quickLinks.push({
-      href: DASHBOARD_MODULES.categoryManagement.href.admin,
-      icon: <Tag className="h-5 w-5 text-violet-600" />,
-      bg: "bg-violet-50 border-violet-100",
-      label: DASHBOARD_MODULES.categoryManagement.label,
-      sub: `${categories.filter((c) => c.is_active).length} active categories`,
-    });
-  }
-  if (canViewPermissions) {
-    quickLinks.push({
-      href: DASHBOARD_MODULES.accessControls.href.admin,
-      icon: <BarChart3 className="h-5 w-5 text-slate-600" />,
-      bg: "bg-slate-50 border-slate-200",
-      label: DASHBOARD_MODULES.accessControls.label,
-      sub: `${permissions.length} permissions available`,
     });
   }
 
@@ -254,33 +230,152 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* ── Stats grid ───────────────────────────────────── */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="mb-5 flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-emerald-600" />
-            <h2 className="text-lg font-semibold text-slate-900">Platform Overview</h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {stats.map((s) => (
-              <div key={s.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">{s.label}</p>
-                <p className={`mt-1 text-2xl font-semibold ${s.tone}`}>
-                  {isLoading ? "..." : s.value}
-                </p>
+        {/* ── Platform overview ────────────────────────────── */}
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 bg-slate-50/70 px-6 py-5 sm:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                <h2 className="text-lg font-semibold text-slate-900">Platform Overview</h2>
               </div>
-            ))}
-            {!isLoading && stats.length === 0 && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+              {canViewTickets && (
+                <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                  {isLoading ? "Loading queue" : `${ticketSummary.open} submitted cases`}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {hasOverviewModules ? (
+            <div className="grid gap-6 p-4 sm:p-8 lg:grid-cols-[1.1fr_1.5fr]">
+              <div className="space-y-5">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    {canViewTickets ? "Current queue" : "Platform coverage"}
+                  </p>
+                  <div className="mt-2 flex items-end gap-3">
+                    <p className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+                      {isLoading ? "..." : canViewTickets ? ticketSummary.open : users.length}
+                    </p>
+                    <p className="pb-2 text-sm text-slate-500">
+                      {canViewTickets
+                        ? `open case${ticketSummary.open === 1 ? "" : "s"}`
+                        : `staff/admin user${users.length === 1 ? "" : "s"}`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {canViewTickets && (
+                    <div className="border-l-4 border-red-400 bg-red-50 px-4 py-3">
+                      <p className="text-xs font-medium text-red-700">High priority</p>
+                      <p className="mt-1 text-2xl font-semibold text-red-900">
+                        {isLoading ? "..." : ticketSummary.highPriority}
+                      </p>
+                    </div>
+                  )}
+                  <div className="border-l-4 border-teal-400 bg-teal-50 px-4 py-3">
+                    <p className="text-xs font-medium text-teal-700">Staff/Admin users</p>
+                    <p className="mt-1 text-2xl font-semibold text-teal-900">
+                      {isLoading ? "..." : canViewUsers ? users.length : "-"}
+                    </p>
+                  </div>
+                </div>
+
+                {canViewTickets && (
+                  <Link
+                    href={DASHBOARD_MODULES.ticketOverview.href.admin}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#1E3A8A] hover:text-blue-700"
+                  >
+                    Review ticket queue
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                )}
+              </div>
+
+              <div className="space-y-5">
+                {canViewTickets ? (
+                  <>
+                    <div className="space-y-3">
+                      {workloadSignals.map((signal) => (
+                        <div key={signal.label} className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-[9rem_1fr_3rem] sm:items-center sm:border-0 sm:bg-transparent sm:p-0">
+                          <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <span className="text-slate-400">{signal.icon}</span>
+                            {signal.label}
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${signal.color}`}
+                              style={{ width: `${isLoading ? 0 : signal.bar}%` }}
+                            />
+                          </div>
+                          <div className="text-left sm:text-right">
+                            <p className="text-sm font-semibold text-slate-900">
+                              {isLoading ? "..." : signal.value}
+                            </p>
+                          </div>
+                          <p className="text-xs text-slate-500 sm:col-start-2 sm:col-span-2">
+                            {signal.detail}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-4">
+                      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <Clock className="h-4 w-4 text-amber-500" />
+                        Ticket pipeline
+                      </div>
+                      <div className="flex h-3 overflow-hidden rounded-full bg-slate-100">
+                        {pipelineSegments.map((segment) => (
+                          <div
+                            key={segment.label}
+                            className={segment.className}
+                            style={{ width: `${isLoading ? 0 : segment.width}%` }}
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        {pipelineSegments.map((segment) => (
+                          <div key={segment.label} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="text-slate-500">{segment.label}</span>
+                            <span className="font-semibold text-slate-900">
+                              {isLoading ? "..." : segment.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex h-full min-h-40 items-center gap-4 border-l-4 border-teal-400 bg-teal-50 px-5 py-4">
+                    <UsersRound className="h-8 w-8 shrink-0 text-teal-600" />
+                    <div>
+                      <p className="text-sm font-medium text-teal-700">Access coverage</p>
+                      <p className="mt-1 text-2xl font-semibold text-teal-950">
+                        {isLoading ? "..." : users.length} staff/admin user
+                        {users.length === 1 ? "" : "s"}
+                      </p>
+                      <p className="mt-1 text-sm text-teal-700">
+                        Manage campus response coverage from user management.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          ) : (
+            !isLoading && (
+              <div className="p-6 text-sm text-slate-500 sm:p-8">
                 No dashboard modules are available for your current permissions.
               </div>
-            )}
-          </div>
-        </div>
+            )
+          )}
+        </section>
 
-        {(canViewTickets || canViewCategories) && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* ── Recent tickets ────────────────────────────── */}
-          {canViewTickets && (
+        {/* ── Recent tickets ────────────────────────────── */}
+        {canViewTickets && (
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -296,12 +391,12 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="space-y-2">
-              {recentTickets.length === 0 && (
+              {ticketSummary.recentTickets.length === 0 && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
                   {isLoading ? "Loading tickets..." : "No tickets found."}
                 </div>
               )}
-              {recentTickets.map((ticket) => (
+              {ticketSummary.recentTickets.map((ticket) => (
                 <Link
                   key={ticket.id}
                   href={`/admin/tickets/${ticket.id}`}
@@ -327,72 +422,10 @@ export default function AdminDashboardPage() {
               ))}
             </div>
           </div>
-          )}
-
-          {/* ── Category breakdown ────────────────────────── */}
-          {canViewCategories && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-teal-600" />
-              <h2 className="text-base font-semibold text-slate-900">Category Breakdown</h2>
-            </div>
-
-            <div className="space-y-2">
-              {categoryBreakdown.length === 0 && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                  {isLoading ? "Loading categories..." : "No active categories found."}
-                </div>
-              )}
-              {categoryBreakdown.map((cat) => (
-                <div
-                  key={cat.id}
-                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="text-sm font-medium text-slate-900">{cat.name}</p>
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-xs font-medium ${categoryPriorityBadge[cat.priority_level]}`}
-                      >
-                        {cat.priority_level}
-                      </span>
-                    </div>
-                    {canViewTickets ? (
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {cat.open} open of {cat.count} total
-                      </p>
-                    ) : (
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        Active for student submissions
-                      </p>
-                    )}
-                  </div>
-                  {/* Bar */}
-                  {canViewTickets && (
-                  <div className="w-20 shrink-0">
-                    <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className="h-full rounded-full bg-[#1E3A8A] transition-all"
-                        style={{
-                          width: cat.count ? `${(cat.open / cat.count) * 100}%` : "0%",
-                        }}
-                      />
-                    </div>
-                  </div>
-                  )}
-                  <span className="w-6 shrink-0 text-right text-sm font-semibold text-slate-700">
-                    {canViewTickets ? cat.count : ""}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-          )}
-        </div>
         )}
 
         {/* ── Quick links ───────────────────────────────────── */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {quickLinks.map((item) => (
             <Link
               key={item.href}
