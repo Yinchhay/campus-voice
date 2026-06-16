@@ -4,29 +4,21 @@ import Link from "next/link";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Activity,
   ArrowRight,
   BarChart3,
   CheckCircle2,
   Clock,
   FileText,
   Inbox,
-  ShieldCheck,
-  Tag,
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import {
-  listAdminCategories,
-  listAdminPermissions,
-  listAdminRoles,
-  type AdminPermission,
-  type AdminRoleDetail,
-} from "@/lib/admin-api";
 import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
 import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
 import { staffNav } from "@/lib/staff-nav";
 import { useRbacPermissions } from "@/lib/rbac";
-import type { Category, TicketPriority, TicketStatus } from "@/lib/types";
+import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -103,6 +95,11 @@ function isSameLocalDay(timestamp: string, reference: Date) {
   );
 }
 
+function barWidth(value: number, max: number) {
+  if (value <= 0 || max <= 0) return 0;
+  return Math.max(8, Math.round((value / max) * 100));
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -112,9 +109,6 @@ export default function StaffDashboardPage() {
     isLoading: isPermissionLoading,
   } = useRbacPermissions();
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [roles, setRoles] = useState<AdminRoleDetail[]>([]);
-  const [permissions, setPermissions] = useState<AdminPermission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
@@ -128,25 +122,11 @@ export default function StaffDashboardPage() {
       setPageError(null);
 
       try {
-        const [ticketRows, categoryRows, roleRows, permissionRows] = await Promise.all([
-          hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)
-            ? listStaffTickets()
-            : Promise.resolve([]),
-          hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission)
-            ? listAdminCategories()
-            : Promise.resolve([]),
-          hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission)
-            ? listAdminRoles()
-            : Promise.resolve([]),
-          hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission)
-            ? listAdminPermissions()
-            : Promise.resolve([]),
-        ]);
+        const ticketRows = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)
+          ? await listStaffTickets()
+          : [];
         if (!isMounted) return;
         setTickets(ticketRows);
-        setCategories(categoryRows);
-        setRoles(roleRows);
-        setPermissions(permissionRows);
       } catch (error) {
         if (isMounted) {
           setPageError(extractApiError(error, "Failed to load staff dashboard."));
@@ -164,10 +144,6 @@ export default function StaffDashboardPage() {
   }, [hasPermission, isPermissionLoading]);
 
   const canViewTickets = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
-  const canViewCategories = hasPermission(DASHBOARD_MODULES.categoryManagement.requiredPermission);
-  const canViewRoles = hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission);
-  const canViewPermissions =
-    canViewRoles && hasPermission(DASHBOARD_MODULES.accessControls.requiredPermission);
 
   const ticketSummary = useMemo(() => {
     const today = new Date();
@@ -197,53 +173,55 @@ export default function StaffDashboardPage() {
     return summary;
   }, [tickets]);
 
-  const activeCategories = useMemo(
-    () => categories.filter((category) => category.is_active),
-    [categories],
+  const hasOverviewModules = canViewTickets;
+
+  const largestFocusValue = Math.max(
+    ticketSummary.submitted,
+    ticketSummary.inProgress,
+    ticketSummary.highPriority,
+    ticketSummary.resolvedToday,
   );
 
-  const stats = [
-    ...(canViewTickets
-      ? [
-          { label: "All Tickets", value: ticketSummary.total, tone: "text-slate-900" },
-          { label: "Open Cases", value: ticketSummary.open, tone: "text-blue-700" },
-          { label: "In Progress", value: ticketSummary.inProgress, tone: "text-amber-700" },
-          { label: "High Priority", value: ticketSummary.highPriority, tone: "text-red-700" },
-          { label: "Resolved Today", value: ticketSummary.resolvedToday, tone: "text-emerald-700" },
-        ]
-      : []),
-    ...(canViewCategories
-      ? [
-          {
-            label: "Active Categories",
-            value: activeCategories.length,
-            tone: "text-violet-700",
-          },
-          {
-            label: "Total Categories",
-            value: categories.length,
-            tone: "text-slate-900",
-          },
-        ]
-      : []),
-    ...(canViewRoles
-      ? [
-          {
-            label: "RBAC Roles",
-            value: roles.length,
-            tone: "text-indigo-700",
-          },
-        ]
-      : []),
-    ...(canViewPermissions
-      ? [
-          {
-            label: "Permissions",
-            value: permissions.length,
-            tone: "text-slate-700",
-          },
-        ]
-      : []),
+  const focusSignals = [
+    {
+      label: "Needs review",
+      value: ticketSummary.submitted,
+      detail: "New submissions waiting for a first update",
+      bar: barWidth(ticketSummary.submitted, largestFocusValue),
+      color: "bg-slate-700",
+      icon: <Inbox className="h-4 w-4" />,
+    },
+    {
+      label: "Being handled",
+      value: ticketSummary.inProgress,
+      detail: "Cases already moved into progress",
+      bar: barWidth(ticketSummary.inProgress, largestFocusValue),
+      color: "bg-amber-400",
+      icon: <Clock className="h-4 w-4" />,
+    },
+    {
+      label: "High priority",
+      value: ticketSummary.highPriority,
+      detail: "Urgent open cases to review first",
+      bar: barWidth(ticketSummary.highPriority, largestFocusValue),
+      color: "bg-red-500",
+      icon: <TriangleAlert className="h-4 w-4" />,
+    },
+  ];
+
+  const focusTiles = [
+    {
+      label: "Open cases",
+      value: ticketSummary.open,
+      detail: "Assigned cases not resolved yet",
+      className: "border-blue-200 bg-blue-50 text-blue-900",
+    },
+    {
+      label: "Resolved today",
+      value: ticketSummary.resolvedToday,
+      detail: "Cleared in this local day",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    },
   ];
 
   return (
@@ -254,29 +232,120 @@ export default function StaffDashboardPage() {
       navItems={staffNav}
     >
       <div className="space-y-6">
-        {/* ── Stats ────────────────────────────────────────── */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex items-center gap-2 text-slate-700 mb-5">
-            <BarChart3 className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-900">Overview</h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {stats.map((s) => (
-              <div key={s.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">{s.label}</p>
-                <p className={`mt-1 text-2xl font-semibold ${s.tone}`}>
-                  {isLoading ? "..." : s.value}
-                </p>
+        {/* ── Overview ─────────────────────────────────────── */}
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 bg-slate-50/70 px-6 py-5 sm:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-slate-700">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-slate-900">Overview</h2>
               </div>
-            ))}
+              {canViewTickets && (
+                <span className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+                  {isLoading
+                    ? "Loading queue"
+                    : `${ticketSummary.highPriority} urgent case${
+                        ticketSummary.highPriority === 1 ? "" : "s"
+                      }`}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
 
-        {stats.length === 0 && !isLoading && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            No dashboard modules are available for your current permissions.
+          {hasOverviewModules ? (
+          <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_1.6fr]">
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Triage focus</p>
+                <div className="mt-2 flex items-end gap-3">
+                  <p className="text-5xl font-semibold tracking-tight text-slate-950">
+                    {isLoading ? "..." : ticketSummary.submitted}
+                  </p>
+                  <p className="pb-2 text-sm text-slate-500">
+                    new submission{ticketSummary.submitted === 1 ? "" : "s"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {focusTiles.map((tile) => (
+                  <div key={tile.label} className={`border-l-4 px-4 py-3 ${tile.className}`}>
+                    <p className="text-xs font-medium">{tile.label}</p>
+                    <p className="mt-1 text-2xl font-semibold">{isLoading ? "..." : tile.value}</p>
+                    <p className="mt-1 text-xs opacity-75">{tile.detail}</p>
+                  </div>
+                ))}
+              </div>
+
+              {canViewTickets && (
+                <Link
+                  href="/staff/tickets?filter=SUBMITTED"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[#1E3A8A] hover:text-blue-700"
+                >
+                  Start triage
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              )}
+            </div>
+
+            <div className="space-y-5">
+              <div className="space-y-3">
+                {focusSignals.map((signal) => (
+                  <div key={signal.label} className="grid gap-2 sm:grid-cols-[9rem_1fr_3rem] sm:items-center">
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <span className="text-slate-400">{signal.icon}</span>
+                      {signal.label}
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={`h-full rounded-full ${signal.color}`}
+                        style={{ width: `${isLoading ? 0 : signal.bar}%` }}
+                      />
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {isLoading ? "..." : signal.value}
+                      </p>
+                    </div>
+                    <p className="text-xs text-slate-500 sm:col-start-2 sm:col-span-2">
+                      {signal.detail}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-slate-100 pt-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <Activity className="h-4 w-4 text-blue-500" />
+                  Ticket summary
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 text-sm sm:block sm:border-b-0 sm:pb-0">
+                    <span className="text-slate-500">All assigned</span>
+                    <p className="font-semibold text-slate-900">{isLoading ? "..." : ticketSummary.total}</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 text-sm sm:block sm:border-b-0 sm:pb-0">
+                    <span className="text-slate-500">Open cases</span>
+                    <p className="font-semibold text-blue-700">{isLoading ? "..." : ticketSummary.open}</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-sm sm:block">
+                    <span className="text-slate-500">Cleared today</span>
+                    <p className="font-semibold text-emerald-700">
+                      {isLoading ? "..." : ticketSummary.resolvedToday}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+          ) : (
+            !isLoading && (
+              <div className="p-6 text-sm text-slate-500 sm:p-8">
+                No dashboard modules are available for your current permissions.
+              </div>
+            )
+          )}
+        </section>
 
         {/* ── Recent tickets ────────────────────────────────── */}
         {canViewTickets && (
@@ -352,63 +421,6 @@ export default function StaffDashboardPage() {
         </div>
         )}
 
-        {/* ── Category overview ─────────────────────────────── */}
-        {canViewCategories && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Tag className="h-5 w-5 text-violet-600" />
-                <h2 className="text-lg font-semibold text-slate-900">Category Overview</h2>
-              </div>
-              <Link
-                href="/staff/categories"
-                className="inline-flex items-center gap-1 text-sm font-medium text-[#1E3A8A] hover:text-blue-700"
-              >
-                Manage
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              {isLoading && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                  Loading categories...
-                </div>
-              )}
-              {!isLoading && categories.length === 0 && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                  No categories are available yet.
-                </div>
-              )}
-              {!isLoading &&
-                categories.slice(0, 6).map((category) => (
-                  <div
-                    key={category.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-semibold text-slate-900">
-                        {category.name}
-                      </p>
-                      <span
-                        className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${
-                          category.is_active
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {category.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">
-                      {category.description}
-                    </p>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
         {/* ── Quick actions ─────────────────────────────────── */}
         <div className="grid gap-4 sm:grid-cols-2">
           {canViewTickets && (
@@ -445,67 +457,6 @@ export default function StaffDashboardPage() {
             </div>
             <ArrowRight className="ml-auto h-4 w-4 text-slate-400" />
           </Link>
-          )}
-
-          {canViewCategories && (
-            <Link
-              href={DASHBOARD_MODULES.categoryManagement.href.staff}
-              className="flex items-center gap-4 rounded-2xl border border-violet-100 bg-violet-50 p-5 transition hover:border-violet-200"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-                <Tag className="h-5 w-5 text-violet-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-violet-950">
-                  {DASHBOARD_MODULES.categoryManagement.label}
-                </p>
-                <p className="mt-0.5 text-sm text-violet-700">
-                  {activeCategories.length} active categor
-                  {activeCategories.length === 1 ? "y" : "ies"}
-                </p>
-              </div>
-              <ArrowRight className="ml-auto h-4 w-4 text-violet-400" />
-            </Link>
-          )}
-
-          {canViewRoles && (
-            <Link
-              href={DASHBOARD_MODULES.roleManagement.href.staff}
-              className="flex items-center gap-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-5 transition hover:border-indigo-200"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-                <ShieldCheck className="h-5 w-5 text-indigo-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-indigo-950">
-                  {DASHBOARD_MODULES.roleManagement.label}
-                </p>
-                <p className="mt-0.5 text-sm text-indigo-700">
-                  {roles.length} RBAC role{roles.length === 1 ? "" : "s"}
-                </p>
-              </div>
-              <ArrowRight className="ml-auto h-4 w-4 text-indigo-400" />
-            </Link>
-          )}
-
-          {canViewPermissions && (
-            <Link
-              href={DASHBOARD_MODULES.accessControls.href.staff}
-              className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
-                <BarChart3 className="h-5 w-5 text-slate-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-slate-900">
-                  {DASHBOARD_MODULES.accessControls.label}
-                </p>
-                <p className="mt-0.5 text-sm text-slate-600">
-                  {permissions.length} permission{permissions.length === 1 ? "" : "s"} available
-                </p>
-              </div>
-              <ArrowRight className="ml-auto h-4 w-4 text-slate-400" />
-            </Link>
           )}
         </div>
       </div>
