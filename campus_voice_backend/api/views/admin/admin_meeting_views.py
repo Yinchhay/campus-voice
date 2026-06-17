@@ -188,17 +188,20 @@ class AdminMeetingSlotDetailView(APIView):
         
         
 class AdminBookingListView(APIView):
-    """List all bookings across all tickets for the logged-in admin."""
+    """List bookings. Admins see all bookings; staff see bookings for their slots."""
     authentication_classes = [JWTAuthentication]
     permission_classes = [HasResourcePermission]
     resource = 'meeting'
     
     def get(self, request):
-        bookings = StudentMeetingBooking.objects.filter(
-            meeting_slot__staff_member=request.user
-        ).select_related(
+        bookings = StudentMeetingBooking.objects.select_related(
             'meeting_slot', 'ticket', 'student'
-        ).order_by('-booked_at')
+        )
+
+        if request.user.role != request.user.Role.ADMIN:
+            bookings = bookings.filter(meeting_slot__staff_member=request.user)
+
+        bookings = bookings.order_by('-booked_at')
         
         serializer = StudentMeetingBookingSerializer(bookings, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

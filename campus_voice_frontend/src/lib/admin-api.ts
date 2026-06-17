@@ -147,6 +147,18 @@ export type AdminEmailSetting = {
   updated_at: string | null;
 };
 
+export type AdminProfanityWord = {
+  id: number;
+  word: string;
+  created_at: string;
+};
+
+export type ChangePasswordPayload = {
+  current_password: string;
+  new_password: string;
+  confirm_new_password: string;
+};
+
 export async function getCurrentStaffAccount() {
   const response = await api.get<BackendAdminMeResponse>("/admin/me");
   const { id: _id, ...account } = response.data.user;
@@ -218,6 +230,33 @@ export async function updateAdminEmailSetting(ticket_notification_email: string)
   const response = await api.put<AdminEmailSetting>("/admin/settings/email", {
     ticket_notification_email,
   });
+  return response.data;
+}
+
+export async function listAdminProfanityWords() {
+  const response = await api.get<AdminProfanityWord[]>("/admin/settings/profanity-words");
+  return response.data;
+}
+
+export async function createAdminProfanityWord(word: string) {
+  const response = await api.post<AdminProfanityWord>("/admin/settings/profanity-words", {
+    word,
+  });
+  return response.data;
+}
+
+export async function deleteAdminProfanityWord(wordId: number) {
+  const response = await api.delete<{ message?: string }>(
+    `/admin/settings/profanity-words/${wordId}`,
+  );
+  return response.data;
+}
+
+export async function changeAdminPassword(payload: ChangePasswordPayload) {
+  const response = await api.post<{ message: string }>(
+    "/admin/change-password",
+    payload,
+  );
   return response.data;
 }
 

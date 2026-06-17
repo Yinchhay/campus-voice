@@ -42,7 +42,7 @@ const statusLabel: Record<TicketStatus, string> = {
 };
 
 const priorityBadgeClass: Record<TicketPriority, string> = {
-  HIGH: "bg-red-50 text-red-700 border-red-200",
+  HIGH: "bg-red-100 text-red-900 border-red-300",
   MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
   LOW: "bg-slate-100 text-slate-600 border-slate-200",
 };
@@ -85,6 +85,16 @@ function formatDate(iso?: string) {
     month: "short",
     year: "numeric",
   });
+}
+
+const priorityRank: Record<TicketPriority, number> = {
+  HIGH: 0,
+  MEDIUM: 1,
+  LOW: 2,
+};
+
+function ticketSortTime(ticket: StaffTicket) {
+  return Date.parse(ticket.created_at ?? ticket.resolved_at ?? "") || 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,9 +167,9 @@ export default function StaffTicketsPage() {
         return true;
       })
       .sort((a, b) => {
-        const aTime = a.resolved_at ? new Date(a.resolved_at).getTime() : 0;
-        const bTime = b.resolved_at ? new Date(b.resolved_at).getTime() : 0;
-        return bTime - aTime;
+        const priorityDiff = priorityRank[a.priority] - priorityRank[b.priority];
+        if (priorityDiff !== 0) return priorityDiff;
+        return ticketSortTime(b) - ticketSortTime(a);
       });
   }, [tickets, statusFilter, priorityFilter, categoryFilter, search]);
 
@@ -298,7 +308,7 @@ export default function StaffTicketsPage() {
                 href={`/staff/tickets/${ticket.id}`}
                 className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:shadow-md sm:flex-row sm:items-center sm:justify-between ${
                   isHighPriority
-                    ? "border-red-200 bg-red-50 hover:border-red-300"
+                    ? "border-red-300 bg-red-100/80 hover:border-red-400 hover:bg-red-100"
                     : "border-slate-200 bg-white hover:border-blue-200"
                 }`}
               >
