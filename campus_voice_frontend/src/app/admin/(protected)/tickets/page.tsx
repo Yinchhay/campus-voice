@@ -33,7 +33,7 @@ const statusLabel: Record<TicketStatus, string> = {
   RESOLVED: "Resolved",
 };
 const priorityBadgeClass: Record<TicketPriority, string> = {
-  HIGH: "bg-red-50 text-red-700 border-red-200",
+  HIGH: "bg-red-100 text-red-900 border-red-300",
   MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
   LOW: "bg-slate-100 text-slate-600 border-slate-200",
 };
@@ -53,6 +53,16 @@ function formatDate(iso?: string) {
     month: "short",
     year: "numeric",
   });
+}
+
+const priorityRank: Record<TicketPriority, number> = {
+  HIGH: 0,
+  MEDIUM: 1,
+  LOW: 2,
+};
+
+function ticketSortTime(ticket: AdminTicket) {
+  return Date.parse(ticket.created_at ?? ticket.resolved_at ?? "") || 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,10 +124,11 @@ export default function AdminTicketsPage() {
         }
         return true;
       })
-      .sort(
-        (a, b) =>
-          new Date(b.resolved_at ?? "").getTime() - new Date(a.resolved_at ?? "").getTime(),
-      );
+      .sort((a, b) => {
+        const priorityDiff = priorityRank[a.priority] - priorityRank[b.priority];
+        if (priorityDiff !== 0) return priorityDiff;
+        return ticketSortTime(b) - ticketSortTime(a);
+      });
   }, [tickets, statusFilter, priorityFilter, categoryFilter, search]);
 
   const categoryById = useMemo(
@@ -288,7 +299,7 @@ export default function AdminTicketsPage() {
                   href={`/admin/tickets/${ticket.id}`}
                   className={`flex flex-col gap-3 px-5 py-4 transition sm:grid sm:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] sm:items-center sm:gap-4 ${
                     isHighPriority
-                      ? "bg-red-50/70 hover:bg-red-50"
+                      ? "bg-red-100/70 hover:bg-red-100"
                       : "hover:bg-slate-50"
                   }`}
                 >
