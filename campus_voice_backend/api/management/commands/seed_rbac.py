@@ -13,38 +13,47 @@ PREDEFINED_PERMISSIONS = [
     ('ticket',     'update', 'Can update tickets'),
     ('ticket',     'delete', 'Can delete tickets'),
     ('ticket',     'export', 'Can export tickets'),
+    
     # Category
     ('category',   'view',   'Can view categories'),
     ('category',   'create', 'Can create categories'),
     ('category',   'update', 'Can update categories'),
     ('category',   'delete', 'Can delete categories'),
+    
     # Message
     ('message',    'view',   'Can view messages'),
     ('message',    'create', 'Can send messages'),
+    
     # Resolution
     ('resolution', 'view',   'Can view resolutions'),
     ('resolution', 'create', 'Can create resolutions'),
     ('resolution', 'update', 'Can update resolutions'),
+    
     # User management
     ('user',       'view',   'Can view users'),
     ('user',       'create', 'Can create users'),
     ('user',       'update', 'Can update users'),
     ('user',       'delete', 'Can delete users'),
+    
     # Role management
     ('role',       'view',   'Can view roles'),
     ('role',       'create', 'Can create roles'),
     ('role',       'update', 'Can update roles'),
     ('role',       'delete', 'Can delete roles'),
+    
     # Permission management
     ('permission', 'view',   'Can view permissions'),
+    
     # Setting management
     ('setting',    'view',   'Can view settings'),
     ('setting',    'update', 'Can update settings'),
+    
     # Meeting
     ('meeting',    'view',   'Can view meetings'),
     ('meeting',    'create', 'Can create meeting slots'),
     ('meeting',    'update', 'Can update meeting slots'),
     ('meeting',    'delete', 'Can delete meeting slots'),
+    
 ]
 
 

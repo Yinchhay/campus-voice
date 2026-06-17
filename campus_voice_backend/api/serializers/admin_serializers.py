@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from api.models import AdminRole, UserRole, Permission
+from api.models import AdminRole, UserRole, Permission, ProfanityWord
 
 User = get_user_model()
 
@@ -160,3 +160,11 @@ class AdminChangePasswordSerializer(serializers.Serializer):
         if data['new_password'] != data['confirm_new_password']:
             raise serializers.ValidationError({"confirm_new_password": "New passwords do not match."})
         return data
+    
+class AdminProfanityWordSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = ProfanityWord
+        fields = ['id', 'word', 'created_at']
+        read_only_fields = ['id', 'created_at']
+        

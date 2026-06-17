@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from api.models import Ticket, Category, TicketAttachment
+from api.models import Ticket, Category, TicketAttachment, ProfanityWord
 from .message_serializers import PublicMessageSerializer, AdminMessageSerializer
 from .attachment_serializers import TicketAttachmentSerializer, ResolutionAttachmentSerializer
+from better_profanity import profanity
 
 
 class PublicTicketSerializer(serializers.ModelSerializer):
@@ -41,6 +42,21 @@ class PublicTicketSerializer(serializers.ModelSerializer):
                 uploaded_by=request.user,
             )
         return ticket
+    
+    def get_profanity_filter(self):
+        # Fetch custom words from the database
+        custom_words = list(ProfanityWord.objects.values_list('word', flat=True))
+        # Add them to the profanity filter alongside the defaults
+        profanity.add_censor_words(custom_words)
+        return profanity
+
+    def validate_title(self, value):
+        pf = self.get_profanity_filter()
+        return pf.censor(value)
+    
+    def validate_description(self, value):
+        pf = self.get_profanity_filter()
+        return pf.censor(value)
 
 
 class PublicTicketDetailSerializer(serializers.ModelSerializer):

@@ -24,6 +24,8 @@ from api.views import (
     GoogleCalendarConnectView,
     GoogleCalendarCallbackView,
     GoogleCalendarStatusView,
+    AdminProfanityWordListView, 
+    AdminProfanityWordDetailView,
 )
 
 app_name = 'admin'
@@ -94,4 +96,7 @@ urlpatterns = [
     #                       Admin Email Setting Management                         #
     # ---------------------------------------------------------------------------- #
     path('settings/email', AdminEmailSettingView.as_view(), name='admin_email_setting'),
+    
+    path('settings/profanity-words', AdminProfanityWordListView.as_view(), name='admin_profanity_list'),
+    path('settings/profanity-words/<int:word_id>', AdminProfanityWordDetailView.as_view(), name='admin_profanity_detail'),
 ]

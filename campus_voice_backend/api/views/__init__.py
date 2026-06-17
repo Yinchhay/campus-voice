@@ -44,6 +44,7 @@ from .admin.admin_meeting_views import (
     GoogleCalendarCallbackView,
     GoogleCalendarStatusView,
 )
+from .admin.admin_profanity_views import AdminProfanityWordListView, AdminProfanityWordDetailView
 
 __all__ = [
 
@@ -106,9 +107,6 @@ __all__ = [
     # Admin Resolution
     'AdminResolutionView',
     
-    # Admin Setting
-    'AdminEmailSettingView',
-    
     # Admin Meeting
     'AdminMeetingSlotListView',
     'AdminMeetingSlotDetailView',
@@ -118,4 +116,11 @@ __all__ = [
     'GoogleCalendarCallbackView',
     'GoogleCalendarStatusView',
 
+    # Admin Setting
+    'AdminEmailSettingView',
+    
+    # Admin Profanity
+    'AdminProfanityWordListView',
+    'AdminProfanityWordDetailView',
+    
 ]
