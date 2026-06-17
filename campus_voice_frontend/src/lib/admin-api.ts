@@ -153,6 +153,12 @@ export type AdminProfanityWord = {
   created_at: string;
 };
 
+export type ChangePasswordPayload = {
+  current_password: string;
+  new_password: string;
+  confirm_new_password: string;
+};
+
 export async function getCurrentStaffAccount() {
   const response = await api.get<BackendAdminMeResponse>("/admin/me");
   const { id: _id, ...account } = response.data.user;
@@ -242,6 +248,14 @@ export async function createAdminProfanityWord(word: string) {
 export async function deleteAdminProfanityWord(wordId: number) {
   const response = await api.delete<{ message?: string }>(
     `/admin/settings/profanity-words/${wordId}`,
+  );
+  return response.data;
+}
+
+export async function changeAdminPassword(payload: ChangePasswordPayload) {
+  const response = await api.post<{ message: string }>(
+    "/admin/change-password",
+    payload,
   );
   return response.data;
 }

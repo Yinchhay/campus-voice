@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   CalendarCheck,
   ExternalLink,
-  KeyRound,
   Lock,
   LogOut,
   RefreshCw,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import { ChangePasswordSettings } from "@/components/settings/ChangePasswordSettings";
 import { EmailNotificationSettings } from "@/components/settings/EmailNotificationSettings";
 import { ProfanityWordSettings } from "@/components/settings/ProfanityWordSettings";
 import {
@@ -166,12 +166,6 @@ export default function StaffSettingsPage() {
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [calendarNotice, setCalendarNotice] = useState<string | null>(null);
 
-  // Security
-  const [currentPw, setCurrentPw] = useState("");
-  const [newPw, setNewPw] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-  const [pwError, setPwError] = useState("");
-
   useEffect(() => {
     let isMounted = true;
 
@@ -264,26 +258,6 @@ export default function StaffSettingsPage() {
     } finally {
       setCalendarActionLoading(false);
     }
-  }
-
-  function handleChangePassword() {
-    if (!currentPw || !newPw || !confirmPw) {
-      setPwError("All password fields are required.");
-      return;
-    }
-    if (newPw.length < 8) {
-      setPwError("New password must be at least 8 characters.");
-      return;
-    }
-    if (newPw !== confirmPw) {
-      setPwError("Passwords do not match.");
-      return;
-    }
-    setPwError("");
-    setCurrentPw("");
-    setNewPw("");
-    setConfirmPw("");
-    alert("Password changed successfully.");
   }
 
   return (
@@ -470,54 +444,7 @@ export default function StaffSettingsPage() {
           </div>
         </Section>
 
-        {/* ── Security ──────────────────────────────────────── */}
-        <Section
-          icon={<KeyRound className="h-5 w-5 text-slate-600" />}
-          title="Security"
-          description="Change your password to keep your account secure."
-        >
-          <FieldRow label="Current password">
-            <TextInput
-              id="staff-current-pw"
-              type="password"
-              value={currentPw}
-              onChange={setCurrentPw}
-              placeholder="••••••••"
-            />
-          </FieldRow>
-          <FieldRow label="New password">
-            <TextInput
-              id="staff-new-pw"
-              type="password"
-              value={newPw}
-              onChange={setNewPw}
-              placeholder="Min. 8 characters"
-            />
-          </FieldRow>
-          <FieldRow label="Confirm new password">
-            <TextInput
-              id="staff-confirm-pw"
-              type="password"
-              value={confirmPw}
-              onChange={setConfirmPw}
-              placeholder="Repeat new password"
-            />
-          </FieldRow>
-
-          {pwError && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{pwError}</p>
-          )}
-
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={handleChangePassword}
-              className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-            >
-              Change password
-            </button>
-          </div>
-        </Section>
+        <ChangePasswordSettings />
 
         {/* ── Session ───────────────────────────────────────── */}
         <Section
