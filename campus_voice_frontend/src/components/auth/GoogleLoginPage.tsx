@@ -10,6 +10,8 @@ import {
 	ShieldCheck,
 	UsersRound,
 } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 
 const ERROR_MESSAGES: Record<string, string> = {
 	AccessDenied: "Sign-in failed. Please use your @paragoniu.edu.kh account.",
@@ -64,7 +66,48 @@ export function RoleLoginPage({
 
 	return (
 		<main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
-			<section className="mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-10 sm:px-6 lg:px-8">
+			{/* ── Navigation ── */}
+			<nav className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
+				<div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+					{/* Logo */}
+					<Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
+						<Image
+							src="/logo.png"
+							alt="Campus Voice logo"
+							width={36}
+							height={36}
+							className="h-9 w-9 object-contain"
+							priority
+						/>
+						<span className="text-lg font-semibold tracking-tight text-slate-900">
+							Campus Voice
+						</span>
+					</Link>
+
+					{/* Back to Home */}
+					<Link
+						href="/"
+						className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 20 20"
+							fill="currentColor"
+							className="h-4 w-4"
+							aria-hidden="true"
+						>
+							<path
+								fillRule="evenodd"
+								d="M17 10a.75.75 0 01-.75.75H6.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L6.612 9.25H16.25A.75.75 0 0117 10z"
+								clipRule="evenodd"
+							/>
+						</svg>
+						Back to Home
+					</Link>
+				</div>
+			</nav>
+
+			<section className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center px-4 py-10 sm:px-6 lg:px-8">
 				<div className="grid w-full gap-8 lg:grid-cols-2">
 					<div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
 						<div className="mb-8 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700">
