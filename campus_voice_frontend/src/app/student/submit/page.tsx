@@ -20,6 +20,7 @@ import {
   createStudentTicket,
   listStudentCategories,
   type StudentCategory,
+  type StudentTicket,
 } from "@/lib/student-api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -119,6 +120,10 @@ export default function SubmitReportPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedTicket, setSubmittedTicket] = useState<StudentTicket | null>(
+    null,
+  );
+  const [contentWasCensored, setContentWasCensored] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [categories, setCategories] = useState<StudentCategory[]>([]);
@@ -257,13 +262,20 @@ export default function SubmitReportPage() {
     setSubmitError(null);
 
     try {
-      await createStudentTicket({
+      const submittedTitle = form.title.trim();
+      const submittedDescription = form.description.trim();
+      const ticket = await createStudentTicket({
         category: Number(form.category_id),
-        title: form.title.trim(),
-        description: form.description.trim(),
+        title: submittedTitle,
+        description: submittedDescription,
         is_anonymous: form.is_anonymous,
         attachments: form.attachments,
       });
+      setSubmittedTicket(ticket);
+      setContentWasCensored(
+        ticket.title !== submittedTitle ||
+          ticket.description !== submittedDescription,
+      );
       setSubmitted(true);
     } catch (error) {
       setSubmitError(extractApiError(error, "Failed to submit report."));
@@ -288,6 +300,23 @@ export default function SubmitReportPage() {
               Your report has been received. You can track its status from your
               dashboard.
             </p>
+            {contentWasCensored && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left">
+                <p className="flex items-start gap-2 text-sm font-medium text-amber-800">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                  Some wording was automatically masked before your report was
+                  saved.
+                </p>
+                <p className="mt-1 text-sm text-amber-700">
+                  You can review the final version from your dashboard.
+                </p>
+              </div>
+            )}
+            {submittedTicket && (
+              <p className="mt-3 text-xs font-medium text-slate-500">
+                Ticket ID: {submittedTicket.public_ticket_id}
+              </p>
+            )}
             <p className="mt-2 text-sm text-slate-500">
               Redirecting to your dashboard in a few seconds...
             </p>
@@ -463,6 +492,11 @@ export default function SubmitReportPage() {
                       touched.description ? errors.description : undefined
                     }
                   />
+                  <p className="mt-2 flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+                    <ShieldCheck className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-emerald-600" />
+                    Inappropriate language may be automatically masked before
+                    the report is saved.
+                  </p>
                 </div>
               </div>
             </div>

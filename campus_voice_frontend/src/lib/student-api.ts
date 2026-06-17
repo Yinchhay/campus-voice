@@ -115,13 +115,25 @@ export async function createStudentTicket(payload: CreateStudentTicketPayload) {
     }
 
     const tickets = await listMyTickets();
+    const recentCutoff = Date.now() - 120_000;
     const createdTicket = tickets
       .filter(
-        (ticket) =>
-          ticket.category_id === payload.category &&
-          ticket.title === payload.title &&
-          ticket.description === payload.description &&
-          ticket.is_anonymous === payload.is_anonymous,
+        (ticket) => {
+          if (
+            ticket.category_id !== payload.category ||
+            ticket.is_anonymous !== payload.is_anonymous
+          ) {
+            return false;
+          }
+
+          const exactContentMatch =
+            ticket.title === payload.title &&
+            ticket.description === payload.description;
+          const createdAt = ticket.created_at ? Date.parse(ticket.created_at) : 0;
+          const recentTicket = createdAt > recentCutoff;
+
+          return exactContentMatch || recentTicket;
+        },
       )
       .sort((a, b) => {
         const aTime = a.created_at ? Date.parse(a.created_at) : 0;
