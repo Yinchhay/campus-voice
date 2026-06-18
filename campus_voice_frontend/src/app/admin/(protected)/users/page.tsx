@@ -938,23 +938,23 @@ export default function AdminUsersPage() {
                 return (
                   <div
                     key={user.id}
-                    className={`flex flex-col gap-3 px-5 py-4 transition sm:grid sm:grid-cols-[minmax(220px,2fr)_120px_120px_120px_104px_132px] sm:items-center sm:gap-4 ${
+                    className={`flex flex-col gap-4 px-5 py-5 transition sm:grid sm:grid-cols-[minmax(220px,2fr)_120px_120px_120px_104px_132px] sm:items-center sm:gap-4 sm:py-4 ${
                       !active ? "opacity-60" : ""
                     }`}
                   >
                     {/* Account column */}
-                    <div>
+                    <div className="min-w-0">
                       {/* Username (staff/admin) or email (student) as primary identifier */}
                       {method === "credentials" ? (
                         <>
-                          <p className="text-sm font-medium text-slate-900">
+                          <p className="truncate text-base font-semibold text-slate-900 sm:text-sm sm:font-medium">
                             {user.full_name ||
                               [user.first_name, user.last_name]
                                 .filter(Boolean)
                                 .join(" ") ||
                               user.email}
                           </p>
-                          <p className="mt-0.5 text-xs text-slate-400">
+                          <p className="mt-1 truncate text-sm text-slate-500 sm:mt-0.5 sm:text-xs sm:text-slate-400">
                             {user.email}
                           </p>
                           {user.roles && user.roles.length > 0 && (
@@ -971,75 +971,95 @@ export default function AdminUsersPage() {
                           )}
                         </>
                       ) : (
-                        <p className="text-sm font-medium text-slate-900">
+                        <p className="truncate text-base font-semibold text-slate-900 sm:text-sm sm:font-medium">
                           {user.email}
                         </p>
                       )}
                     </div>
 
                     {/* Role badge */}
-                    <span
-                      className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${roleBadge[user.role]}`}
-                    >
-                      {roleIcon[user.role]}
-                      {user.role}
-                    </span>
-
-                    <span className="text-xs text-slate-500">
-                      {formatDate(user.last_login)}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {formatDate(user.created_at)}
-                    </span>
-
-                    {/* Active toggle — students cannot be manually deactivated here */}
-                    {method === "credentials" ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleActive(user)}
-                        disabled={
-                          updatingId === user.id ||
-                          deletingId === user.id ||
-                          !hasPermission(RBAC_PERMISSIONS.user.update)
-                        }
-                        title={
-                          active ? "Deactivate account" : "Activate account"
-                        }
-                        className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                          active
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                            : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-                        }`}
-                      >
-                        {active ? (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        ) : (
-                          <XCircle className="h-3.5 w-3.5" />
-                        )}
-                        {updatingId === user.id
-                          ? "Saving..."
-                          : active
-                            ? "Active"
-                            : "Inactive"}
-                      </button>
-                    ) : (
-                      <span
-                        className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-2 text-xs font-medium ${
-                          active
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-slate-50 text-slate-500"
-                        }`}
-                        title="Student accounts are managed via Google"
-                      >
-                        {active ? (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        ) : (
-                          <XCircle className="h-3.5 w-3.5" />
-                        )}
-                        {active ? "Active" : "Inactive"}
+                    <div className="flex items-center justify-between gap-3 sm:block">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400 sm:hidden">
+                        Role
                       </span>
-                    )}
-                    <div className="flex flex-wrap gap-1.5 sm:justify-center">
+                      <span
+                        className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${roleBadge[user.role]}`}
+                      >
+                        {roleIcon[user.role]}
+                        {user.role}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 sm:block">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400 sm:hidden">
+                        Last login
+                      </span>
+                      <span className="text-sm text-slate-600 sm:text-xs sm:text-slate-500">
+                        {formatDate(user.last_login)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 sm:block">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400 sm:hidden">
+                        Joined
+                      </span>
+                      <span className="text-sm text-slate-600 sm:text-xs sm:text-slate-500">
+                        {formatDate(user.created_at)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 sm:block">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400 sm:hidden">
+                        Status
+                      </span>
+                      {/* Active toggle — students cannot be manually deactivated here */}
+                      {method === "credentials" ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleActive(user)}
+                          disabled={
+                            updatingId === user.id ||
+                            deletingId === user.id ||
+                            !hasPermission(RBAC_PERMISSIONS.user.update)
+                          }
+                          title={
+                            active ? "Deactivate account" : "Activate account"
+                          }
+                          className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                            active
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                              : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                          }`}
+                        >
+                          {active ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5" />
+                          )}
+                          {updatingId === user.id
+                            ? "Saving..."
+                            : active
+                              ? "Active"
+                              : "Inactive"}
+                        </button>
+                      ) : (
+                        <span
+                          className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-2 text-xs font-medium ${
+                            active
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-slate-200 bg-slate-50 text-slate-500"
+                          }`}
+                          title="Student accounts are managed via Google"
+                        >
+                          {active ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5" />
+                          )}
+                          {active ? "Active" : "Inactive"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3 sm:justify-center sm:border-t-0 sm:pt-0">
                       {hasPermission(RBAC_PERMISSIONS.user.update) &&
                         hasPermission(RBAC_PERMISSIONS.role.view) && (
                         <button

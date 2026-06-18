@@ -83,15 +83,26 @@ export function RoleDashboardShell({
 			    ════════════════════════════════════════════════════ */}
 			<header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-md">
 				<div className="flex h-full items-center gap-4 px-4 sm:px-6">
+					{/* Mobile hamburger */}
+					<button
+						type="button"
+						onClick={() => setIsMobileMenuOpen(true)}
+						aria-label="Open navigation menu"
+						aria-expanded={isMobileMenuOpen}
+						aria-controls="mobile-dashboard-navigation"
+						className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100 lg:hidden"
+					>
+						<Menu className="h-5 w-5" />
+					</button>
 
 					{/* Branding */}
-					<div className="flex shrink-0 items-center gap-2.5 lg:w-64">
+					<div className="flex min-w-0 shrink-0 items-center gap-2.5 lg:w-64">
 						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1E3A8A] text-white shadow-sm">
 							<ShieldCheck className="h-4 w-4" />
 						</div>
-						<div>
-							<p className="text-sm font-bold leading-none text-slate-900">Campus Voice</p>
-							<p className="mt-0.5 text-xs leading-none text-slate-500">{roleName} workspace</p>
+						<div className="min-w-0">
+							<p className="truncate text-sm font-bold leading-none text-slate-900">Campus Voice</p>
+							<p className="mt-0.5 truncate text-xs leading-none text-slate-500">{roleName} workspace</p>
 						</div>
 					</div>
 
@@ -169,16 +180,6 @@ export function RoleDashboardShell({
 						)}
 					</div>
 
-					{/* Mobile hamburger */}
-					<button
-						type="button"
-						onClick={() => setIsMobileMenuOpen(true)}
-						aria-label="Open navigation menu"
-						aria-expanded={isMobileMenuOpen}
-						className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100 lg:hidden"
-					>
-						<Menu className="h-5 w-5" />
-					</button>
 				</div>
 			</header>
 
@@ -240,26 +241,29 @@ export function RoleDashboardShell({
 					/>
 
 					{/* Panel */}
-					<div className="absolute left-0 top-0 flex h-full w-[min(18rem,85vw)] flex-col bg-white shadow-2xl">
+					<div
+						id="mobile-dashboard-navigation"
+						className="absolute left-0 right-auto top-0 flex h-full w-[min(18rem,85vw)] flex-col bg-white shadow-2xl"
+					>
 						{/* Header */}
-						<div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-4">
-							<div className="flex items-center gap-2.5">
-								<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1E3A8A] text-white">
-									<ShieldCheck className="h-4 w-4" />
-								</div>
-								<div>
-									<p className="text-sm font-bold text-slate-900">Campus Voice</p>
-									<p className="text-xs text-slate-500">{roleName} workspace</p>
-								</div>
-							</div>
+						<div className="flex items-center gap-3 border-b border-slate-200 px-4 py-4">
 							<button
 								type="button"
 								onClick={closeMobileMenu}
 								aria-label="Close navigation menu"
-								className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+								className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
 							>
 								<X className="h-4 w-4" />
 							</button>
+							<div className="flex min-w-0 items-center gap-2.5">
+								<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1E3A8A] text-white">
+									<ShieldCheck className="h-4 w-4" />
+								</div>
+								<div className="min-w-0">
+									<p className="truncate text-sm font-bold text-slate-900">Campus Voice</p>
+									<p className="truncate text-xs text-slate-500">{roleName} workspace</p>
+								</div>
+							</div>
 						</div>
 
 						{/* Nav links */}
