@@ -21,6 +21,8 @@ from api.services.google_calendar_service import (
     create_calendar_event,
     delete_calendar_event,
 )
+from django.db.models import Q
+from api.utils import get_paginated_response
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +42,8 @@ class AdminMeetingSlotListView(APIView):
             return error
         
         slots = MeetingSlot.objects.filter(ticket=ticket).select_related('staff_member').prefetch_related('student_booking')
-        serializer = MeetingSlotDetailSerializer(slots, many=True)
         
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return get_paginated_response(slots, request, MeetingSlotDetailSerializer)
     
     
     @transaction.atomic
@@ -194,6 +195,7 @@ class AdminBookingListView(APIView):
     resource = 'meeting'
     
     def get(self, request):
+
         bookings = StudentMeetingBooking.objects.select_related(
             'meeting_slot', 'ticket', 'student'
         )

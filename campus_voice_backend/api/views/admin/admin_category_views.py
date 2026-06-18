@@ -6,9 +6,11 @@ from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from api.permissions import HasResourcePermission
 from django.db import transaction
+from django.db.models import Q
 
 from api.models import Category
 from api.serializers import CategorySerializer, CategoryDetailSerializer
+from api.utils import get_paginated_response
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +20,26 @@ class AdminCategoryListView(APIView):
     resource = 'category'
     
     def get(self, request):
+        filters = request.query_params.get('filters', '')
+        sort_by = request.query_params.get('sort_by', 'name')
+        sort_desc = request.query_params.get('sort_desc', 'false').lower() == 'true'
+
         categories = Category.objects.all()
-        serializer = CategorySerializer(categories, many=True)
-    
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        if filters:
+            categories = categories.filter(
+                Q(name__icontains=filters) |
+                Q(description__icontains=filters)
+            )
+
+        allowed_sort_fields = ['name', 'created_at']
+        if sort_by not in allowed_sort_fields:
+            sort_by = 'name'
+
+        order_field = f'-{sort_by}' if sort_desc else sort_by
+        categories = categories.order_by(order_field)
+
+        return get_paginated_response(categories, request, CategorySerializer)
     
     @transaction.atomic
     def post(self, request):

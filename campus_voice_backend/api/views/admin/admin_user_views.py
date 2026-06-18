@@ -5,9 +5,11 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from api.permissions import HasResourcePermission
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 
 from api.models import AdminRole, UserRole
 from api.serializers import AdminUserSerializer
+from api.utils import CustomPageNumberPagination, get_paginated_response
 
 User = get_user_model()
     
@@ -16,16 +18,32 @@ class AdminUserListView(APIView):
     permission_classes = [HasResourcePermission]
     resource = 'user'
     
-    # Need to get everything
     def get(self, request):
+        filters = request.query_params.get('filters', '')
+        sort_by = request.query_params.get('sort_by', 'created_at')
+        sort_desc = request.query_params.get('sort_desc', 'true').lower() == 'true'
+
         users = (
             User.objects
             .filter(role__in=[User.Role.STAFF, User.Role.ADMIN])
             .prefetch_related('admin_roles__role__permissions')
-            .order_by('-created_at')
         )
-        serializer = AdminUserSerializer(users, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        if filters:
+            users = users.filter(
+                Q(email__icontains=filters) |
+                Q(first_name__icontains=filters) |
+                Q(last_name__icontains=filters)
+            )
+
+        allowed_sort_fields = ['created_at', 'email', 'first_name', 'last_name']
+        if sort_by not in allowed_sort_fields:
+            sort_by = 'created_at'
+
+        order_field = f'-{sort_by}' if sort_desc else sort_by
+        users = users.order_by(order_field)
+
+        return get_paginated_response(users, request, AdminUserSerializer)
         
         
     @transaction.atomic

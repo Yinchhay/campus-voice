@@ -15,6 +15,8 @@ from api.serializers.admin_serializers import (
     UserRoleSerializer,
 )
 from api.permissions import HasResourcePermission
+from django.db.models import Q
+from api.utils import get_paginated_response
 
 User = get_user_model()
 
@@ -24,13 +26,26 @@ class AdminRoleListView(APIView):
     resource = 'role'
     
     def get(self, request):
-        roles = (
-            AdminRole.objects
-            .annotate(user_count=Count('user_assignments'))
-            .order_by('name')
-        )
-        serializer = AdminRoleDetailSerializer(roles, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        filters = request.query_params.get('filters', '')
+        sort_by = request.query_params.get('sort_by', 'name')
+        sort_desc = request.query_params.get('sort_desc', 'false').lower() == 'true'
+
+        roles = AdminRole.objects.annotate(user_count=Count('user_assignments'))
+
+        if filters:
+            roles = roles.filter(
+                Q(name__icontains=filters) |
+                Q(description__icontains=filters)
+            )
+
+        allowed_sort_fields = ['name']
+        if sort_by not in allowed_sort_fields:
+            sort_by = 'name'
+
+        order_field = f'-{sort_by}' if sort_desc else sort_by
+        roles = roles.order_by(order_field)
+
+        return get_paginated_response(roles, request, AdminRoleDetailSerializer)
     
     @transaction.atomic
     def post(self, request):
