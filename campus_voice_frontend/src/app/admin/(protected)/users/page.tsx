@@ -19,12 +19,13 @@ import {
   XCircle,
 } from "lucide-react";
 import axios from "axios";
+import { PaginationControls } from "@/components/common/PaginationControls";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import {
   createAdminUser,
   deleteAdminUser,
   listAdminRoles,
-  listAdminUsers,
+  listAdminUsersPage,
   updateAdminUser,
   type AdminRoleDetail,
   type AdminUser,
@@ -109,6 +110,7 @@ const emptyForm: CreateStaffForm = {
   role: "STAFF",
   roleIds: [],
 };
+const DEFAULT_PAGE_SIZE = 20;
 
 function CreateStaffModal({
   onClose,
@@ -683,6 +685,9 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<UserRole | "ALL">("ALL");
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [roles, setRoles] = useState<AdminRoleDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
@@ -701,11 +706,20 @@ export default function AdminUsersPage() {
       setPageError("");
       try {
         const [userRows, roleRows] = await Promise.all([
-          listAdminUsers(),
-          hasPermission(RBAC_PERMISSIONS.role.view) ? listAdminRoles() : Promise.resolve([]),
+          listAdminUsersPage({
+            page,
+            page_size: pageSize,
+            filters: search.trim() || undefined,
+            sort_by: "created_at",
+            sort_desc: true,
+          }),
+          hasPermission(RBAC_PERMISSIONS.role.view)
+            ? listAdminRoles({ sort_by: "name", sort_desc: false })
+            : Promise.resolve([]),
         ]);
         if (isMounted) {
-          setUsers(userRows);
+          setUsers(userRows.results);
+          setTotalUsers(userRows.count);
           setRoles(roleRows);
         }
       } catch (error) {
@@ -721,7 +735,7 @@ export default function AdminUsersPage() {
     return () => {
       isMounted = false;
     };
-  }, [isPermissionLoading, hasPermission]);
+  }, [isPermissionLoading, hasPermission, page, pageSize, search]);
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -752,6 +766,7 @@ export default function AdminUsersPage() {
       role_ids: form.role === "STAFF" ? form.roleIds : [],
     });
     setUsers((prev) => [user, ...prev]);
+    setTotalUsers((prev) => prev + 1);
     return user;
   }
 
@@ -783,6 +798,7 @@ export default function AdminUsersPage() {
     try {
       await deleteAdminUser(user.id);
       setUsers((prev) => prev.filter((row) => row.id !== user.id));
+      setTotalUsers((prev) => Math.max(0, prev - 1));
     } catch (error) {
       setPageError(extractApiError(error, "Failed to delete user."));
     } finally {
@@ -835,7 +851,10 @@ export default function AdminUsersPage() {
               id="user-search"
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               placeholder="Search by name or email…"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
             />
@@ -848,7 +867,10 @@ export default function AdminUsersPage() {
                 <button
                   key={tab.key}
                   type="button"
-                  onClick={() => setRoleFilter(tab.key)}
+                  onClick={() => {
+                    setRoleFilter(tab.key);
+                    setPage(1);
+                  }}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     isActiveTab
                       ? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
@@ -916,23 +938,23 @@ export default function AdminUsersPage() {
                 return (
                   <div
                     key={user.id}
-                    className={`flex flex-col gap-3 px-5 py-4 transition sm:grid sm:grid-cols-[minmax(220px,2fr)_120px_120px_120px_104px_132px] sm:items-center sm:gap-4 ${
+                    className={`flex flex-col gap-4 px-5 py-5 transition sm:grid sm:grid-cols-[minmax(220px,2fr)_120px_120px_120px_104px_132px] sm:items-center sm:gap-4 sm:py-4 ${
                       !active ? "opacity-60" : ""
                     }`}
                   >
                     {/* Account column */}
-                    <div>
+                    <div className="min-w-0">
                       {/* Username (staff/admin) or email (student) as primary identifier */}
                       {method === "credentials" ? (
                         <>
-                          <p className="text-sm font-medium text-slate-900">
+                          <p className="truncate text-base font-semibold text-slate-900 sm:text-sm sm:font-medium">
                             {user.full_name ||
                               [user.first_name, user.last_name]
                                 .filter(Boolean)
                                 .join(" ") ||
                               user.email}
                           </p>
-                          <p className="mt-0.5 text-xs text-slate-400">
+                          <p className="mt-1 truncate text-sm text-slate-500 sm:mt-0.5 sm:text-xs sm:text-slate-400">
                             {user.email}
                           </p>
                           {user.roles && user.roles.length > 0 && (
@@ -949,75 +971,95 @@ export default function AdminUsersPage() {
                           )}
                         </>
                       ) : (
-                        <p className="text-sm font-medium text-slate-900">
+                        <p className="truncate text-base font-semibold text-slate-900 sm:text-sm sm:font-medium">
                           {user.email}
                         </p>
                       )}
                     </div>
 
                     {/* Role badge */}
-                    <span
-                      className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${roleBadge[user.role]}`}
-                    >
-                      {roleIcon[user.role]}
-                      {user.role}
-                    </span>
-
-                    <span className="text-xs text-slate-500">
-                      {formatDate(user.last_login)}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {formatDate(user.created_at)}
-                    </span>
-
-                    {/* Active toggle — students cannot be manually deactivated here */}
-                    {method === "credentials" ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleActive(user)}
-                        disabled={
-                          updatingId === user.id ||
-                          deletingId === user.id ||
-                          !hasPermission(RBAC_PERMISSIONS.user.update)
-                        }
-                        title={
-                          active ? "Deactivate account" : "Activate account"
-                        }
-                        className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                          active
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                            : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-                        }`}
-                      >
-                        {active ? (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        ) : (
-                          <XCircle className="h-3.5 w-3.5" />
-                        )}
-                        {updatingId === user.id
-                          ? "Saving..."
-                          : active
-                            ? "Active"
-                            : "Inactive"}
-                      </button>
-                    ) : (
-                      <span
-                        className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-2 text-xs font-medium ${
-                          active
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-slate-50 text-slate-500"
-                        }`}
-                        title="Student accounts are managed via Google"
-                      >
-                        {active ? (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        ) : (
-                          <XCircle className="h-3.5 w-3.5" />
-                        )}
-                        {active ? "Active" : "Inactive"}
+                    <div className="flex items-center justify-between gap-3 sm:block">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400 sm:hidden">
+                        Role
                       </span>
-                    )}
-                    <div className="flex flex-wrap gap-1.5 sm:justify-center">
+                      <span
+                        className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${roleBadge[user.role]}`}
+                      >
+                        {roleIcon[user.role]}
+                        {user.role}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 sm:block">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400 sm:hidden">
+                        Last login
+                      </span>
+                      <span className="text-sm text-slate-600 sm:text-xs sm:text-slate-500">
+                        {formatDate(user.last_login)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 sm:block">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400 sm:hidden">
+                        Joined
+                      </span>
+                      <span className="text-sm text-slate-600 sm:text-xs sm:text-slate-500">
+                        {formatDate(user.created_at)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 sm:block">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400 sm:hidden">
+                        Status
+                      </span>
+                      {/* Active toggle — students cannot be manually deactivated here */}
+                      {method === "credentials" ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleActive(user)}
+                          disabled={
+                            updatingId === user.id ||
+                            deletingId === user.id ||
+                            !hasPermission(RBAC_PERMISSIONS.user.update)
+                          }
+                          title={
+                            active ? "Deactivate account" : "Activate account"
+                          }
+                          className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                            active
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                              : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                          }`}
+                        >
+                          {active ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5" />
+                          )}
+                          {updatingId === user.id
+                            ? "Saving..."
+                            : active
+                              ? "Active"
+                              : "Inactive"}
+                        </button>
+                      ) : (
+                        <span
+                          className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-2 text-xs font-medium ${
+                            active
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-slate-200 bg-slate-50 text-slate-500"
+                          }`}
+                          title="Student accounts are managed via Google"
+                        >
+                          {active ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5" />
+                          )}
+                          {active ? "Active" : "Inactive"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3 sm:justify-center sm:border-t-0 sm:pt-0">
                       {hasPermission(RBAC_PERMISSIONS.user.update) &&
                         hasPermission(RBAC_PERMISSIONS.role.view) && (
                         <button
@@ -1054,6 +1096,17 @@ export default function AdminUsersPage() {
               })}
             </div>
           )}
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            total={totalUsers}
+            isLoading={isLoading}
+            onPageChange={setPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setPage(1);
+            }}
+          />
         </div>
       </div>
 

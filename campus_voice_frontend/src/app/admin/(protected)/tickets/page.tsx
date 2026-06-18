@@ -11,9 +11,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import { PaginationControls } from "@/components/common/PaginationControls";
 import {
   listAdminCategories,
-  listAdminTickets,
+  listAdminTicketsPage,
   type AdminTicket,
 } from "@/lib/admin-api";
 import { adminNav } from "@/lib/dashboard-nav";
@@ -60,6 +61,7 @@ const priorityRank: Record<TicketPriority, number> = {
   MEDIUM: 1,
   LOW: 2,
 };
+const DEFAULT_PAGE_SIZE = 20;
 
 function ticketSortTime(ticket: AdminTicket) {
   return Date.parse(ticket.created_at ?? ticket.resolved_at ?? "") || 0;
@@ -77,6 +79,9 @@ export default function AdminTicketsPage() {
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "ALL">("ALL");
   const [categoryFilter, setCategoryFilter] = useState<number | "ALL">("ALL");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [totalTickets, setTotalTickets] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -87,11 +92,18 @@ export default function AdminTicketsPage() {
 
       try {
         const [ticketRows, categoryRows] = await Promise.all([
-          listAdminTickets(),
-          listAdminCategories(),
+          listAdminTicketsPage({
+            page,
+            page_size: pageSize,
+            filters: search.trim() || undefined,
+            sort_by: "created_at",
+            sort_desc: true,
+          }),
+          listAdminCategories({ sort_by: "name", sort_desc: false }),
         ]);
         if (!isMounted) return;
-        setTickets(ticketRows);
+        setTickets(ticketRows.results);
+        setTotalTickets(ticketRows.count);
         setCategories(categoryRows);
       } catch {
         if (isMounted) setPageError("Failed to load tickets.");
@@ -105,7 +117,7 @@ export default function AdminTicketsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [page, pageSize, search]);
 
   const filtered = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -197,7 +209,10 @@ export default function AdminTicketsPage() {
               id="admin-ticket-search"
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               placeholder="Search by ID or title…"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
             />
@@ -211,7 +226,10 @@ export default function AdminTicketsPage() {
                 <button
                   key={tab.key}
                   type="button"
-                  onClick={() => setStatusFilter(tab.key)}
+                  onClick={() => {
+                    setStatusFilter(tab.key);
+                    setPage(1);
+                  }}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     isActive
                       ? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
@@ -236,7 +254,10 @@ export default function AdminTicketsPage() {
                 <select
                   id="admin-priority-filter"
                   value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value as TicketPriority | "ALL")}
+                  onChange={(e) => {
+                    setPriorityFilter(e.target.value as TicketPriority | "ALL");
+                    setPage(1);
+                  }}
                   className="appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-8 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
                 >
                   <option value="ALL">All Priorities</option>
@@ -248,9 +269,10 @@ export default function AdminTicketsPage() {
               <select
                 id="admin-category-filter"
                 value={categoryFilter}
-                onChange={(e) =>
-                  setCategoryFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value))
-                }
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value));
+                  setPage(1);
+                }}
                 className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
               >
                 <option value="ALL">All Categories</option>
@@ -344,6 +366,17 @@ export default function AdminTicketsPage() {
               })}
             </div>
           )}
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            total={totalTickets}
+            isLoading={isLoading}
+            onPageChange={setPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setPage(1);
+            }}
+          />
         </div>
       </div>
     </RoleDashboardShell>

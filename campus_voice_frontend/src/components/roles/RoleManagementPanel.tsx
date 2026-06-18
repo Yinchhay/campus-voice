@@ -12,11 +12,12 @@ import {
   X,
 } from "lucide-react";
 import axios from "axios";
+import { PaginationControls } from "@/components/common/PaginationControls";
 import {
   createAdminRole,
   deleteAdminRole,
   listAdminPermissions,
-  listAdminRoles,
+  listAdminRolesPage,
   updateAdminRole,
   type AdminPermission,
   type AdminRoleDetail,
@@ -39,6 +40,7 @@ const emptyForm: RoleForm = {
   is_superadmin: false,
   permissionIds: [],
 };
+const DEFAULT_PAGE_SIZE = 20;
 
 function extractApiError(error: unknown, fallback: string) {
   if (!axios.isAxiosError(error)) return fallback;
@@ -284,8 +286,11 @@ function RoleModal({
 export function RoleManagementPanel() {
   const { hasPermission, isLoading: isPermissionLoading } = useRbacPermissions();
   const [roles, setRoles] = useState<AdminRoleDetail[]>([]);
+  const [totalRoles, setTotalRoles] = useState(0);
   const [permissions, setPermissions] = useState<AdminPermission[]>([]);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [editingRole, setEditingRole] = useState<AdminRoleDetail | null>(null);
@@ -307,11 +312,18 @@ export function RoleManagementPanel() {
       setPageError("");
       try {
         const [roleRows, permissionRows] = await Promise.all([
-          listAdminRoles(),
+          listAdminRolesPage({
+            page,
+            page_size: pageSize,
+            filters: search.trim() || undefined,
+            sort_by: "name",
+            sort_desc: false,
+          }),
           canViewPermissions ? listAdminPermissions() : Promise.resolve([]),
         ]);
         if (!isMounted) return;
-        setRoles(roleRows);
+        setRoles(roleRows.results);
+        setTotalRoles(roleRows.count);
         setPermissions(permissionRows);
       } catch (error) {
         if (isMounted) setPageError(extractApiError(error, "Failed to load roles."));
@@ -325,17 +337,9 @@ export function RoleManagementPanel() {
     return () => {
       isMounted = false;
     };
-  }, [isPermissionLoading, canViewPermissions]);
+  }, [isPermissionLoading, canViewPermissions, page, pageSize, search]);
 
-  const filteredRoles = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return roles;
-    return roles.filter(
-      (role) =>
-        role.name.toLowerCase().includes(query) ||
-        role.description.toLowerCase().includes(query),
-    );
-  }, [roles, search]);
+  const filteredRoles = roles;
 
   async function handleSaveRole(form: RoleForm, role: AdminRoleDetail | null) {
     const payload = {
@@ -354,6 +358,7 @@ export function RoleManagementPanel() {
 
     const created = await createAdminRole(payload);
     setRoles((prev) => [created, ...prev]);
+    setTotalRoles((prev) => prev + 1);
   }
 
   async function handleDelete(role: AdminRoleDetail) {
@@ -366,6 +371,7 @@ export function RoleManagementPanel() {
     try {
       await deleteAdminRole(role.id);
       setRoles((prev) => prev.filter((row) => row.id !== role.id));
+      setTotalRoles((prev) => Math.max(0, prev - 1));
     } catch (error) {
       setPageError(extractApiError(error, "Failed to delete role."));
     } finally {
@@ -388,7 +394,10 @@ export function RoleManagementPanel() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search roles..."
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
               />
@@ -497,6 +506,17 @@ export function RoleManagementPanel() {
               </div>
             ))
           )}
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            total={totalRoles}
+            isLoading={isLoading}
+            onPageChange={setPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setPage(1);
+            }}
+          />
         </div>
       </div>
 
