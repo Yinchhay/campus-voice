@@ -88,10 +88,10 @@ export default function AdminDashboardPage() {
       try {
         const [ticketRows, userRows] = await Promise.all([
           hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)
-            ? listAdminTickets()
+            ? listAdminTickets({ sort_by: "created_at", sort_desc: true })
             : Promise.resolve([]),
           hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission)
-            ? listAdminUsers()
+            ? listAdminUsers({ sort_by: "created_at", sort_desc: true })
             : Promise.resolve([]),
         ]);
         if (!isMounted) return;

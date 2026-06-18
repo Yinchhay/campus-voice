@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Check,
   CheckCircle2,
@@ -9,16 +9,18 @@ import {
   Plus,
   RotateCcw,
   Save,
+  Search,
   Tag,
   Trash2,
   X,
   XCircle,
 } from "lucide-react";
 import axios from "axios";
+import { PaginationControls } from "@/components/common/PaginationControls";
 import {
   createAdminCategory,
   deleteAdminCategory,
-  listAdminCategories,
+  listAdminCategoriesPage,
   updateAdminCategory,
   type CategoryPayload,
 } from "@/lib/admin-api";
@@ -55,6 +57,7 @@ const issueTypeBadge: Record<CategoryIssueType, string> = {
   SERVICE: "border-teal-200 bg-teal-50 text-teal-700",
   ACADEMIC: "border-indigo-200 bg-indigo-50 text-indigo-700",
 };
+const DEFAULT_PAGE_SIZE = 20;
 
 function extractApiError(error: unknown, fallback: string) {
   if (!axios.isAxiosError(error)) return fallback;
@@ -93,6 +96,10 @@ function validateCategory(form: CategoryFormState) {
 export function CategoryManagementPanel() {
   const { hasPermission } = useRbacPermissions();
   const [rows, setRows] = useState<Category[]>([]);
+  const [totalRows, setTotalRows] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -106,22 +113,29 @@ export function CategoryManagementPanel() {
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  async function loadCategories() {
+  const loadCategories = useCallback(async () => {
     setIsLoading(true);
     setPageError("");
     try {
-      const categories = await listAdminCategories();
-      setRows(categories);
+      const categories = await listAdminCategoriesPage({
+        page,
+        page_size: pageSize,
+        filters: search.trim() || undefined,
+        sort_by: "name",
+        sort_desc: false,
+      });
+      setRows(categories.results);
+      setTotalRows(categories.count);
     } catch (error) {
       setPageError(extractApiError(error, "Failed to load categories."));
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     void loadCategories();
-  }, []);
+  }, [loadCategories]);
 
   const active = useMemo(
     () => rows.filter((row) => row.is_active).length,
@@ -169,6 +183,7 @@ export function CategoryManagementPanel() {
     try {
       const category = await createAdminCategory(payload);
       setRows((prev) => [category, ...prev]);
+      setTotalRows((prev) => prev + 1);
       setNewCategory(emptyForm);
       setShowForm(false);
     } catch (error) {
@@ -234,6 +249,7 @@ export function CategoryManagementPanel() {
     try {
       await deleteAdminCategory(category.id);
       setRows((prev) => prev.filter((row) => row.id !== category.id));
+      setTotalRows((prev) => Math.max(0, prev - 1));
       if (editingId === category.id) {
         cancelEditing();
       }
@@ -254,6 +270,19 @@ export function CategoryManagementPanel() {
           <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-600">
             {inactive} inactive
           </span>
+        </div>
+        <div className="relative min-w-64 flex-1 sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search categories..."
+            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#1E3A8A] focus:ring-2 focus:ring-blue-100"
+          />
         </div>
         <div className="flex gap-2">
           <button
@@ -597,6 +626,17 @@ export function CategoryManagementPanel() {
             })}
           </div>
         )}
+        <PaginationControls
+          page={page}
+          pageSize={pageSize}
+          total={totalRows}
+          isLoading={isLoading}
+          onPageChange={setPage}
+          onPageSizeChange={(nextPageSize) => {
+            setPageSize(nextPageSize);
+            setPage(1);
+          }}
+        />
       </div>
     </div>
   );

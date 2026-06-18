@@ -12,9 +12,10 @@ import {
   Search,
   TriangleAlert,
 } from "lucide-react";
+import { PaginationControls } from "@/components/common/PaginationControls";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
-import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
+import { listStaffTicketsPage, type StaffTicket } from "@/lib/staff-api";
 import { staffNav } from "@/lib/dashboard-nav";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
@@ -92,6 +93,7 @@ const priorityRank: Record<TicketPriority, number> = {
   MEDIUM: 1,
   LOW: 2,
 };
+const DEFAULT_PAGE_SIZE = 20;
 
 function ticketSortTime(ticket: StaffTicket) {
   return Date.parse(ticket.created_at ?? ticket.resolved_at ?? "") || 0;
@@ -107,6 +109,9 @@ export default function StaffTicketsPage() {
     isLoading: isPermissionLoading,
   } = useRbacPermissions();
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
+  const [totalTickets, setTotalTickets] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "ALL">("ALL");
@@ -134,8 +139,17 @@ export default function StaffTicketsPage() {
       setPageError(null);
 
       try {
-        const data = await listStaffTickets();
-        if (isMounted) setTickets(data);
+        const data = await listStaffTicketsPage({
+          page,
+          page_size: pageSize,
+          filters: search.trim() || undefined,
+          sort_by: "created_at",
+          sort_desc: true,
+        });
+        if (isMounted) {
+          setTickets(data.results);
+          setTotalTickets(data.count);
+        }
       } catch (error) {
         if (isMounted) setPageError(extractApiError(error, "Failed to load tickets."));
       } finally {
@@ -148,7 +162,7 @@ export default function StaffTicketsPage() {
     return () => {
       isMounted = false;
     };
-  }, [hasPermission, isPermissionLoading, router]);
+  }, [hasPermission, isPermissionLoading, page, pageSize, router, search]);
 
   const filtered = useMemo(() => {
     return tickets
@@ -203,7 +217,10 @@ export default function StaffTicketsPage() {
               id="ticket-search"
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               placeholder="Search by ID or title…"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
             />
@@ -217,7 +234,10 @@ export default function StaffTicketsPage() {
                 <button
                   key={tab.key}
                   type="button"
-                  onClick={() => setStatusFilter(tab.key)}
+                  onClick={() => {
+                    setStatusFilter(tab.key);
+                    setPage(1);
+                  }}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     isActive
                       ? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
@@ -236,7 +256,10 @@ export default function StaffTicketsPage() {
                 <select
                   id="priority-filter"
                   value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value as TicketPriority | "ALL")}
+                  onChange={(e) => {
+                    setPriorityFilter(e.target.value as TicketPriority | "ALL");
+                    setPage(1);
+                  }}
                   className="appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-8 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
                 >
                   <option value="ALL">All Priorities</option>
@@ -250,9 +273,10 @@ export default function StaffTicketsPage() {
               <select
                 id="category-filter"
                 value={categoryFilter}
-                onChange={(e) =>
-                  setCategoryFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value))
-                }
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value));
+                  setPage(1);
+                }}
                 className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
               >
                 <option value="ALL">All Categories</option>
@@ -346,6 +370,17 @@ export default function StaffTicketsPage() {
               );
             })
           )}
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            total={totalTickets}
+            isLoading={isLoading}
+            onPageChange={setPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setPage(1);
+            }}
+          />
         </div>
       </div>
     </RoleDashboardShell>

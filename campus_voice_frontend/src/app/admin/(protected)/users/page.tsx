@@ -19,12 +19,13 @@ import {
   XCircle,
 } from "lucide-react";
 import axios from "axios";
+import { PaginationControls } from "@/components/common/PaginationControls";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import {
   createAdminUser,
   deleteAdminUser,
   listAdminRoles,
-  listAdminUsers,
+  listAdminUsersPage,
   updateAdminUser,
   type AdminRoleDetail,
   type AdminUser,
@@ -109,6 +110,7 @@ const emptyForm: CreateStaffForm = {
   role: "STAFF",
   roleIds: [],
 };
+const DEFAULT_PAGE_SIZE = 20;
 
 function CreateStaffModal({
   onClose,
@@ -683,6 +685,9 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<UserRole | "ALL">("ALL");
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [roles, setRoles] = useState<AdminRoleDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
@@ -701,11 +706,20 @@ export default function AdminUsersPage() {
       setPageError("");
       try {
         const [userRows, roleRows] = await Promise.all([
-          listAdminUsers(),
-          hasPermission(RBAC_PERMISSIONS.role.view) ? listAdminRoles() : Promise.resolve([]),
+          listAdminUsersPage({
+            page,
+            page_size: pageSize,
+            filters: search.trim() || undefined,
+            sort_by: "created_at",
+            sort_desc: true,
+          }),
+          hasPermission(RBAC_PERMISSIONS.role.view)
+            ? listAdminRoles({ sort_by: "name", sort_desc: false })
+            : Promise.resolve([]),
         ]);
         if (isMounted) {
-          setUsers(userRows);
+          setUsers(userRows.results);
+          setTotalUsers(userRows.count);
           setRoles(roleRows);
         }
       } catch (error) {
@@ -721,7 +735,7 @@ export default function AdminUsersPage() {
     return () => {
       isMounted = false;
     };
-  }, [isPermissionLoading, hasPermission]);
+  }, [isPermissionLoading, hasPermission, page, pageSize, search]);
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -752,6 +766,7 @@ export default function AdminUsersPage() {
       role_ids: form.role === "STAFF" ? form.roleIds : [],
     });
     setUsers((prev) => [user, ...prev]);
+    setTotalUsers((prev) => prev + 1);
     return user;
   }
 
@@ -783,6 +798,7 @@ export default function AdminUsersPage() {
     try {
       await deleteAdminUser(user.id);
       setUsers((prev) => prev.filter((row) => row.id !== user.id));
+      setTotalUsers((prev) => Math.max(0, prev - 1));
     } catch (error) {
       setPageError(extractApiError(error, "Failed to delete user."));
     } finally {
@@ -835,7 +851,10 @@ export default function AdminUsersPage() {
               id="user-search"
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               placeholder="Search by name or email…"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
             />
@@ -848,7 +867,10 @@ export default function AdminUsersPage() {
                 <button
                   key={tab.key}
                   type="button"
-                  onClick={() => setRoleFilter(tab.key)}
+                  onClick={() => {
+                    setRoleFilter(tab.key);
+                    setPage(1);
+                  }}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     isActiveTab
                       ? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
@@ -1054,6 +1076,17 @@ export default function AdminUsersPage() {
               })}
             </div>
           )}
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            total={totalUsers}
+            isLoading={isLoading}
+            onPageChange={setPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setPage(1);
+            }}
+          />
         </div>
       </div>
 

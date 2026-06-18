@@ -1,4 +1,11 @@
 import api from "@/lib/axios";
+import {
+  toPaginatedResponse,
+  unwrapPaginated,
+  withDefaultPageSize,
+  type ListQueryParams,
+  type PaginatedResponse,
+} from "@/lib/pagination";
 import type {
   Attachment,
   CampusLocation,
@@ -141,9 +148,22 @@ function normalizeTicket(ticket: BackendStaffTicket): StaffTicket {
   };
 }
 
-export async function listStaffTickets() {
-  const response = await api.get<BackendStaffTicket[]>("/admin/tickets");
-  return response.data.map(normalizeTicket);
+export async function listStaffTickets(params: ListQueryParams = {}) {
+  const response = await api.get<
+    BackendStaffTicket[] | PaginatedResponse<BackendStaffTicket>
+  >("/admin/tickets", { params: withDefaultPageSize(params) });
+  return unwrapPaginated(response.data).map(normalizeTicket);
+}
+
+export async function listStaffTicketsPage(params: ListQueryParams = {}) {
+  const response = await api.get<
+    BackendStaffTicket[] | PaginatedResponse<BackendStaffTicket>
+  >("/admin/tickets", { params });
+  const page = toPaginatedResponse(response.data);
+  return {
+    ...page,
+    results: page.results.map(normalizeTicket),
+  };
 }
 
 export async function getStaffTicket(ticketId: string) {
@@ -201,11 +221,15 @@ export async function createStaffTicketMessage(
   return response.data;
 }
 
-export async function listAdminTicketMeetingSlots(ticketId: string) {
-  const response = await api.get<MeetingSlot[]>(
+export async function listAdminTicketMeetingSlots(
+  ticketId: string,
+  params: ListQueryParams = {},
+) {
+  const response = await api.get<MeetingSlot[] | PaginatedResponse<MeetingSlot>>(
     `/admin/tickets/${ticketId}/meetings`,
+    { params: withDefaultPageSize(params) },
   );
-  return response.data;
+  return unwrapPaginated(response.data);
 }
 
 export async function createAdminTicketMeetingSlots(

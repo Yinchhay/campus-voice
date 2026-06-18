@@ -2,10 +2,18 @@ import api from "@/lib/axios";
 import {
   getStaffTicket,
   listStaffTickets,
+  listStaffTicketsPage,
   type StaffTicket,
   type StaffTicketMessage,
 } from "@/lib/staff-api";
 import type { Category, CategoryIssueType, TicketPriority, UserRole } from "@/lib/types";
+import {
+  toPaginatedResponse,
+  unwrapPaginated,
+  withDefaultPageSize,
+  type ListQueryParams,
+  type PaginatedResponse,
+} from "@/lib/pagination";
 
 type BackendAdminMeResponse = {
   success: boolean;
@@ -166,9 +174,20 @@ export async function getCurrentStaffAccount() {
   return account;
 }
 
-export async function listAdminCategories() {
-  const response = await api.get<Category[]>("/admin/categories");
-  return response.data;
+export async function listAdminCategories(params: ListQueryParams = {}) {
+  const response = await api.get<Category[] | PaginatedResponse<Category>>(
+    "/admin/categories",
+    { params: withDefaultPageSize(params) },
+  );
+  return unwrapPaginated(response.data);
+}
+
+export async function listAdminCategoriesPage(params: ListQueryParams = {}) {
+  const response = await api.get<Category[] | PaginatedResponse<Category>>(
+    "/admin/categories",
+    { params },
+  );
+  return toPaginatedResponse(response.data);
 }
 
 export async function createAdminCategory(payload: CategoryPayload) {
@@ -188,17 +207,32 @@ export async function deleteAdminCategory(id: number) {
   return response.data;
 }
 
-export async function listAdminTickets() {
-  return listStaffTickets();
+export async function listAdminTickets(params: ListQueryParams = {}) {
+  return listStaffTickets(params);
+}
+
+export async function listAdminTicketsPage(params: ListQueryParams = {}) {
+  return listStaffTicketsPage(params);
 }
 
 export async function getAdminTicket(ticketId: string) {
   return getStaffTicket(ticketId);
 }
 
-export async function listAdminUsers() {
-  const response = await api.get<AdminUser[]>("/admin/users");
-  return response.data;
+export async function listAdminUsers(params: ListQueryParams = {}) {
+  const response = await api.get<AdminUser[] | PaginatedResponse<AdminUser>>(
+    "/admin/users",
+    { params: withDefaultPageSize(params) },
+  );
+  return unwrapPaginated(response.data);
+}
+
+export async function listAdminUsersPage(params: ListQueryParams = {}) {
+  const response = await api.get<AdminUser[] | PaginatedResponse<AdminUser>>(
+    "/admin/users",
+    { params },
+  );
+  return toPaginatedResponse(response.data);
 }
 
 export async function createAdminUser(payload: CreateAdminUserPayload) {
@@ -260,9 +294,19 @@ export async function changeAdminPassword(payload: ChangePasswordPayload) {
   return response.data;
 }
 
-export async function listAdminRoles() {
-  const response = await api.get<AdminRoleDetail[]>("/admin/roles");
-  return response.data;
+export async function listAdminRoles(params: ListQueryParams = {}) {
+  const response = await api.get<AdminRoleDetail[] | PaginatedResponse<AdminRoleDetail>>(
+    "/admin/roles",
+    { params: withDefaultPageSize(params) },
+  );
+  return unwrapPaginated(response.data);
+}
+
+export async function listAdminRolesPage(params: ListQueryParams = {}) {
+  const response = await api.get<
+    AdminRoleDetail[] | PaginatedResponse<AdminRoleDetail>
+  >("/admin/roles", { params });
+  return toPaginatedResponse(response.data);
 }
 
 export async function createAdminRole(payload: AdminRolePayload) {
