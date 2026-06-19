@@ -87,6 +87,9 @@ if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.parse(DATABASE_URL)
     }
+    DATABASES['default']['OPTIONS'] = {
+        'options': '-c statement_timeout=30000',
+    }
 else:
     DATABASES = {
         "default": {
@@ -146,6 +149,7 @@ USE_TZ = True
 # =============================================================================
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # MEDIA FILES (user uploads)
 # =============================================================================
