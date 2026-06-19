@@ -14,6 +14,7 @@ from api.serializers import (
     StudentMeetingBookingDetailSerializer,
 )
 from api.services.google_calendar_service import create_calendar_event
+from api.services.email_service import send_new_meeting_booking_notification_to_admin
 
 logger = logging.getLogger(__name__)
 
@@ -136,11 +137,15 @@ class StudentConfirmMeetingView(APIView):
             f"Student {request.user.email} confirmed meeting "
             f"for {ticket.public_ticket_id} at {slot.start_time}"
         )
-        # TODO: Send notification email to admin about confirmed meeting
+        
+        # Send notification email to admin about confirmed meeting
+        send_new_meeting_booking_notification_to_admin(booking)
+        
         return Response({
             'message': 'Meeting confirmed successfully!',
             'booking': StudentMeetingBookingDetailSerializer(booking).data,
         }, status=status.HTTP_201_CREATED)
+        
 class StudentCancelMeetingView(APIView):
     """POST - Student cancels their meeting booking."""
     authentication_classes = [JWTAuthentication]
