@@ -25,8 +25,17 @@ class PublicTicketSerializer(serializers.ModelSerializer):
             'status_display',
             'attachments',
             'resolved_at',
+            'created_at',
+            'updated_at',
         ]
-        read_only_fields = ['id', 'public_ticket_id', 'status', 'resolved_at']
+        read_only_fields = [
+            'id',
+            'public_ticket_id',
+            'status',
+            'resolved_at',
+            'created_at',
+            'updated_at',
+        ]
 
     def get_attachments(self, obj):
         return TicketAttachmentSerializer(obj.attachments.all(), many=True).data
@@ -144,8 +153,16 @@ class TicketSerializer(serializers.ModelSerializer):
             'status_display',
             'attachments',
             'resolved_at',
+            'created_at',
+            'updated_at',
         ]
-        read_only_fields = ['id', 'public_ticket_id', 'priority']
+        read_only_fields = [
+            'id',
+            'public_ticket_id',
+            'priority',
+            'created_at',
+            'updated_at',
+        ]
 
     def get_attachments(self, obj):
         return TicketAttachmentSerializer(obj.attachments.all(), many=True).data
