@@ -1,4 +1,4 @@
-import { auth, signIn } from "@/lib/auth";
+import { safeAuth, signIn } from "@/lib/auth";
 import { dashboardPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
 import { redirect } from "next/navigation";
 import Image from "next/image";
@@ -11,7 +11,7 @@ async function signInWithGoogle() {
 }
 
 export default async function Home() {
-  const session = await auth();
+  const session = await safeAuth();
   const role = normalizeCampusVoiceRole(session?.user?.role);
 
   if (session?.accessToken && role) {

@@ -1,11 +1,11 @@
 import { CredentialLoginPage } from "@/components/auth/CredentialLoginPage";
-import { auth } from "@/lib/auth";
+import { safeAuth } from "@/lib/auth";
 import { dashboardPathForRole, normalizeCampusVoiceRole } from "@/lib/auth-routes";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 export default async function AdminLoginPage() {
-	const session = await auth();
+	const session = await safeAuth();
 	const role = normalizeCampusVoiceRole(session?.user?.role);
 
 	if (session?.accessToken && role) {

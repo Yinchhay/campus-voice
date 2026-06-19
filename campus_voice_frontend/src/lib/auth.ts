@@ -1,4 +1,4 @@
-import NextAuth, { type NextAuthConfig } from "next-auth";
+import NextAuth, { type NextAuthConfig, type Session } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { normalizeCampusVoiceRole, type CampusVoiceRole } from "@/lib/auth-routes";
@@ -211,3 +211,46 @@ export const authOptions = {
 } satisfies NextAuthConfig;
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
+
+function isJWTSessionError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+
+  const candidate = error as {
+    name?: string;
+    type?: string;
+    code?: string;
+    message?: string;
+    cause?: { name?: string; code?: string; message?: string };
+  };
+  const values = [
+    candidate.name,
+    candidate.type,
+    candidate.code,
+    candidate.message,
+    candidate.cause?.name,
+    candidate.cause?.code,
+    candidate.cause?.message,
+  ];
+
+  return values.some(
+    (value) =>
+      typeof value === "string" &&
+      (value.includes("JWTSessionError") ||
+        value.includes("JWE") ||
+        value.includes("decryption")),
+  );
+}
+
+export async function safeAuth(): Promise<Session | null> {
+  try {
+    return (await auth()) as Session | null;
+  } catch (error) {
+    if (isJWTSessionError(error)) {
+      console.warn(
+        "Ignoring invalid NextAuth JWT session cookie. Clear site cookies if this keeps recurring.",
+      );
+      return null;
+    }
+    throw error;
+  }
+}
