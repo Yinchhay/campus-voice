@@ -7,15 +7,18 @@ import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
-  ChevronDown,
+  BookOpen,
+  Building2,
   CheckCircle2,
   FileText,
   Paperclip,
+  Search,
   Send,
   ShieldCheck,
   Tag,
   X,
 } from "lucide-react";
+import type { CategoryIssueType } from "@/lib/types";
 import {
   createStudentTicket,
   listStudentCategories,
@@ -45,6 +48,27 @@ const ALLOWED_TYPES = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const ISSUE_TYPE_OPTIONS: Array<{
+  value: CategoryIssueType;
+  label: string;
+  description: string;
+  Icon: typeof Building2;
+}> = [
+  {
+    value: "SERVICE",
+    label: "Campus Services",
+    description:
+      "Facilities, safety, housing, transport, documents, and support services.",
+    Icon: Building2,
+  },
+  {
+    value: "ACADEMIC",
+    label: "Academic Experience",
+    description:
+      "Classes, schedules, curriculum, instructors, labs, and academic results.",
+    Icon: BookOpen,
+  },
 ];
 
 function formatBytes(bytes: number) {
@@ -130,6 +154,9 @@ export default function SubmitReportPage() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [activeIssueType, setActiveIssueType] =
+    useState<CategoryIssueType>("SERVICE");
+  const [categorySearch, setCategorySearch] = useState("");
 
   const [form, setForm] = useState<FormState>({
     category_id: "",
@@ -145,6 +172,22 @@ export default function SubmitReportPage() {
   const selectedCategory = categories.find(
     (c) => c.id === Number(form.category_id),
   );
+  const visibleCategories = categories
+    .filter((category) => category.issue_type === activeIssueType)
+    .filter((category) => {
+      const query = categorySearch.trim().toLowerCase();
+      if (!query) return true;
+      return `${category.name} ${category.description}`.toLowerCase().includes(query);
+    });
+  const categoryCounts = ISSUE_TYPE_OPTIONS.reduce(
+    (counts, option) => {
+      counts[option.value] = categories.filter(
+        (category) => category.issue_type === option.value,
+      ).length;
+      return counts;
+    },
+    {} as Record<CategoryIssueType, number>,
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -157,6 +200,11 @@ export default function SubmitReportPage() {
         const data = await listStudentCategories();
         if (!isMounted) return;
         setCategories(data);
+        setActiveIssueType((current) =>
+          data.some((category) => category.issue_type === current)
+            ? current
+            : data[0]?.issue_type ?? current,
+        );
       } catch (error) {
         if (!isMounted) return;
         setCategoryError(extractApiError(error, "Failed to load categories."));
@@ -188,6 +236,22 @@ export default function SubmitReportPage() {
       category_id: id,
     }));
     setTouched((prev) => ({ ...prev, category_id: true }));
+  }
+
+  function handleIssueTypeChange(issueType: CategoryIssueType) {
+    setActiveIssueType(issueType);
+    setForm((prev) => {
+      const currentCategory = categories.find(
+        (category) => category.id === Number(prev.category_id),
+      );
+      if (!currentCategory || currentCategory.issue_type === issueType) {
+        return prev;
+      }
+      return {
+        ...prev,
+        category_id: "",
+      };
+    });
   }
 
   function handleFieldChange(field: keyof FormState, value: string) {
@@ -376,53 +440,158 @@ export default function SubmitReportPage() {
                 Classification
               </h2>
 
-              <div className="grid gap-5">
-                {/* Category */}
-                <div className="sm:col-span-2">
-                  <FormLabel htmlFor="category_id" required>
-                    Report Category
-                  </FormLabel>
-                  <div className="relative">
-                    <select
-                      id="category_id"
-                      name="category_id"
-                      value={form.category_id}
-                      onChange={(e) => handleCategoryChange(e.target.value)}
-                      onBlur={() => handleBlur("category_id")}
-                      disabled={isLoadingCategories || Boolean(categoryError)}
-                      className={`w-full appearance-none rounded-xl border px-3.5 py-3 pr-12 text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-teal-500/40 ${
-                        touched.category_id && errors.category_id
-                          ? "border-red-300 bg-red-50/40"
-                          : "border-slate-200 bg-slate-50 hover:border-slate-300 focus:border-teal-400 focus:bg-white"
-                      }`}
-                    >
-                      <option value="" disabled>
-                        {isLoadingCategories
-                          ? "Loading categories..."
-                          : "Select a category..."}
-                      </option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-2 text-sm font-medium text-slate-700">
+                    What area does this report relate to?
+                    <span className="ml-1 text-red-500">*</span>
+                  </p>
+                  <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5 sm:grid-cols-2">
+                    {ISSUE_TYPE_OPTIONS.map(({ value, label, description, Icon }) => {
+                      const isActive = activeIssueType === value;
+                      const count = categoryCounts[value] ?? 0;
+
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => handleIssueTypeChange(value)}
+                          disabled={isLoadingCategories || Boolean(categoryError) || count === 0}
+                          className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus:outline-none focus:ring-2 focus:ring-teal-500/30 disabled:cursor-not-allowed disabled:opacity-55 ${
+                            isActive
+                              ? "border-teal-300 bg-white shadow-sm"
+                              : "border-transparent bg-transparent hover:bg-white"
+                          }`}
+                        >
+                          <span
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                              isActive
+                                ? "bg-teal-600 text-white"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            <Icon className="h-5 w-5" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-semibold text-slate-900">
+                              {label}
+                            </span>
+                            <span className="mt-0.5 hidden text-xs leading-5 text-slate-600 sm:block">
+                              {description}
+                            </span>
+                            <span className="mt-1 block text-xs font-medium text-slate-500">
+                              {isLoadingCategories
+                                ? "Loading..."
+                                : `${count} categor${count === 1 ? "y" : "ies"}`}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  {/* Category description hint */}
+                </div>
+
+                <div>
+                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm font-medium text-slate-700">
+                      Choose the closest category
+                      <span className="ml-1 text-red-500">*</span>
+                    </p>
+                    <label className="relative block sm:w-64">
+                      <span className="sr-only">Search categories</span>
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="search"
+                        value={categorySearch}
+                        onChange={(event) => setCategorySearch(event.target.value)}
+                        placeholder="Search categories"
+                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+                      />
+                    </label>
+                  </div>
+
+                  {isLoadingCategories ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className="h-14 animate-pulse rounded-xl border border-slate-200 bg-slate-50"
+                        />
+                      ))}
+                    </div>
+                  ) : categoryError ? (
+                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      <AlertTriangle className="mr-1.5 inline h-4 w-4" />
+                      {categoryError}
+                    </p>
+                  ) : visibleCategories.length === 0 ? (
+                    <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                      No matching categories are available for this area.
+                    </p>
+                  ) : (
+                    <div
+                      className={`max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2 ${
+                        touched.category_id && errors.category_id
+                          ? "ring-2 ring-red-100"
+                          : ""
+                      }`}
+                      role="radiogroup"
+                      aria-label="Report category"
+                    >
+                      {visibleCategories.map((category) => {
+                        const isSelected = form.category_id === String(category.id);
+
+                        return (
+                          <button
+                            key={category.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={isSelected}
+                            onClick={() => handleCategoryChange(String(category.id))}
+                            onBlur={() => handleBlur("category_id")}
+                            className={`w-full rounded-xl border px-3 py-2.5 text-left transition focus:outline-none focus:ring-2 focus:ring-teal-500/30 ${
+                              isSelected
+                                ? "border-teal-400 bg-white shadow-sm"
+                                : "border-transparent bg-white hover:border-teal-200"
+                            }`}
+                          >
+                            <span className="flex items-center gap-3">
+                              <span
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                                  isSelected
+                                    ? "border-teal-600 bg-teal-600"
+                                    : "border-slate-300 bg-white"
+                                }`}
+                              >
+                                {isSelected && (
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                                )}
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-semibold text-slate-900">
+                                  {category.name}
+                                </span>
+                                {category.description && (
+                                  <span className="mt-0.5 block line-clamp-1 text-xs leading-5 text-slate-600">
+                                    {category.description}
+                                  </span>
+                                )}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {selectedCategory && (
-                    <p className="mt-1.5 text-xs text-slate-500">
-                      {selectedCategory.description}
+                    <p className="mt-2 rounded-xl border border-teal-100 bg-teal-50 px-3 py-2 text-xs text-teal-800">
+                      Selected:{" "}
+                      <span className="font-semibold">{selectedCategory.name}</span>
                     </p>
                   )}
                   {touched.category_id && (
                     <FieldError message={errors.category_id} />
-                  )}
-                  {categoryError && (
-                    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-red-600">
-                      <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                      {categoryError}
-                    </p>
                   )}
                 </div>
               </div>
