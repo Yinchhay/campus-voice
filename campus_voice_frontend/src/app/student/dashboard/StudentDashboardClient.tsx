@@ -14,7 +14,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { StudentTicket } from "@/lib/student-api";
 import type { TicketStatus } from "@/lib/types";
 
@@ -57,6 +57,9 @@ const columns: ColumnConfig[] = [
     dotColor: "bg-emerald-500",
   },
 ];
+
+const INITIAL_VISIBLE_TICKETS = 5;
+const LOAD_MORE_STEP = 5;
 
 function TicketCard({ ticket }: { ticket: StudentTicket }) {
   return (
@@ -105,6 +108,12 @@ export function StudentDashboardClient({
   initialTickets: StudentTicket[];
   initialError?: string | null;
 }) {
+  const [visibleCounts, setVisibleCounts] = useState<Record<TicketStatus, number>>({
+    SUBMITTED: INITIAL_VISIBLE_TICKETS,
+    IN_PROGRESS: INITIAL_VISIBLE_TICKETS,
+    RESOLVED: INITIAL_VISIBLE_TICKETS,
+  });
+
   const ticketsByStatus = useMemo(() => {
     const grouped: Record<TicketStatus, StudentTicket[]> = {
       SUBMITTED: [],
@@ -118,6 +127,13 @@ export function StudentDashboardClient({
 
     return grouped;
   }, [initialTickets]);
+
+  function showMore(status: TicketStatus) {
+    setVisibleCounts((current) => ({
+      ...current,
+      [status]: current[status] + LOAD_MORE_STEP,
+    }));
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
@@ -197,6 +213,10 @@ export function StudentDashboardClient({
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             {columns.map((col) => {
               const tickets = ticketsByStatus[col.status];
+              const visibleCount = visibleCounts[col.status];
+              const visibleTickets = tickets.slice(0, visibleCount);
+              const remaining = Math.max(0, tickets.length - visibleTickets.length);
+
               return (
                 <div key={col.status} className="flex flex-col gap-3">
                   <div
@@ -219,9 +239,23 @@ export function StudentDashboardClient({
                   </div>
 
                   {tickets.length > 0 ? (
-                    tickets.map((ticket) => (
-                      <TicketCard key={ticket.id} ticket={ticket} />
-                    ))
+                    <>
+                      {visibleTickets.map((ticket) => (
+                        <TicketCard key={ticket.id} ticket={ticket} />
+                      ))}
+                      {remaining > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => showMore(col.status)}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          Load more
+                          <span className="ml-2 text-xs font-normal text-slate-400">
+                            {remaining} remaining
+                          </span>
+                        </button>
+                      )}
+                    </>
                   ) : (
                     <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center">
                       <p className="text-xs text-slate-400">
