@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  CalendarDays,
   CalendarClock,
   CheckCircle2,
   Clock,
@@ -84,6 +85,7 @@ const RESOLUTION_ALLOWED_TYPES = [
   "image/png",
 ];
 const MESSAGE_ALLOWED_TYPES = RESOLUTION_ALLOWED_TYPES;
+const MEETING_DURATION_OPTIONS = [15, 30, 45, 60];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -140,12 +142,40 @@ function formatChatTime(iso?: string) {
 
 function toDateTimeLocalValue(iso: string) {
   const date = new Date(iso);
+  return toDateTimeInputValue(date);
+}
+
+function toDateTimeInputValue(date: Date) {
   const offsetMs = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
 function fromDateTimeLocalValue(value: string) {
   return new Date(value).toISOString();
+}
+
+function addMinutesToDateTimeLocalValue(value: string, minutes: number) {
+  const date = new Date(value);
+  date.setMinutes(date.getMinutes() + minutes);
+  return toDateTimeInputValue(date);
+}
+
+function getDefaultMeetingStart() {
+  const date = new Date();
+  date.setSeconds(0, 0);
+
+  const roundedMinutes = Math.ceil(date.getMinutes() / 30) * 30;
+  date.setMinutes(roundedMinutes);
+
+  return toDateTimeInputValue(date);
+}
+
+function minutesBetweenDateTimeLocalValues(start: string, end: string) {
+  if (!start || !end) return null;
+  const minutes = Math.round(
+    (new Date(end).getTime() - new Date(start).getTime()) / 60_000,
+  );
+  return minutes > 0 ? minutes : null;
 }
 
 function groupMeetingSlotsByDate(slots: MeetingSlot[]) {
@@ -300,6 +330,14 @@ export function TicketDetailWorkspace({
     () => groupMeetingSlotsByDate(meetingSlots),
     [meetingSlots],
   );
+  const meetingDate = meetingStart.slice(0, 10);
+  const meetingStartTime = meetingStart.slice(11, 16);
+  const meetingEndTime = meetingEnd.slice(11, 16);
+  const meetingDurationMinutes = minutesBetweenDateTimeLocalValues(
+    meetingStart,
+    meetingEnd,
+  );
+  const minMeetingDate = toDateTimeInputValue(new Date()).slice(0, 10);
 
   async function refreshMeetingSlots(ticketId = ticket?.id) {
     if (!ticketId) return;
@@ -314,6 +352,56 @@ export function TicketDetailWorkspace({
     } finally {
       setIsLoadingMeetings(false);
     }
+  }
+
+  function openNewMeetingForm() {
+    setMeetingError(null);
+    if (!meetingStart || !meetingEnd) {
+      const defaultStart = getDefaultMeetingStart();
+      setMeetingStart(defaultStart);
+      setMeetingEnd(addMinutesToDateTimeLocalValue(defaultStart, 30));
+    }
+    setShowMeetingForm(true);
+  }
+
+  function handleMeetingDateChange(dateValue: string) {
+    if (!dateValue) {
+      setMeetingStart("");
+      setMeetingEnd("");
+      return;
+    }
+
+    const startValue = `${dateValue}T${meetingStartTime || "09:00"}`;
+    const endValue = `${dateValue}T${meetingEndTime || "09:30"}`;
+    setMeetingStart(startValue);
+    setMeetingEnd(
+      new Date(endValue).getTime() > new Date(startValue).getTime()
+        ? endValue
+        : addMinutesToDateTimeLocalValue(startValue, 30),
+    );
+  }
+
+  function handleMeetingStartTimeChange(timeValue: string) {
+    if (!meetingDate || !timeValue) return;
+
+    const nextStart = `${meetingDate}T${timeValue}`;
+    const duration = meetingDurationMinutes ?? 30;
+    setMeetingStart(nextStart);
+    setMeetingEnd((currentEnd) =>
+      currentEnd && new Date(currentEnd).getTime() > new Date(nextStart).getTime()
+        ? currentEnd
+        : addMinutesToDateTimeLocalValue(nextStart, duration),
+    );
+  }
+
+  function handleMeetingEndTimeChange(timeValue: string) {
+    if (!meetingDate || !timeValue) return;
+    setMeetingEnd(`${meetingDate}T${timeValue}`);
+  }
+
+  function handleMeetingDurationChange(minutes: number) {
+    if (!meetingStart) return;
+    setMeetingEnd(addMinutesToDateTimeLocalValue(meetingStart, minutes));
   }
 
   async function handleSend() {
@@ -1127,7 +1215,7 @@ export function TicketDetailWorkspace({
                       resetMeetingForm();
                       setShowMeetingForm(false);
                     } else {
-                      setShowMeetingForm(true);
+                      openNewMeetingForm();
                     }
                   }}
                   className="inline-flex items-center gap-1 text-xs font-medium text-[#1E3A8A] hover:text-blue-700"
@@ -1310,37 +1398,109 @@ export function TicketDetailWorkspace({
                     </div>
                   )}
 
-                  <div>
-                    <label
-                      htmlFor="meeting-start"
-                      className="mb-1 block text-xs font-medium text-slate-700"
-                    >
-                      Start time
-                    </label>
-                    <input
-                      id="meeting-start"
-                      type="datetime-local"
-                      value={meetingStart}
-                      onChange={(e) => setMeetingStart(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
-                    />
-                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-slate-900">
+                      <CalendarClock className="h-4 w-4 text-[#1E3A8A]" />
+                      Pick meeting date and time
+                    </div>
 
-                  <div>
-                    <label
-                      htmlFor="meeting-end"
-                      className="mb-1 block text-xs font-medium text-slate-700"
-                    >
-                      End time
-                    </label>
-                    <input
-                      id="meeting-end"
-                      type="datetime-local"
-                      value={meetingEnd}
-                      min={meetingStart || undefined}
-                      onChange={(e) => setMeetingEnd(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
-                    />
+                    <div className="space-y-3">
+                      <div>
+                        <label
+                          htmlFor="meeting-date"
+                          className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                        >
+                          <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
+                          Date
+                        </label>
+                        <input
+                          id="meeting-date"
+                          type="date"
+                          value={meetingDate}
+                          min={minMeetingDate}
+                          onChange={(e) => handleMeetingDateChange(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition focus:border-[#1E3A8A] focus:ring-2 focus:ring-blue-100"
+                        />
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label
+                            htmlFor="meeting-start-time"
+                            className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                          >
+                            <Clock className="h-3.5 w-3.5 text-slate-400" />
+                            Starts
+                          </label>
+                          <input
+                            id="meeting-start-time"
+                            type="time"
+                            value={meetingStartTime}
+                            disabled={!meetingDate}
+                            onChange={(e) =>
+                              handleMeetingStartTimeChange(e.target.value)
+                            }
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition focus:border-[#1E3A8A] focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-400"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="meeting-end-time"
+                            className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-700"
+                          >
+                            <Clock className="h-3.5 w-3.5 text-slate-400" />
+                            Ends
+                          </label>
+                          <input
+                            id="meeting-end-time"
+                            type="time"
+                            value={meetingEndTime}
+                            disabled={!meetingDate}
+                            onChange={(e) =>
+                              handleMeetingEndTimeChange(e.target.value)
+                            }
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition focus:border-[#1E3A8A] focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-400"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="mb-1 text-xs font-medium text-slate-700">
+                          Duration
+                        </p>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {MEETING_DURATION_OPTIONS.map((minutes) => {
+                            const isSelected = meetingDurationMinutes === minutes;
+                            return (
+                              <button
+                                key={minutes}
+                                type="button"
+                                onClick={() => handleMeetingDurationChange(minutes)}
+                                disabled={!meetingStart}
+                                className={`rounded-lg border px-2 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                                  isSelected
+                                    ? "border-[#1E3A8A] bg-blue-50 text-[#1E3A8A]"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:text-[#1E3A8A]"
+                                }`}
+                              >
+                                {minutes}m
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {meetingStart && meetingEnd && (
+                        <div className="rounded-lg border border-blue-100 bg-white px-3 py-2 text-xs text-slate-600">
+                          <span className="font-medium text-slate-900">
+                            Slot preview:
+                          </span>{" "}
+                          {formatDate(fromDateTimeLocalValue(meetingStart))},{" "}
+                          {formatTime(fromDateTimeLocalValue(meetingStart))} -{" "}
+                          {formatTime(fromDateTimeLocalValue(meetingEnd))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {meetingType === "ONLINE" && (
