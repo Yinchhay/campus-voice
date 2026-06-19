@@ -19,6 +19,23 @@ services:
     networks:
       - app-network
 
+  redis:
+    image: redis:alpine
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
   backend:
     build:
       context: ./campus_voice_backend
@@ -34,6 +51,8 @@ services:
     depends_on:
       db: 
         condition: service_healthy # wait for db healthcheck to pass
+      redis:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
@@ -78,6 +97,7 @@ volumes:
   postgres_data:
   static_data:
   media_data:
+  redis_data:
 
 
 networks:

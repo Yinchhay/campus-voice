@@ -103,7 +103,7 @@ ROLES = [
 ]
 
 
-SUPERADMIN_EMAIL    = 'superadmin@admin.com'
+SUPERADMIN_EMAIL    = 'superadmin2@gmail.com'
 SUPERADMIN_PASSWORD = 'Admin@1234'
 
 
@@ -162,6 +162,7 @@ class Command(BaseCommand):
         superadmin_user, user_created = User.objects.get_or_create(
             email=SUPERADMIN_EMAIL,
             defaults={
+                'username': 'Super2',
                 'first_name':  'Super',
                 'last_name':   'Admin',
                 'password':    make_password(SUPERADMIN_PASSWORD),

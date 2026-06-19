@@ -95,6 +95,17 @@ else:
         }
     }
 
+# Caching Configuration
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": config('REDIS_URL', default='redis://localhost:6379/1'),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
 
 
 # Password validation
@@ -159,6 +170,18 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'api.throttles.BurstRateThrottle',
+        'api.throttles.SustainedRateThrottle',
+        'api.throttles.BurstUserRateThrottle',
+        'api.throttles.SustainedUserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'burst': '5/s',
+        'sustained': '500/day',
+        'user_burst': '100/s',
+        'user_sustained': '2000/day',
+    }
 }
 
 
