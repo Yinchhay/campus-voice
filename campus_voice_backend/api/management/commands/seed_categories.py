@@ -24,7 +24,6 @@ class Command(BaseCommand):
             {'name': 'Internet Services', 'priority': 'HIGH'},
             {'name': 'Safety measures', 'priority': 'HIGH'},
             {'name': 'Security', 'priority': 'HIGH'},
-            {'name': 'Other', 'priority': 'LOW'},
         ]
 
         # Academic Issues

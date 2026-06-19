@@ -46,7 +46,9 @@ PREDEFINED_PERMISSIONS = [
     
     # Setting management
     ('setting',    'view',   'Can view settings'),
+    ('setting',    'create', 'Can create settings'),
     ('setting',    'update', 'Can update settings'),
+    ('setting',    'delete', 'Can delete settings'),
     
     # Meeting
     ('meeting',    'view',   'Can view meetings'),
