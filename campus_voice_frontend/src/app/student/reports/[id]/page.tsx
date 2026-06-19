@@ -121,12 +121,13 @@ function StatusStepper({ status }: { status: TicketStatus }) {
       {statusFlow.map((step, index) => {
         const isDone = index <= currentStep;
         const isCurrent = index === currentStep;
+        const isResolvedStep = step === "RESOLVED";
         return (
           <li
             key={step}
             className={`flex items-center gap-1.5 rounded-xl border px-3 py-2.5 transition ${
               isDone
-                ? isCurrent
+                ? isCurrent && !isResolvedStep
                   ? "border-blue-200 bg-blue-50 text-blue-700"
                   : "border-emerald-200 bg-emerald-50 text-emerald-700"
                 : "border-slate-200 bg-white text-slate-400"
@@ -444,6 +445,8 @@ export default function StudentReportDetailPage({
     );
   }
 
+  const isResolved = ticket.status === "RESOLVED";
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
       <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
@@ -497,7 +500,7 @@ export default function StudentReportDetailPage({
                   Submitted date unavailable
                 </span>
               )}
-              {ticket.resolved_at && (
+              {isResolved && ticket.resolved_at && (
                 <span className="flex items-center gap-1 text-emerald-600">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Resolved {formatDateTime(ticket.resolved_at)}
@@ -542,7 +545,7 @@ export default function StudentReportDetailPage({
             )}
           </div>
 
-          {ticket.resolution && (
+          {isResolved && ticket.resolution && (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
               <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-emerald-900">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
@@ -659,7 +662,7 @@ export default function StudentReportDetailPage({
             </div>
 
             {/* Reply box */}
-            {ticket.status !== "RESOLVED" ? (
+            {!isResolved ? (
               <div className="border-t border-slate-100 px-6 py-4">
                 <div className="flex items-end gap-3">
                   <div className="flex-1">

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -13,41 +14,18 @@ import {
   UsersRound,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import { DashboardTicketStatusSelect } from "@/components/tickets/DashboardTicketStatusSelect";
 import {
   listAdminTickets,
   listAdminUsers,
+  updateAdminTicketStatus,
   type AdminTicket,
   type AdminUser,
 } from "@/lib/admin-api";
 import { adminNav } from "@/lib/dashboard-nav";
-import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
+import { DASHBOARD_MODULES, RBAC_PERMISSIONS } from "@/lib/dashboard-access";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { TicketStatus } from "@/lib/types";
-
-// ---------------------------------------------------------------------------
-// Badges
-// ---------------------------------------------------------------------------
-const statusBadgeClass: Record<TicketStatus, string> = {
-  SUBMITTED: "bg-slate-100 text-slate-700 border-slate-200",
-  IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
-  RESOLVED: "bg-emerald-50 text-emerald-700 border-emerald-200",
-};
-const statusLabel: Record<TicketStatus, string> = {
-  SUBMITTED: "Submitted",
-  IN_PROGRESS: "In Progress",
-  RESOLVED: "Resolved",
-};
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function formatRelative(iso?: string) {
-  if (!iso) return "Unknown";
-  const diff = Date.now() - new Date(iso).getTime();
-  const hours = Math.floor(diff / 3_600_000);
-  if (hours < 1) return "Just now";
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
 
 type DashboardQuickLink = {
   href: string;
@@ -70,11 +48,14 @@ function barWidth(value: number, max: number) {
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const { hasPermission, isLoading: isPermissionLoading } = useRbacPermissions();
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isPermissionLoading) return;
@@ -113,6 +94,42 @@ export default function AdminDashboardPage() {
 
   const canViewTickets = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
   const canViewUsers = hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission);
+  const canUpdateTickets = hasPermission(RBAC_PERMISSIONS.ticket.update);
+
+  async function handleRecentTicketStatusChange(
+    ticketId: string,
+    nextStatus: TicketStatus,
+  ) {
+    const currentTicket = tickets.find((ticket) => ticket.id === ticketId);
+    if (
+      !currentTicket ||
+      !canUpdateTickets ||
+      currentTicket.status === nextStatus ||
+      updatingTicketId
+    ) {
+      return;
+    }
+
+    setUpdatingTicketId(ticketId);
+    setStatusError(null);
+
+    try {
+      const updatedTicket = await updateAdminTicketStatus(ticketId, nextStatus);
+      setTickets((current) =>
+        current.map((ticket) =>
+          ticket.id === ticketId ? { ...ticket, ...updatedTicket } : ticket,
+        ),
+      );
+    } catch {
+      setStatusError("Failed to update ticket status.");
+    } finally {
+      setUpdatingTicketId(null);
+    }
+  }
+
+  function openTicket(ticketId: string) {
+    router.push(`/admin/tickets/${ticketId}`);
+  }
 
   const ticketSummary = useMemo(() => {
     const summary = {
@@ -391,34 +408,52 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="space-y-2">
+              {statusError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {statusError}
+                </div>
+              )}
               {ticketSummary.recentTickets.length === 0 && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
                   {isLoading ? "Loading tickets..." : "No tickets found."}
                 </div>
               )}
               {ticketSummary.recentTickets.map((ticket) => (
-                <Link
+                <div
                   key={ticket.id}
-                  href={`/admin/tickets/${ticket.id}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-blue-200 hover:bg-white"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => openTicket(ticket.id)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.target === event.currentTarget &&
+                      (event.key === "Enter" || event.key === " ")
+                    ) {
+                      event.preventDefault();
+                      openTicket(ticket.id);
+                    }
+                  }}
+                  className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-blue-200 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
                         {ticket.public_ticket_id}
                       </span>
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-xs ${statusBadgeClass[ticket.status]}`}
-                      >
-                        {statusLabel[ticket.status]}
-                      </span>
                     </div>
                     <p className="mt-1 truncate text-xs font-medium text-slate-800">{ticket.title}</p>
                   </div>
-                  <span className="shrink-0 text-xs text-slate-400">
-                    {formatRelative(ticket.created_at)}
-                  </span>
-                </Link>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <DashboardTicketStatusSelect
+                      value={ticket.status}
+                      canUpdate={canUpdateTickets}
+                      isUpdating={updatingTicketId === ticket.id}
+                      onChange={(status) =>
+                        handleRecentTicketStatusChange(ticket.id, status)
+                      }
+                    />
+                  </div>
+                </div>
               ))}
             </div>
           </div>
