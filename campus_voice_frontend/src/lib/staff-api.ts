@@ -171,6 +171,21 @@ export async function getStaffTicket(ticketId: string) {
   return normalizeTicket(response.data);
 }
 
+export async function updateStaffTicketStatus(
+  ticketId: string,
+  status: TicketStatus,
+) {
+  const response = await api.patch<BackendStaffTicket>(
+    `/admin/tickets/${ticketId}`,
+    { status },
+  );
+  return normalizeTicket(response.data);
+}
+
+export async function deleteStaffTicket(ticketId: string) {
+  await api.delete(`/admin/tickets/${ticketId}`);
+}
+
 export async function getTicketResolution(ticketId: string) {
   const response = await api.get<StaffTicketResolution>(
     `/admin/tickets/${ticketId}/resolution`,

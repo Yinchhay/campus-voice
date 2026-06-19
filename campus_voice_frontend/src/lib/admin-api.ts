@@ -1,12 +1,20 @@
 import api from "@/lib/axios";
 import {
+  deleteStaffTicket,
   getStaffTicket,
   listStaffTickets,
   listStaffTicketsPage,
+  updateStaffTicketStatus,
   type StaffTicket,
   type StaffTicketMessage,
 } from "@/lib/staff-api";
-import type { Category, CategoryIssueType, TicketPriority, UserRole } from "@/lib/types";
+import type {
+  Category,
+  CategoryIssueType,
+  TicketPriority,
+  TicketStatus,
+  UserRole,
+} from "@/lib/types";
 import {
   toPaginatedResponse,
   unwrapPaginated,
@@ -217,6 +225,14 @@ export async function listAdminTicketsPage(params: ListQueryParams = {}) {
 
 export async function getAdminTicket(ticketId: string) {
   return getStaffTicket(ticketId);
+}
+
+export async function updateAdminTicketStatus(ticketId: string, status: TicketStatus) {
+  return updateStaffTicketStatus(ticketId, status);
+}
+
+export async function deleteAdminTicket(ticketId: string) {
+  return deleteStaffTicket(ticketId);
 }
 
 export async function listAdminUsers(params: ListQueryParams = {}) {
