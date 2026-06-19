@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from api.permissions import HasResourcePermission
 from django.db.models import Q
+from django.utils import timezone
 
 from api.models import Ticket
 from api.serializers import TicketSerializer, TicketDetailSerializer
@@ -64,3 +65,56 @@ class AdminTicketDetailView(APIView):
                 {'error': 'Failed to retrieve ticket'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+            
+    def patch(self, request, ticket_id):
+        try:
+            ticket = Ticket.objects.get(id=ticket_id)
+        except Ticket.DoesNotExist:
+            return Response({'error': 'Ticket not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Restrict updates to only the 'status' field
+        allowed_data = {}
+        if 'status' in request.data:
+            allowed_data['status'] = request.data['status']
+
+        serializer = TicketSerializer(ticket, data=allowed_data, partial=True)
+        if serializer.is_valid():
+            # Set resolved_at if status changes to RESOLVED manually
+            if serializer.validated_data.get('status') == Ticket.Status.RESOLVED and not ticket.resolved_at:
+                serializer.save(resolved_at=timezone.now())
+            else:
+                serializer.save()
+                
+            logger.info(f"Ticket {ticket.public_ticket_id} updated by {request.user.email}")
+            return Response(TicketDetailSerializer(ticket).data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, ticket_id):
+        try:
+            ticket = Ticket.objects.prefetch_related(
+                    'attachments',
+                    'messages__attachment',
+                    'resolution__attachments',
+                ).get(id=ticket_id)
+        except Ticket.DoesNotExist:
+            return Response({'error': 'Ticket not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Delete physical files to avoid orphaned files in storage
+        for attachment in ticket.attachments.all():
+            if attachment.file:
+                attachment.file.delete(save=False)
+                
+        for message in ticket.messages.all():
+            if hasattr(message, 'attachment') and message.attachment and message.attachment.file:
+                message.attachment.file.delete(save=False)
+                
+        if hasattr(ticket, 'resolution') and ticket.resolution:
+            for attachment in ticket.resolution.attachments.all():
+                if attachment.file:
+                    attachment.file.delete(save=False)
+
+        public_ticket_id = ticket.public_ticket_id
+        ticket.delete()
+        
+        logger.info(f"Ticket {public_ticket_id} deleted by {request.user.email}")
+        return Response({'message': 'Ticket deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
