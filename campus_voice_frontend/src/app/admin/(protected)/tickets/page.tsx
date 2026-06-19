@@ -292,8 +292,8 @@ export default function AdminTicketsPage() {
           {filtered.length !== 1 ? "s" : ""}
         </p>
 
-        {/* ── Table ────────────────────────────────────────── */}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {/* ── Ticket rows ──────────────────────────────────── */}
+        <div className="space-y-2 sm:overflow-hidden sm:rounded-2xl sm:border sm:border-slate-200 sm:bg-white sm:shadow-sm">
           {/* Header */}
           <div className="hidden grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:grid">
             <span>Ticket</span>
@@ -311,7 +311,7 @@ export default function AdminTicketsPage() {
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="space-y-2 sm:space-y-0 sm:divide-y sm:divide-slate-100">
               {filtered.map((ticket) => {
                 const isHighPriority = ticket.priority === "HIGH";
 
@@ -319,16 +319,27 @@ export default function AdminTicketsPage() {
                 <Link
                   key={ticket.id}
                   href={`/admin/tickets/${ticket.id}`}
-                  className={`flex flex-col gap-3 px-5 py-4 transition sm:grid sm:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] sm:items-center sm:gap-4 ${
+                  className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:shadow-md sm:grid sm:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] sm:items-center sm:gap-4 sm:rounded-none sm:border-0 sm:px-5 sm:py-4 sm:shadow-none sm:hover:shadow-none ${
                     isHighPriority
-                      ? "bg-red-100/70 hover:bg-red-100"
-                      : "hover:bg-slate-50"
+                      ? "border-red-300 bg-red-100/80 hover:border-red-400 hover:bg-red-100 sm:bg-red-100/70"
+                      : "border-slate-200 bg-white hover:border-blue-200 sm:hover:bg-slate-50"
                   }`}
                 >
-                  <div>
-                    <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
                         {ticket.public_ticket_id}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium sm:hidden ${priorityBadgeClass[ticket.priority]}`}
+                      >
+                        {priorityIcon[ticket.priority]}
+                        {ticket.priority}
+                      </span>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-xs font-medium sm:hidden ${statusBadgeClass[ticket.status]}`}
+                      >
+                        {statusLabel[ticket.status]}
                       </span>
                       {ticket.is_anonymous && (
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">
@@ -336,29 +347,33 @@ export default function AdminTicketsPage() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 line-clamp-1 text-sm font-medium text-slate-900">
+                    <p className="mt-2 truncate text-sm font-medium text-slate-900 sm:mt-1 sm:line-clamp-1">
                       {ticket.title}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500 sm:hidden">
+                      {categoryName(ticket.category_id)}
                     </p>
                   </div>
 
-                  <p className="text-xs text-slate-600">{categoryName(ticket.category_id)}</p>
+                  <p className="hidden text-xs text-slate-600 sm:block">{categoryName(ticket.category_id)}</p>
 
                   <span
-                    className={`inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${priorityBadgeClass[ticket.priority]}`}
+                    className={`hidden w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium sm:inline-flex ${priorityBadgeClass[ticket.priority]}`}
                   >
                     {priorityIcon[ticket.priority]}
                     {ticket.priority}
                   </span>
 
                   <span
-                    className={`inline-block w-fit rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass[ticket.status]}`}
+                    className={`hidden w-fit rounded-full border px-2.5 py-0.5 text-xs font-medium sm:inline-block ${statusBadgeClass[ticket.status]}`}
                   >
                     {statusLabel[ticket.status]}
                   </span>
 
-                  <span className="text-xs text-slate-400">
-                    {formatDate(ticket.resolved_at ?? undefined)}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-3 text-xs text-slate-400 sm:block">
+                    <span>{formatDate(ticket.resolved_at ?? undefined)}</span>
+                    <ArrowRight className="h-4 w-4 text-slate-300 sm:hidden" />
+                  </div>
 
                   <ArrowRight className="hidden h-4 w-4 text-slate-300 sm:block" />
                 </Link>
