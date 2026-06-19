@@ -3,6 +3,7 @@
 import Link from "next/link";
 import axios from "axios";
 import { use, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarClock,
@@ -21,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
+import { TicketDeleteDialog } from "@/components/tickets/TicketDeleteDialog";
 import { attachmentHref, attachmentName } from "@/lib/attachments";
 import { staffNav } from "@/lib/dashboard-nav";
 import {
@@ -28,12 +30,16 @@ import {
   createStaffTicketResolution,
   createStaffTicketMessage,
   deleteAdminTicketMeetingSlot,
+  deleteStaffTicket,
   getStaffTicket,
   listAdminTicketMeetingSlots,
   type StaffTicket,
   type StaffTicketMessage,
+  updateStaffTicketStatus,
   updateAdminTicketMeetingSlot,
 } from "@/lib/staff-api";
+import { RBAC_PERMISSIONS } from "@/lib/dashboard-access";
+import { useRbacPermissions } from "@/lib/rbac";
 import type {
   CampusLocation,
   MeetingSlot,
@@ -175,6 +181,8 @@ export default function StaffTicketDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
+  const { hasPermission } = useRbacPermissions();
 
   const resolutionFileInputRef = useRef<HTMLInputElement | null>(null);
   const messageFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -182,6 +190,10 @@ export default function StaffTicketDetailPage({
   const [ticket, setTicket] = useState<StaffTicket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [ticketActionError, setTicketActionError] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<TicketStatus | null>(null);
+  const [isDeletingTicket, setIsDeletingTicket] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Local state for status/priority overrides and messages
   const [currentStatus, setCurrentStatus] = useState<TicketStatus>("SUBMITTED");
@@ -214,6 +226,8 @@ export default function StaffTicketDetailPage({
   const [meetingLocation, setMeetingLocation] = useState("");
   const [meetingStart, setMeetingStart] = useState("");
   const [meetingEnd, setMeetingEnd] = useState("");
+  const canUpdateTicket = hasPermission(RBAC_PERMISSIONS.ticket.update);
+  const canDeleteTicket = hasPermission(RBAC_PERMISSIONS.ticket.delete);
 
   useEffect(() => {
     let isMounted = true;
@@ -310,21 +324,49 @@ export default function StaffTicketDetailPage({
       setReplyAttachment(null);
       if (messageFileInputRef.current) messageFileInputRef.current.value = "";
 
-      if (currentStatus === "SUBMITTED") {
-        setCurrentStatus("IN_PROGRESS");
-        setTicket((currentTicket) =>
-          currentTicket
-            ? {
-                ...currentTicket,
-                status: "IN_PROGRESS",
-              }
-            : currentTicket,
-        );
+      if (currentStatus === "SUBMITTED" && canUpdateTicket) {
+        const updatedTicket = await updateStaffTicketStatus(ticket.id, "IN_PROGRESS");
+        setTicket(updatedTicket);
+        setCurrentStatus(updatedTicket.status);
+        setCurrentPriority(updatedTicket.priority);
       }
     } catch (error) {
       setMessageError(extractApiError(error, "Failed to send message."));
     } finally {
       setIsSendingMessage(false);
+    }
+  }
+
+  async function handleStatusChange(nextStatus: TicketStatus) {
+    if (!ticket || !canUpdateTicket || updatingStatus || nextStatus === currentStatus) return;
+
+    setUpdatingStatus(nextStatus);
+    setTicketActionError(null);
+
+    try {
+      const updatedTicket = await updateStaffTicketStatus(ticket.id, nextStatus);
+      setTicket(updatedTicket);
+      setCurrentStatus(updatedTicket.status);
+      setCurrentPriority(updatedTicket.priority);
+    } catch (error) {
+      setTicketActionError(extractApiError(error, "Failed to update ticket status."));
+    } finally {
+      setUpdatingStatus(null);
+    }
+  }
+
+  async function handleDeleteTicket() {
+    if (!ticket || !canDeleteTicket || isDeletingTicket) return;
+
+    setIsDeletingTicket(true);
+    setTicketActionError(null);
+
+    try {
+      await deleteStaffTicket(ticket.id);
+      router.push("/staff/tickets");
+    } catch (error) {
+      setTicketActionError(extractApiError(error, "Failed to delete ticket."));
+      setIsDeletingTicket(false);
     }
   }
 
@@ -859,8 +901,11 @@ export default function StaffTicketDetailPage({
               </h2>
               <div className="flex flex-col gap-2">
                 {statusFlow.map((s) => (
-                  <div
+                  <button
+                    type="button"
                     key={s}
+                    onClick={() => handleStatusChange(s)}
+                    disabled={!canUpdateTicket || updatingStatus !== null || s === currentStatus}
                     className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
                       currentStatus === s
                         ? s === "RESOLVED"
@@ -869,7 +914,7 @@ export default function StaffTicketDetailPage({
                             ? "border-blue-200 bg-blue-50 text-blue-700"
                           : "border-slate-300 bg-slate-100 text-slate-700"
                         : "border-slate-200 bg-white text-slate-600"
-                    }`}
+                    } disabled:cursor-not-allowed disabled:opacity-70`}
                   >
                     {s === "SUBMITTED" && (
                       <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
@@ -880,10 +925,15 @@ export default function StaffTicketDetailPage({
                     {s === "RESOLVED" && (
                       <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
                     )}
-                    {statusLabel[s]}
-                  </div>
+                    {updatingStatus === s ? "Updating..." : statusLabel[s]}
+                  </button>
                 ))}
               </div>
+              {!canUpdateTicket && (
+                <p className="mt-3 text-xs text-slate-400">
+                  Your role does not include ticket update permission.
+                </p>
+              )}
               {currentStatus !== "RESOLVED" && (
                 <button
                   type="button"
@@ -995,10 +1045,11 @@ export default function StaffTicketDetailPage({
                   {resolutionError}
                 </p>
               )}
-              <p className="mt-3 text-xs text-slate-400">
-                Direct status updates are not available in the current backend.
-                Resolution uses the ticket resolution endpoint.
-              </p>
+              {ticketActionError && (
+                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {ticketActionError}
+                </p>
+              )}
             </div>
 
             {/* Priority control */}
@@ -1025,6 +1076,33 @@ export default function StaffTicketDetailPage({
                 </span>
               </p>
             </div>
+
+            {canDeleteTicket && (
+              <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
+                <h2 className="mb-2 text-sm font-semibold text-red-900">
+                  Delete Ticket
+                </h2>
+                <p className="mb-3 text-xs leading-5 text-red-700">
+                  This permanently removes the ticket and all related files.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTicketActionError(null);
+                    setShowDeleteDialog(true);
+                  }}
+                  disabled={isDeletingTicket}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isDeletingTicket ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  {isDeletingTicket ? "Deleting..." : "Delete Ticket"}
+                </button>
+              </div>
+            )}
 
             {/* Meeting slots */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1311,6 +1389,21 @@ export default function StaffTicketDetailPage({
           </div>
         </div>
       </div>
+      {showDeleteDialog && (
+        <TicketDeleteDialog
+          publicTicketId={ticket.public_ticket_id}
+          title={ticket.title}
+          isDeleting={isDeletingTicket}
+          error={ticketActionError}
+          onClose={() => {
+            if (!isDeletingTicket) {
+              setShowDeleteDialog(false);
+              setTicketActionError(null);
+            }
+          }}
+          onConfirm={handleDeleteTicket}
+        />
+      )}
     </RoleDashboardShell>
   );
 }
