@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -22,10 +23,16 @@ class AdminTicketListView(APIView):
     
     def get(self, request):
         filters = request.query_params.get('filters', '')
+        date_range = request.query_params.get('date_range', 'all').lower()
         sort_by = request.query_params.get('sort_by', 'created_at')
         sort_desc = request.query_params.get('sort_desc', 'true').lower() == 'true'
 
         tickets = Ticket.objects.prefetch_related('attachments').all()
+
+        if date_range == 'week':
+            tickets = tickets.filter(created_at__gte=timezone.now() - timedelta(days=7))
+        elif date_range == 'month':
+            tickets = tickets.filter(created_at__gte=timezone.now() - timedelta(days=30))
 
         if filters:
             tickets = tickets.filter(

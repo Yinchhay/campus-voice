@@ -11,6 +11,7 @@ export type ListQueryParams = {
   filters?: string;
   sort_by?: string;
   sort_desc?: boolean;
+  date_range?: string;
 };
 
 export function unwrapPaginated<T>(data: T[] | PaginatedResponse<T>): T[] {

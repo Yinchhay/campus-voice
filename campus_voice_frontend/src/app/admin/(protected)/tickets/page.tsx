@@ -62,6 +62,12 @@ const priorityRank: Record<TicketPriority, number> = {
   LOW: 2,
 };
 const DEFAULT_PAGE_SIZE = 20;
+type DateRangeFilter = "ALL" | "WEEK" | "MONTH";
+const dateRangeOptions: Array<{ value: DateRangeFilter; label: string }> = [
+  { value: "ALL", label: "All time" },
+  { value: "WEEK", label: "Past week" },
+  { value: "MONTH", label: "Past month" },
+];
 
 function ticketSortTime(ticket: AdminTicket) {
   return Date.parse(ticket.created_at ?? ticket.resolved_at ?? "") || 0;
@@ -78,6 +84,7 @@ export default function AdminTicketsPage() {
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "ALL">("ALL");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "ALL">("ALL");
   const [categoryFilter, setCategoryFilter] = useState<number | "ALL">("ALL");
+  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeFilter>("ALL");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -96,6 +103,7 @@ export default function AdminTicketsPage() {
             page,
             page_size: pageSize,
             filters: search.trim() || undefined,
+            date_range: dateRangeFilter.toLowerCase(),
             sort_by: "created_at",
             sort_desc: true,
           }),
@@ -117,7 +125,7 @@ export default function AdminTicketsPage() {
     return () => {
       isMounted = false;
     };
-  }, [page, pageSize, search]);
+  }, [dateRangeFilter, page, pageSize, search]);
 
   const filtered = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -282,6 +290,21 @@ export default function AdminTicketsPage() {
                   </option>
                 ))}
               </select>
+              <select
+                id="admin-date-range-filter"
+                value={dateRangeFilter}
+                onChange={(e) => {
+                  setDateRangeFilter(e.target.value as DateRangeFilter);
+                  setPage(1);
+                }}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
+              >
+                {dateRangeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -371,7 +394,7 @@ export default function AdminTicketsPage() {
                   </span>
 
                   <div className="flex shrink-0 items-center gap-3 text-xs text-slate-400 sm:block">
-                    <span>{formatDate(ticket.resolved_at ?? undefined)}</span>
+                    <span>{formatDate(ticket.created_at)}</span>
                     <ArrowRight className="h-4 w-4 text-slate-300 sm:hidden" />
                   </div>
 
