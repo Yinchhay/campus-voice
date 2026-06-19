@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -14,8 +15,13 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
-import { listStaffTickets, type StaffTicket } from "@/lib/staff-api";
+import { DashboardTicketStatusSelect } from "@/components/tickets/DashboardTicketStatusSelect";
+import { DASHBOARD_MODULES, RBAC_PERMISSIONS } from "@/lib/dashboard-access";
+import {
+  listStaffTickets,
+  updateStaffTicketStatus,
+  type StaffTicket,
+} from "@/lib/staff-api";
 import { staffNav } from "@/lib/dashboard-nav";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
@@ -23,18 +29,6 @@ import type { TicketPriority, TicketStatus } from "@/lib/types";
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const statusBadgeClass: Record<TicketStatus, string> = {
-  SUBMITTED: "bg-slate-100 text-slate-700 border-slate-200",
-  IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
-  RESOLVED: "bg-emerald-50 text-emerald-700 border-emerald-200",
-};
-
-const statusLabel: Record<TicketStatus, string> = {
-  SUBMITTED: "Submitted",
-  IN_PROGRESS: "In Progress",
-  RESOLVED: "Resolved",
-};
-
 const priorityBadgeClass: Record<TicketPriority, string> = {
   HIGH: "bg-red-50 text-red-700 border-red-200",
   MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
@@ -71,17 +65,6 @@ function extractApiError(error: unknown, fallback: string) {
   return fallback;
 }
 
-function formatRelative(iso?: string) {
-  if (!iso) return "Time unavailable";
-
-  const diff = Date.now() - new Date(iso).getTime();
-  const hours = Math.floor(diff / 3_600_000);
-  if (hours < 1) return "Just now";
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
 function ticketCreatedTime(ticket: StaffTicket) {
   return ticket.created_at ? Date.parse(ticket.created_at) : 0;
 }
@@ -104,11 +87,14 @@ function barWidth(value: number, max: number) {
 // Page
 // ---------------------------------------------------------------------------
 export default function StaffDashboardPage() {
+  const router = useRouter();
   const { hasPermission, isLoading: isPermissionLoading } =
     useRbacPermissions();
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isPermissionLoading) return;
@@ -148,6 +134,42 @@ export default function StaffDashboardPage() {
   const canViewTickets = hasPermission(
     DASHBOARD_MODULES.ticketOverview.requiredPermission,
   );
+  const canUpdateTickets = hasPermission(RBAC_PERMISSIONS.ticket.update);
+
+  async function handleRecentTicketStatusChange(
+    ticketId: string,
+    nextStatus: TicketStatus,
+  ) {
+    const currentTicket = tickets.find((ticket) => ticket.id === ticketId);
+    if (
+      !currentTicket ||
+      !canUpdateTickets ||
+      currentTicket.status === nextStatus ||
+      updatingTicketId
+    ) {
+      return;
+    }
+
+    setUpdatingTicketId(ticketId);
+    setStatusError(null);
+
+    try {
+      const updatedTicket = await updateStaffTicketStatus(ticketId, nextStatus);
+      setTickets((current) =>
+        current.map((ticket) =>
+          ticket.id === ticketId ? { ...ticket, ...updatedTicket } : ticket,
+        ),
+      );
+    } catch (error) {
+      setStatusError(extractApiError(error, "Failed to update ticket status."));
+    } finally {
+      setUpdatingTicketId(null);
+    }
+  }
+
+  function openTicket(ticketId: string) {
+    router.push(`/staff/tickets/${ticketId}`);
+  }
 
   const ticketSummary = useMemo(() => {
     const today = new Date();
@@ -392,6 +414,12 @@ export default function StaffDashboardPage() {
                 {pageError}
               </div>
             )}
+            {statusError && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <TriangleAlert className="h-4 w-4 shrink-0" />
+                {statusError}
+              </div>
+            )}
 
             <div className="space-y-2">
               {isLoading && (
@@ -410,10 +438,21 @@ export default function StaffDashboardPage() {
 
               {!isLoading &&
                 ticketSummary.recentTickets.map((ticket) => (
-                  <Link
+                  <div
                     key={ticket.id}
-                    href={`/staff/tickets/${ticket.id}`}
-                    className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-200 hover:bg-white sm:flex-row sm:items-center sm:justify-between"
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => openTicket(ticket.id)}
+                    onKeyDown={(event) => {
+                      if (
+                        event.target === event.currentTarget &&
+                        (event.key === "Enter" || event.key === " ")
+                      ) {
+                        event.preventDefault();
+                        openTicket(ticket.id);
+                      }
+                    }}
+                    className="flex cursor-pointer flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-200 hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -436,17 +475,17 @@ export default function StaffDashboardPage() {
                     </div>
 
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadgeClass[ticket.status]}`}
-                      >
-                        {statusLabel[ticket.status]}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {formatRelative(ticket.created_at)}
-                      </span>
+                      <DashboardTicketStatusSelect
+                        value={ticket.status}
+                        canUpdate={canUpdateTickets}
+                        isUpdating={updatingTicketId === ticket.id}
+                        onChange={(status) =>
+                          handleRecentTicketStatusChange(ticket.id, status)
+                        }
+                      />
                       <ArrowRight className="h-4 w-4 text-slate-300" />
                     </div>
-                  </Link>
+                  </div>
                 ))}
             </div>
           </div>
