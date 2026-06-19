@@ -62,6 +62,26 @@ services:
     networks:
       - app-network
 
+  celery_worker:
+    build:
+      context: ./campus_voice_backend
+      target: dev
+    env_file:
+      - ./.env
+    command: celery -A config worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    volumes:
+      - ./campus_voice_backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+
   frontend:
     build:
       context: ./campus_voice_frontend

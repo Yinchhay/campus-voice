@@ -11,7 +11,7 @@ from django.utils import timezone
 from api.models import Ticket, Category
 
 from api.serializers import PublicTicketSerializer, PublicTicketDetailSerializer
-from api.services.email_service import send_new_ticket_notification_to_admin
+from api.tasks import send_new_ticket_notification_task
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class TicketListView(APIView):
                 )
                 
                 if ticket.priority == Ticket.Priority.HIGH:
-                    send_new_ticket_notification_to_admin(ticket)
+                    send_new_ticket_notification_task.delay(ticket.id)
                 
                 return Response(
                     PublicTicketDetailSerializer(ticket).data,

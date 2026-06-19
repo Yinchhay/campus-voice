@@ -32,3 +32,4 @@ better-profanity==0.7.0
 django-filter==25.2
 redis
 django-redis
+celery

@@ -14,7 +14,7 @@ from api.serializers import (
     StudentMeetingBookingDetailSerializer,
 )
 from api.services.google_calendar_service import create_calendar_event
-from api.services.email_service import send_new_meeting_booking_notification_to_admin
+from api.tasks import send_meeting_booking_notification_task
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ class StudentConfirmMeetingView(APIView):
         )
         
         # Send notification email to admin about confirmed meeting
-        send_new_meeting_booking_notification_to_admin(booking)
+        send_meeting_booking_notification_task.delay(booking.id)
         
         return Response({
             'message': 'Meeting confirmed successfully!',
