@@ -26,12 +26,18 @@ from api.views import (
     GoogleCalendarStatusView,
     AdminProfanityWordListView, 
     AdminProfanityWordDetailView,
+    AdminDashboardView,
 )
 
 app_name = 'admin'
 
 urlpatterns = [
     # your admin routes will go here
+    # ---------------------------------------------------------------------------- #
+    #                               Dashboard                                      #
+    # ---------------------------------------------------------------------------- #
+    path('dashboard', AdminDashboardView.as_view(), name='admin_dashboard'),
+
     # ---------------------------------------------------------------------------- #
     #                                Admin Auth                                    #
     # ---------------------------------------------------------------------------- #
