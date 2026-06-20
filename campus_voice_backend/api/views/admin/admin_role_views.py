@@ -14,8 +14,9 @@ from api.serializers.admin_serializers import (
     PermissionSerializer,
     UserRoleSerializer,
 )
-from api.permissions import HasResourcePermission
+from api.permissions import HasResourcePermission, invalidate_permission_cache
 from django.db.models import Q
+from django.core.cache import cache
 from api.utils import get_paginated_response
 
 User = get_user_model()
@@ -30,7 +31,7 @@ class AdminRoleListView(APIView):
         sort_by = request.query_params.get('sort_by', 'name')
         sort_desc = request.query_params.get('sort_desc', 'false').lower() == 'true'
 
-        roles = AdminRole.objects.annotate(user_count=Count('user_assignments'))
+        roles = AdminRole.objects.prefetch_related('permissions').annotate(user_count=Count('user_assignments'))
 
         if filters:
             roles = roles.filter(
@@ -115,19 +116,27 @@ class AdminPermissionListView(APIView):
     resource = 'permission'
     
     def get(self, request):
-        permissions = Permission.objects.all().order_by('resource', 'action')
-        
         grouped = request.query_params.get('grouped', 'false').lower() == 'true'
+        cache_key = 'permissions_grouped' if grouped else 'permissions_flat'
+
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
+
+        permissions = Permission.objects.all().order_by('resource', 'action')
+
         if grouped:
             result = {}
             for perm in permissions:
                 if perm.resource not in result:
                     result[perm.resource] = []
                 result[perm.resource].append(PermissionSerializer(perm).data)
+            cache.set(cache_key, result, timeout=3600)  # Cache for 1 hour
             return Response(result, status=status.HTTP_200_OK)
 
-        serializer = PermissionSerializer(permissions, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        data = PermissionSerializer(permissions, many=True).data
+        cache.set(cache_key, data, timeout=3600)  # Cache for 1 hour
+        return Response(data, status=status.HTTP_200_OK)
     
 class AdminUserRoleView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -159,14 +168,19 @@ class AdminUserRoleView(APIView):
                 {'error': 'User not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
         role_ids = request.data.get('role_ids', [])
+
         UserRole.objects.filter(user=user).delete()
         if role_ids:
             roles = AdminRole.objects.filter(id__in=role_ids)
             for role in roles:
                 UserRole.objects.create(user=user, role=role, assigned_by=request.user)
+
         user.is_staff = len(role_ids) > 0
         user.save(update_fields=['is_staff'])
+        invalidate_permission_cache(user_id)  # Clear cached permissions for this user
+
         user_roles = UserRole.objects.filter(user=user).select_related('role', 'assigned_by')
         return Response({
             'message': 'Roles updated successfully',
@@ -213,7 +227,8 @@ class AdminRolePermissionsView(APIView):
         if permission_ids:
             permissions = Permission.objects.filter(id__in=permission_ids)
             role.permissions.set(permissions)
-            
+        
+        invalidate_permission_cache()
         return Response({
             'message': 'Permissions updated successfully',
             'role': AdminRoleDetailSerializer(role).data
@@ -236,6 +251,8 @@ class AdminRolePermissionsView(APIView):
             )
         permissions = Permission.objects.filter(id__in=permission_ids)
         role.permissions.add(*permissions)
+        invalidate_permission_cache()
+
         return Response({
             'message': f'Added {permissions.count()} permissions to role',
             'role': AdminRoleDetailSerializer(role).data
@@ -261,6 +278,7 @@ class AdminRolePermissionsView(APIView):
             
         permissions = Permission.objects.filter(id__in=permission_ids)
         role.permissions.remove(*permissions)
+        invalidate_permission_cache()
         
         return Response({
             'message': f'Removed {permissions.count()} permissions from role',

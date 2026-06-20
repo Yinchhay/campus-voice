@@ -22,7 +22,7 @@ class MessageView(APIView):
             return error
         
         serializer = PublicMessageSerializer(
-            ticket.messages.prefetch_related('attachment').all(), 
+            ticket.messages.select_related('sender').prefetch_related('attachment').all(), 
             many=True
         )
         return Response(serializer.data, status=status.HTTP_200_OK)

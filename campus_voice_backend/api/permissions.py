@@ -2,6 +2,7 @@ from functools import wraps
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework import status
+from django.core.cache import cache
 
 
 METHOD_ACTION_MAP = {
@@ -21,13 +22,28 @@ def user_has_permission(user, resource: str, action: str) -> bool:
     # Admin role = superadmin, bypasses all permission checks
     if user.is_superadmin:
         return True
-
+    
+    cache_key = f"user_perm:{user.id}:{resource}:{action}"
+    result = cache.get(cache_key)
+    if result is not None:
+        return result
     # Staff — check their assigned role permissions
-    return UserRole.objects.filter(
+    result = UserRole.objects.filter(
         user=user,
         role__permissions__resource=resource,
         role__permissions__action=action,
     ).exists()
+
+    cache.set(cache_key, result, timeout=300)  # Cache for 5 minutes
+    return result
+
+
+def invalidate_permission_cache(user_id=None):
+    """Clear permission cache. If user_id given, clear only that user's cache."""
+    if user_id:
+        cache.delete_pattern(f"user_perm:{user_id}:*")
+    else:
+        cache.delete_pattern("user_perm:*")
 
 
 def get_user_permissions(user) -> set:

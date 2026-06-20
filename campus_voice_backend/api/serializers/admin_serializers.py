@@ -136,8 +136,8 @@ class AdminUserSerializer(serializers.ModelSerializer):
         return obj.role == User.Role.ADMIN
 
     def get_roles(self, obj):
-        # fix: was cut off, and referenced social_accounts which doesn't exist
-        user_roles = obj.admin_roles.select_related('role').prefetch_related('role__permissions')
+        # Using .all() lets Django leverage the prefetch cache populated in the views
+        user_roles = obj.admin_roles.all()
         return [
             {
                 'id':           ur.role.id,

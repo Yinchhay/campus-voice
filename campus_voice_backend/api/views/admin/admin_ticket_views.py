@@ -27,7 +27,7 @@ class AdminTicketListView(APIView):
         sort_by = request.query_params.get('sort_by', 'created_at')
         sort_desc = request.query_params.get('sort_desc', 'true').lower() == 'true'
 
-        tickets = Ticket.objects.prefetch_related('attachments').all()
+        tickets = Ticket.objects.select_related('category').prefetch_related('attachments').all()
 
         if date_range == 'week':
             tickets = tickets.filter(created_at__gte=timezone.now() - timedelta(days=7))

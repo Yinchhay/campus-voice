@@ -197,7 +197,7 @@ class AdminBookingListView(APIView):
     def get(self, request):
 
         bookings = StudentMeetingBooking.objects.select_related(
-            'meeting_slot', 'ticket', 'student'
+            'meeting_slot__staff_member', 'ticket', 'student'
         )
 
         if request.user.role != request.user.Role.ADMIN:

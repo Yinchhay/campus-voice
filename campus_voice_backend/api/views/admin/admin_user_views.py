@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from api.permissions import HasResourcePermission
+from api.permissions import HasResourcePermission, invalidate_permission_cache
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
@@ -159,6 +159,7 @@ class AdminUserDetailView(APIView):
                         )
                     except AdminRole.DoesNotExist:
                         pass
+                invalidate_permission_cache(user_id)
             
             user.save()
             serializer = AdminUserSerializer(user)

@@ -19,7 +19,7 @@ class TicketListView(APIView):
     permission_classes=[IsAuthenticated]
     
     def get(self, request):
-        tickets = Ticket.objects.filter(submitted_by=request.user).prefetch_related('attachments')
+        tickets = Ticket.objects.filter(submitted_by=request.user).select_related('category').prefetch_related('attachments')
         serializer = PublicTicketSerializer(tickets, many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)

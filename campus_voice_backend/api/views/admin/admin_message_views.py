@@ -24,7 +24,7 @@ class AdminMessageView(APIView):
             return error
         
         serializer = AdminMessageSerializer(
-            ticket.messages.prefetch_related('attachment').all(),
+            ticket.messages.select_related('sender').prefetch_related('attachment').all(),
             many=True
         )
         
