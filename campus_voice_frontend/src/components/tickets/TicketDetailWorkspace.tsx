@@ -689,8 +689,8 @@ export function TicketDetailWorkspace({
   return (
     <RoleDashboardShell
       roleName={roleName}
-      title={ticket.public_ticket_id}
-      description={ticket.title}
+      title=""
+      description=""
       navItems={navItems}
     >
       <div className="space-y-5">

@@ -55,6 +55,7 @@ export function RoleDashboardShell({
 	const accountName = session?.user?.name || session?.user?.email || "Signed in user";
 	const accountEmail = session?.user?.email;
 	const accountInitials = getInitials(session?.user?.name, accountEmail);
+	const hasPageHeader = Boolean(title || description);
 
 	const visibleNavItems = navItems.filter((item) => {
 		if (!item.requiredPermission) return true;
@@ -322,14 +323,20 @@ export function RoleDashboardShell({
 			<main className="pt-16 lg:pl-64">
 				<div className="mx-auto max-w-screen-xl px-4 py-8 sm:px-6 lg:px-8">
 					{/* Page header */}
-					<div className="mb-8">
-						<h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-							{title}
-						</h1>
-						<p className="mt-2 max-w-2xl text-sm text-slate-600 sm:mt-3 sm:text-base">
-							{description}
-						</p>
-					</div>
+					{hasPageHeader && (
+						<div className="mb-8">
+							{title && (
+								<h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+									{title}
+								</h1>
+							)}
+							{description && (
+								<p className="mt-2 max-w-2xl text-sm text-slate-600 sm:mt-3 sm:text-base">
+									{description}
+								</p>
+							)}
+						</div>
+					)}
 
 					{children}
 				</div>
