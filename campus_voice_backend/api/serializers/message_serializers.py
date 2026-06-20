@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from api.models import Message, MessageAttachment
+from api.utils import censor_profanity
 from .attachment_serializers import MessageAttachmentSerializer
 
 class PublicMessageSerializer(serializers.ModelSerializer):
@@ -51,7 +52,7 @@ class PublicMessageSerializer(serializers.ModelSerializer):
                 'Message content or an attachment is required.'
             )
 
-        attrs['content'] = attrs.get('content', '').strip()
+        attrs['content'] = censor_profanity(attrs.get('content', '').strip())
         return attrs
     
     def create(self, validated_data):
@@ -117,7 +118,7 @@ class AdminMessageSerializer(serializers.ModelSerializer):
                 'Message content or an attachment is required.'
             )
 
-        attrs['content'] = attrs.get('content', '').strip()
+        attrs['content'] = censor_profanity(attrs.get('content', '').strip())
         return attrs
         
     def create(self, validated_data):
