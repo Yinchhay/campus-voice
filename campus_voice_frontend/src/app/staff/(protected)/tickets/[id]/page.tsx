@@ -17,8 +17,8 @@ export default function StaffTicketDetailPage({
       roleName="Staff"
       navItems={staffNav}
       ticketsHref="/staff/tickets"
-      backLabel="Back to Queue"
-      unavailableBackLabel="Back to queue"
+      backLabel="Back to Tickets"
+      unavailableBackLabel="Back Tickets queue"
     />
   );
 }

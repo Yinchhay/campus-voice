@@ -23,8 +23,8 @@ import {
   X,
 } from "lucide-react";
 import { RoleDashboardShell, type DashboardNavItem } from "@/components/layout/RoleDashboardShell";
+import { AttachmentPreview } from "@/components/tickets/AttachmentPreview";
 import { TicketDeleteDialog } from "@/components/tickets/TicketDeleteDialog";
-import { attachmentHref, attachmentName } from "@/lib/attachments";
 import {
   createAdminTicketMeetingSlots,
   createStaffTicketResolution,
@@ -410,7 +410,7 @@ export function TicketDetailWorkspace({
 
   async function handleSend() {
     const text = replyText.trim();
-    if (!ticket || !text || isSendingMessage) return;
+    if (!ticket || (!text && !replyAttachment) || isSendingMessage) return;
 
     setIsSendingMessage(true);
     setMessageError(null);
@@ -689,8 +689,8 @@ export function TicketDetailWorkspace({
   return (
     <RoleDashboardShell
       roleName={roleName}
-      title={ticket.public_ticket_id}
-      description={ticket.title}
+      title=""
+      description=""
       navItems={navItems}
     >
       <div className="space-y-5">
@@ -775,18 +775,10 @@ export function TicketDetailWorkspace({
                   </h3>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {ticket.attachments.map((attachment) => (
-                      <a
+                      <AttachmentPreview
                         key={attachment.id}
-                        href={attachmentHref(attachment)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-white"
-                      >
-                        <Paperclip className="h-4 w-4 shrink-0 text-slate-400" />
-                        <span className="truncate">
-                          {attachmentName(attachment)}
-                        </span>
-                      </a>
+                        attachment={attachment}
+                      />
                     ))}
                   </div>
                 </div>
@@ -805,18 +797,11 @@ export function TicketDetailWorkspace({
                 {ticket.resolution.attachments.length > 0 && (
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {ticket.resolution.attachments.map((attachment) => (
-                      <a
+                      <AttachmentPreview
                         key={attachment.id}
-                        href={attachmentHref(attachment)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex min-w-0 items-center gap-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm text-emerald-800 transition hover:bg-white"
-                      >
-                        <Paperclip className="h-4 w-4 shrink-0" />
-                        <span className="truncate">
-                          {attachmentName(attachment)}
-                        </span>
-                      </a>
+                        attachment={attachment}
+                        tone="success"
+                      />
                     ))}
                   </div>
                 )}
@@ -874,15 +859,11 @@ export function TicketDetailWorkspace({
                           >
                             {msg.content}
                             {msg.attachment && (
-                              <a
-                                href={attachmentHref(msg.attachment)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-2 flex items-center gap-1.5 text-xs opacity-80 underline-offset-2 hover:underline"
-                              >
-                                <Paperclip className="h-3 w-3" />
-                                {attachmentName(msg.attachment)}
-                              </a>
+                              <AttachmentPreview
+                                attachment={msg.attachment}
+                                compact
+                                tone={isStaff ? "chatInverse" : "chat"}
+                              />
                             )}
                           </div>
                           <span className="px-1 text-xs text-slate-400">
@@ -896,101 +877,98 @@ export function TicketDetailWorkspace({
               </div>
 
               {/* Reply box */}
-              <div className="border-t border-slate-100 px-6 py-4">
-                <div className="flex items-end gap-3">
-                  <div className="flex-1">
-                    <textarea
-                      id="staff-reply-input"
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend();
-                        }
-                      }}
-                      rows={3}
-                      placeholder="Type a response to the student… (Enter to send)"
-                      disabled={
-                        isSendingMessage || currentStatus === "RESOLVED"
-                      }
-                      className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
-                    />
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <input
-                        ref={messageFileInputRef}
-                        type="file"
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                        onChange={handleReplyFileChange}
-                        disabled={
-                          isSendingMessage || currentStatus === "RESOLVED"
-                        }
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => messageFileInputRef.current?.click()}
-                        disabled={
-                          isSendingMessage || currentStatus === "RESOLVED"
-                        }
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 disabled:opacity-50"
-                      >
-                        <Paperclip className="h-3.5 w-3.5" />
-                        Attach
-                      </button>
-                      {replyAttachment && (
-                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
-                          <span className="truncate">
-                            {replyAttachment.name}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReplyAttachment(null);
-                              if (messageFileInputRef.current) {
-                                messageFileInputRef.current.value = "";
-                              }
-                            }}
-                            className="text-slate-400 hover:text-red-600"
-                            aria-label={`Remove ${replyAttachment.name}`}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </span>
-                      )}
-                    </div>
+              {currentStatus === "RESOLVED" ? (
+                <div className="border-t border-slate-100 px-6 py-4">
+                  <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    This conversation is closed because the ticket has been
+                    resolved.
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleSend}
-                    disabled={
-                      !replyText.trim() ||
-                      isSendingMessage ||
-                      currentStatus === "RESOLVED"
-                    }
-                    className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E3A8A] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Send message"
-                    title="Send message"
-                  >
-                    {isSendingMessage ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </button>
                 </div>
-                {messageError && (
-                  <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                    {messageError}
-                  </p>
-                )}
-                {currentStatus === "RESOLVED" && (
-                  <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                    This ticket is resolved. Reopen it before sending another
-                    message.
-                  </p>
-                )}
-              </div>
+              ) : (
+                <div className="border-t border-slate-100 px-6 py-4">
+                  <div className="flex items-end gap-3">
+                    <div className="flex-1">
+                      <textarea
+                        id="staff-reply-input"
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend();
+                          }
+                        }}
+                        rows={3}
+                        placeholder="Type a response to the student… (Enter to send)"
+                        disabled={isSendingMessage}
+                        className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1E3A8A] focus:bg-white focus:ring-2 focus:ring-blue-100"
+                      />
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <input
+                          ref={messageFileInputRef}
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={handleReplyFileChange}
+                          disabled={isSendingMessage}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => messageFileInputRef.current?.click()}
+                          disabled={isSendingMessage}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 disabled:opacity-50"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                          Attach
+                        </button>
+                        {replyAttachment && (
+                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600">
+                            <span className="truncate">
+                              {replyAttachment.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReplyAttachment(null);
+                                if (messageFileInputRef.current) {
+                                  messageFileInputRef.current.value = "";
+                                }
+                              }}
+                              className="text-slate-400 hover:text-red-600"
+                              aria-label={`Remove ${replyAttachment.name}`}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSend}
+                      disabled={
+                        (!replyText.trim() && !replyAttachment) ||
+                        isSendingMessage
+                      }
+                      className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E3A8A] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Send message"
+                      title="Send message"
+                    >
+                      {isSendingMessage ? (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  {messageError && (
+                    <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                      {messageError}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1153,58 +1131,6 @@ export function TicketDetailWorkspace({
                 </p>
               )}
             </div>
-
-            {/* Priority control */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">
-                Priority
-              </h2>
-              <select
-                id="priority-select"
-                value={currentPriority}
-                onChange={(e) =>
-                  setCurrentPriority(e.target.value as TicketPriority)
-                }
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#1E3A8A]"
-              >
-                <option value="HIGH">High</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="LOW">Low</option>
-              </select>
-              <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                Category:{" "}
-                <span className="font-medium text-slate-700">
-                  {ticket.category_name}
-                </span>
-              </p>
-            </div>
-
-            {canDeleteTicket && (
-              <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
-                <h2 className="mb-2 text-sm font-semibold text-red-900">
-                  Delete Ticket
-                </h2>
-                <p className="mb-3 text-xs leading-5 text-red-700">
-                  This permanently removes the ticket and all related files.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTicketActionError(null);
-                    setShowDeleteDialog(true);
-                  }}
-                  disabled={isDeletingTicket}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isDeletingTicket ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  {isDeletingTicket ? "Deleting..." : "Delete Ticket"}
-                </button>
-              </div>
-            )}
 
             {/* Meeting slots */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1560,6 +1486,33 @@ export function TicketDetailWorkspace({
                 </div>
               )}
             </div>
+
+            {canDeleteTicket && (
+              <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
+                <h2 className="mb-2 text-sm font-semibold text-red-900">
+                  Delete Ticket
+                </h2>
+                <p className="mb-3 text-xs leading-5 text-red-700">
+                  This permanently removes the ticket and all related files.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTicketActionError(null);
+                    setShowDeleteDialog(true);
+                  }}
+                  disabled={isDeletingTicket}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isDeletingTicket ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  {isDeletingTicket ? "Deleting..." : "Delete Ticket"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,7 +1,14 @@
+import re
+
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import status
-from api.models import Ticket
+from django.core.cache import cache
+from better_profanity import profanity
+from api.models import ProfanityWord, Ticket
+
+WORD_PATTERN = re.compile(r"\b[\w']+\b", re.UNICODE)
+REPEATED_CHAR_PATTERN = re.compile(r"(.)\1+", re.IGNORECASE)
 
 class CustomPageNumberPagination(PageNumberPagination):
     page_size = 20
@@ -35,3 +42,31 @@ def get_admin_ticket(ticket_id):
             {'error': 'Ticket not found'},
             status=status.HTTP_404_NOT_FOUND
         )
+
+def get_profanity_filter():
+    custom_words = cache.get('profanity_words')
+
+    if custom_words is None:
+        custom_words = list(ProfanityWord.objects.values_list('word', flat=True))
+        cache.set('profanity_words', custom_words, timeout=600)
+
+    profanity.add_censor_words(custom_words)
+    return profanity
+
+def censor_profanity(value):
+    if not value:
+        return value
+
+    profanity_filter = get_profanity_filter()
+    censored = profanity_filter.censor(value)
+
+    def censor_stretched_word(match):
+        word = match.group(0)
+        normalized = REPEATED_CHAR_PATTERN.sub(r"\1", word.lower())
+
+        if normalized != word.lower() and profanity_filter.contains_profanity(normalized):
+            return "****"
+
+        return word
+
+    return WORD_PATTERN.sub(censor_stretched_word, censored)

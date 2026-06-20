@@ -1,9 +1,8 @@
 from rest_framework import serializers
-from api.models import Ticket, Category, TicketAttachment, ProfanityWord
+from api.models import Ticket, Category, TicketAttachment
 from .message_serializers import PublicMessageSerializer, AdminMessageSerializer
 from .attachment_serializers import TicketAttachmentSerializer, ResolutionAttachmentSerializer
-from better_profanity import profanity
-from django.core.cache import cache
+from api.utils import censor_profanity
 
 
 class PublicTicketSerializer(serializers.ModelSerializer):
@@ -53,24 +52,11 @@ class PublicTicketSerializer(serializers.ModelSerializer):
             )
         return ticket
     
-    def get_profanity_filter(self):
-        # Read from Redis cache; only query the DB on a cache miss
-        custom_words = cache.get('profanity_words')
-        
-        if custom_words is None:
-            custom_words = list(ProfanityWord.objects.values_list('word', flat=True))
-            cache.set('profanity_words', custom_words, timeout=600)  # Cache for 10 minutes
-            
-        profanity.add_censor_words(custom_words)
-        return profanity
-
     def validate_title(self, value):
-        pf = self.get_profanity_filter()
-        return pf.censor(value)
+        return censor_profanity(value)
     
     def validate_description(self, value):
-        pf = self.get_profanity_filter()
-        return pf.censor(value)
+        return censor_profanity(value)
 
 
 class PublicTicketDetailSerializer(serializers.ModelSerializer):
