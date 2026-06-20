@@ -11,6 +11,7 @@ class PublicMessageSerializer(serializers.ModelSerializer):
     """
     sender_info = serializers.SerializerMethodField()
     attachment = serializers.SerializerMethodField()
+    content = serializers.CharField(required=False, allow_blank=True)
     
     class Meta:
         model = Message
@@ -39,6 +40,19 @@ class PublicMessageSerializer(serializers.ModelSerializer):
             return MessageAttachmentSerializer(obj.attachment).data
         except MessageAttachment.DoesNotExist:
             return None
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        has_content = bool(attrs.get('content', '').strip())
+        has_attachment = bool(request and request.FILES.get('attachment'))
+
+        if not has_content and not has_attachment:
+            raise serializers.ValidationError(
+                'Message content or an attachment is required.'
+            )
+
+        attrs['content'] = attrs.get('content', '').strip()
+        return attrs
     
     def create(self, validated_data):
         request = self.context.get('request')
@@ -60,6 +74,7 @@ class AdminMessageSerializer(serializers.ModelSerializer):
     """
     sender_info = serializers.SerializerMethodField()
     attachment = serializers.SerializerMethodField()
+    content = serializers.CharField(required=False, allow_blank=True)
     
     class Meta:
         model = Message
@@ -91,6 +106,19 @@ class AdminMessageSerializer(serializers.ModelSerializer):
             return MessageAttachmentSerializer(obj.attachment).data
         except MessageAttachment.DoesNotExist:
             return None
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        has_content = bool(attrs.get('content', '').strip())
+        has_attachment = bool(request and request.FILES.get('attachment'))
+
+        if not has_content and not has_attachment:
+            raise serializers.ValidationError(
+                'Message content or an attachment is required.'
+            )
+
+        attrs['content'] = attrs.get('content', '').strip()
+        return attrs
         
     def create(self, validated_data):
         request = self.context.get('request')
