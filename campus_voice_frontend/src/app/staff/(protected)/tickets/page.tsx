@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock,
   Filter,
+  Paperclip,
   Search,
   TriangleAlert,
 } from "lucide-react";
@@ -378,6 +379,13 @@ export default function StaffTicketsPage() {
                     {ticket.is_anonymous && (
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">
                         Anon
+                      </span>
+                    )}
+                    {ticket.attachments.length > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                        <Paperclip className="h-3 w-3" />
+                        {ticket.attachments.length} file
+                        {ticket.attachments.length !== 1 ? "s" : ""}
                       </span>
                     )}
                   </div>

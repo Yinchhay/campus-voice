@@ -18,7 +18,7 @@ import {
   Video,
   X,
 } from "lucide-react";
-import { attachmentHref, attachmentName } from "@/lib/attachments";
+import { AttachmentPreview } from "@/components/tickets/AttachmentPreview";
 import {
   confirmStudentTicketMeeting,
   createStudentTicketMessage,
@@ -356,7 +356,7 @@ export default function StudentReportDetailPage({
 
   async function handleSend() {
     const text = replyText.trim();
-    if (!ticket || !text || isSendingMessage) return;
+    if (!ticket || (!text && !messageAttachment) || isSendingMessage) return;
 
     setIsSendingMessage(true);
     setMessageError(null);
@@ -527,18 +527,10 @@ export default function StudentReportDetailPage({
                 </h3>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {ticket.attachments.map((attachment) => (
-                    <a
+                    <AttachmentPreview
                       key={attachment.id}
-                      href={attachmentHref(attachment)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-white"
-                    >
-                      <Paperclip className="h-4 w-4 shrink-0 text-slate-400" />
-                      <span className="truncate">
-                        {attachmentName(attachment)}
-                      </span>
-                    </a>
+                      attachment={attachment}
+                    />
                   ))}
                 </div>
               </div>
@@ -557,18 +549,11 @@ export default function StudentReportDetailPage({
               {ticket.resolution.attachments.length > 0 && (
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   {ticket.resolution.attachments.map((attachment) => (
-                    <a
+                    <AttachmentPreview
                       key={attachment.id}
-                      href={attachmentHref(attachment)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex min-w-0 items-center gap-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm text-emerald-800 transition hover:bg-white"
-                    >
-                      <Paperclip className="h-4 w-4 shrink-0" />
-                      <span className="truncate">
-                        {attachmentName(attachment)}
-                      </span>
-                    </a>
+                      attachment={attachment}
+                      tone="success"
+                    />
                   ))}
                 </div>
               )}
@@ -636,19 +621,11 @@ export default function StudentReportDetailPage({
                         >
                           {msg.content}
                           {msg.attachment && (
-                            <a
-                              href={attachmentHref(msg.attachment)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className={`mt-2 flex items-center gap-1.5 text-xs ${
-                                isStaff ? "text-slate-500" : "text-blue-200"
-                              }`}
-                            >
-                              <Paperclip className="h-3 w-3" />
-                              <span className="underline-offset-2 hover:underline">
-                                {attachmentName(msg.attachment)}
-                              </span>
-                            </a>
+                            <AttachmentPreview
+                              attachment={msg.attachment}
+                              compact
+                              tone={isStaff ? "chat" : "chatInverse"}
+                            />
                           )}
                         </div>
                         <span className="px-1 text-xs text-slate-400">
@@ -724,7 +701,10 @@ export default function StudentReportDetailPage({
                   <button
                     type="button"
                     onClick={handleSend}
-                    disabled={!replyText.trim() || isSendingMessage}
+                    disabled={
+                      (!replyText.trim() && !messageAttachment) ||
+                      isSendingMessage
+                    }
                     className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E3A8A] text-white transition hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Send message"
                     title="Send message"

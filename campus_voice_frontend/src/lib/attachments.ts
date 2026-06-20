@@ -16,3 +16,15 @@ export function attachmentHref(attachment: Attachment) {
   if (attachment.file.startsWith("/")) return `${apiOrigin}${attachment.file}`;
   return `${apiOrigin}/${attachment.file}`;
 }
+
+export function attachmentExtension(attachment: Attachment) {
+  const name = attachmentName(attachment).split("?")[0];
+  const extension = name.split(".").pop();
+  return extension ? extension.toLowerCase() : "";
+}
+
+export function isImageAttachment(attachment: Attachment) {
+  return ["jpg", "jpeg", "png", "gif", "webp", "avif", "bmp", "svg"].includes(
+    attachmentExtension(attachment),
+  );
+}
