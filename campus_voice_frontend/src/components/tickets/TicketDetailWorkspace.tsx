@@ -324,7 +324,11 @@ export function TicketDetailWorkspace({
     [ticket?.messages],
   );
 
-  const allMessages = [...serverMessages, ...localMessages];
+  const allMessages = useMemo(() => {
+    const combined = [...serverMessages, ...localMessages];
+    const unique = new Map(combined.map(msg => [msg.id, msg]));
+    return Array.from(unique.values());
+  }, [serverMessages, localMessages]);
 
   const groupedMeetingSlots = useMemo(
     () => groupMeetingSlotsByDate(meetingSlots),
