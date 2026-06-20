@@ -1154,58 +1154,6 @@ export function TicketDetailWorkspace({
               )}
             </div>
 
-            {/* Priority control */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">
-                Priority
-              </h2>
-              <select
-                id="priority-select"
-                value={currentPriority}
-                onChange={(e) =>
-                  setCurrentPriority(e.target.value as TicketPriority)
-                }
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#1E3A8A]"
-              >
-                <option value="HIGH">High</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="LOW">Low</option>
-              </select>
-              <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                Category:{" "}
-                <span className="font-medium text-slate-700">
-                  {ticket.category_name}
-                </span>
-              </p>
-            </div>
-
-            {canDeleteTicket && (
-              <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
-                <h2 className="mb-2 text-sm font-semibold text-red-900">
-                  Delete Ticket
-                </h2>
-                <p className="mb-3 text-xs leading-5 text-red-700">
-                  This permanently removes the ticket and all related files.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTicketActionError(null);
-                    setShowDeleteDialog(true);
-                  }}
-                  disabled={isDeletingTicket}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isDeletingTicket ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  {isDeletingTicket ? "Deleting..." : "Delete Ticket"}
-                </button>
-              </div>
-            )}
-
             {/* Meeting slots */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
@@ -1560,6 +1508,33 @@ export function TicketDetailWorkspace({
                 </div>
               )}
             </div>
+
+            {canDeleteTicket && (
+              <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
+                <h2 className="mb-2 text-sm font-semibold text-red-900">
+                  Delete Ticket
+                </h2>
+                <p className="mb-3 text-xs leading-5 text-red-700">
+                  This permanently removes the ticket and all related files.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTicketActionError(null);
+                    setShowDeleteDialog(true);
+                  }}
+                  disabled={isDeletingTicket}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isDeletingTicket ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  {isDeletingTicket ? "Deleting..." : "Delete Ticket"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
