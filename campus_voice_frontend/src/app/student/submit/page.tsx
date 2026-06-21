@@ -25,6 +25,7 @@ import {
   type StudentCategory,
   type StudentTicket,
 } from "@/lib/student-api";
+import { AttachmentPreview } from "@/components/tickets/AttachmentPreview";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type FormState = {
@@ -41,7 +42,7 @@ type FormErrors = Partial<
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const MAX_ATTACHMENT_SIZE_MB = 10;
-const MAX_ATTACHMENTS = 3;
+const MAX_ATTACHMENTS = 1;
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
@@ -271,32 +272,28 @@ export default function SubmitReportPage() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     setAttachmentError(null);
+    const file = files[0];
 
-    const invalid = files.find((f) => !ALLOWED_TYPES.includes(f.type));
-    if (invalid) {
-      setAttachmentError(`"${invalid.name}" is not a supported file type.`);
+    if (!file) return;
+
+    if (files.length > MAX_ATTACHMENTS) {
+      setAttachmentError("Please attach one file at a time.");
       return;
     }
 
-    const tooBig = files.find(
-      (f) => f.size > MAX_ATTACHMENT_SIZE_MB * 1024 * 1024,
-    );
-    if (tooBig) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setAttachmentError(`"${file.name}" is not a supported file type.`);
+      return;
+    }
+
+    if (file.size > MAX_ATTACHMENT_SIZE_MB * 1024 * 1024) {
       setAttachmentError(
-        `"${tooBig.name}" exceeds the ${MAX_ATTACHMENT_SIZE_MB} MB limit.`,
+        `"${file.name}" exceeds the ${MAX_ATTACHMENT_SIZE_MB} MB limit.`,
       );
       return;
     }
 
-    const combined = [...form.attachments, ...files];
-    if (combined.length > MAX_ATTACHMENTS) {
-      setAttachmentError(
-        `You can attach a maximum of ${MAX_ATTACHMENTS} files.`,
-      );
-      return;
-    }
-
-    setForm((prev) => ({ ...prev, attachments: combined }));
+    setForm((prev) => ({ ...prev, attachments: [file] }));
     // reset so same file can be re-added after removal
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -726,13 +723,12 @@ export default function SubmitReportPage() {
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   PDF, DOC, DOCX, JPG, or PNG — up to {MAX_ATTACHMENT_SIZE_MB}{" "}
-                  MB each · max {MAX_ATTACHMENTS} files
+                  MB
                 </p>
               </button>
               <input
                 ref={fileInputRef}
                 type="file"
-                multiple
                 accept={ALLOWED_TYPES.join(",")}
                 className="hidden"
                 onChange={handleFileChange}
@@ -747,29 +743,26 @@ export default function SubmitReportPage() {
 
               {/* Attachment list */}
               {form.attachments.length > 0 && (
-                <ul className="mt-3 space-y-2">
+                <ul className="mt-3 grid gap-3 sm:grid-cols-2">
                   {form.attachments.map((file, i) => (
                     <li
                       key={`${file.name}-${i}`}
-                      className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3"
+                      className="rounded-xl border border-slate-200 bg-white p-3"
                     >
-                      <FileText className="h-4 w-4 flex-shrink-0 text-slate-400" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-800">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-slate-500">
+                      <AttachmentPreview file={file} />
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <p className="min-w-0 truncate text-xs text-slate-500">
                           {formatBytes(file.size)}
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(i)}
+                          className="flex-shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                          aria-label={`Remove ${file.name}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(i)}
-                        className="ml-auto flex-shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                        aria-label={`Remove ${file.name}`}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
                     </li>
                   ))}
                 </ul>
