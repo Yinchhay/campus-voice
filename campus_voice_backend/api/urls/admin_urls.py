@@ -72,8 +72,8 @@ urlpatterns = [
     #                           Admin Ticket Management                            #
     # ---------------------------------------------------------------------------- #
     path('tickets', AdminTicketListView.as_view(), name='admin_ticket_list'),
-    path('tickets/export/excel', AdminTicketExportView.as_view(), name='admin_ticket_export'),
     path('tickets/<str:ticket_id>', AdminTicketDetailView.as_view(), name='admin_ticket_detail'),
+    path('tickets/export/excel', AdminTicketExportView.as_view(), name='admin_ticket_export'),
     
     # ---------------------------------------------------------------------------- #
     #                          Admin Message Management                            #

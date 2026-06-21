@@ -1,4 +1,5 @@
 import logging
+import openpyxl
 from datetime import timedelta
 
 from rest_framework.views import APIView
@@ -8,6 +9,9 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from api.permissions import HasResourcePermission
 from django.db.models import Q
 from django.utils import timezone
+from openpyxl.styles import Font, PatternFill
+from openpyxl.utils import get_column_letter
+from django.http import HttpResponse
 
 from api.models import Ticket
 from api.serializers import TicketSerializer, TicketDetailSerializer
@@ -172,10 +176,6 @@ class AdminTicketExportView(APIView):
         order_field = f'-{sort_by}' if sort_desc else sort_by
         tickets = tickets.order_by(order_field)
 
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill
-        from openpyxl.utils import get_column_letter
-        from django.http import HttpResponse
 
         wb = openpyxl.Workbook()
         ws = wb.active
