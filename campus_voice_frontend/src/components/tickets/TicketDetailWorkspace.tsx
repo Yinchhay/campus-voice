@@ -706,6 +706,29 @@ export function TicketDetailWorkspace({
         <div className="grid gap-5 lg:grid-cols-3">
           {/* ── Left: Ticket info ────────────────────────────── */}
           <div className="space-y-5 lg:col-span-2">
+            {ticket.resolution && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  Resolution
+                </h2>
+                <p className="leading-7 text-sm text-emerald-900">
+                  {ticket.resolution.note}
+                </p>
+                {ticket.resolution.attachments.length > 0 && (
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {ticket.resolution.attachments.map((attachment) => (
+                      <AttachmentPreview
+                        key={attachment.id}
+                        attachment={attachment}
+                        tone="success"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Header */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex flex-wrap items-center gap-2">
@@ -784,29 +807,6 @@ export function TicketDetailWorkspace({
                 </div>
               )}
             </div>
-
-            {ticket.resolution && (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
-                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-900">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  Resolution
-                </h2>
-                <p className="leading-7 text-sm text-emerald-900">
-                  {ticket.resolution.note}
-                </p>
-                {ticket.resolution.attachments.length > 0 && (
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                    {ticket.resolution.attachments.map((attachment) => (
-                      <AttachmentPreview
-                        key={attachment.id}
-                        attachment={attachment}
-                        tone="success"
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Chat thread */}
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">

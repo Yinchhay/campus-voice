@@ -17,6 +17,7 @@ import {
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { DashboardTicketStatusSelect } from "@/components/tickets/DashboardTicketStatusSelect";
 import { DASHBOARD_MODULES, RBAC_PERMISSIONS } from "@/lib/dashboard-access";
+import { getDashboardStats, type DashboardStats } from "@/lib/admin-api";
 import {
   listStaffTickets,
   updateStaffTicketStatus,
@@ -91,6 +92,7 @@ export default function StaffDashboardPage() {
   const { hasPermission, isLoading: isPermissionLoading } =
     useRbacPermissions();
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -106,12 +108,15 @@ export default function StaffDashboardPage() {
       setPageError(null);
 
       try {
-        const ticketRows = hasPermission(
+        const canLoadTickets = hasPermission(
           DASHBOARD_MODULES.ticketOverview.requiredPermission,
-        )
-          ? await listStaffTickets()
-          : [];
+        );
+        const [stats, ticketRows] = await Promise.all([
+          canLoadTickets ? getDashboardStats() : Promise.resolve(null),
+          canLoadTickets ? listStaffTickets() : Promise.resolve([]),
+        ]);
         if (!isMounted) return;
+        setDashboardStats(stats);
         setTickets(ticketRows);
       } catch (error) {
         if (isMounted) {
@@ -174,11 +179,16 @@ export default function StaffDashboardPage() {
   const ticketSummary = useMemo(() => {
     const today = new Date();
     const summary = {
-      total: tickets.length,
-      open: 0,
-      inProgress: 0,
-      highPriority: 0,
-      submitted: 0,
+      total: dashboardStats
+        ? dashboardStats.pipeline.submitted +
+          dashboardStats.pipeline.in_progress +
+          dashboardStats.pipeline.resolved
+        : tickets.length,
+      open: dashboardStats?.current_queue.open_cases ?? 0,
+      inProgress: dashboardStats?.pipeline.in_progress ?? 0,
+      highPriority: dashboardStats?.overview.high_priority ?? 0,
+      submitted: dashboardStats?.pipeline.submitted ?? 0,
+      resolved: dashboardStats?.pipeline.resolved ?? 0,
       resolvedToday: 0,
       recentTickets: [...tickets]
         .sort((a, b) => ticketCreatedTime(b) - ticketCreatedTime(a))
@@ -186,18 +196,21 @@ export default function StaffDashboardPage() {
     };
 
     for (const ticket of tickets) {
-      const isOpen = ticket.status !== "RESOLVED";
-      if (isOpen) summary.open += 1;
-      if (ticket.status === "IN_PROGRESS") summary.inProgress += 1;
-      if (ticket.status === "SUBMITTED") summary.submitted += 1;
-      if (ticket.priority === "HIGH" && isOpen) summary.highPriority += 1;
+      if (!dashboardStats) {
+        const isOpen = ticket.status !== "RESOLVED";
+        if (isOpen) summary.open += 1;
+        if (ticket.status === "IN_PROGRESS") summary.inProgress += 1;
+        if (ticket.status === "SUBMITTED") summary.submitted += 1;
+        if (ticket.status === "RESOLVED") summary.resolved += 1;
+        if (ticket.priority === "HIGH" && isOpen) summary.highPriority += 1;
+      }
       if (ticket.resolved_at && isSameLocalDay(ticket.resolved_at, today)) {
         summary.resolvedToday += 1;
       }
     }
 
     return summary;
-  }, [tickets]);
+  }, [dashboardStats, tickets]);
 
   const hasOverviewModules = canViewTickets;
 

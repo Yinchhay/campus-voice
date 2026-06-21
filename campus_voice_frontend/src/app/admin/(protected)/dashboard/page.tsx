@@ -16,11 +16,13 @@ import {
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { DashboardTicketStatusSelect } from "@/components/tickets/DashboardTicketStatusSelect";
 import {
+  getDashboardStats,
   listAdminTickets,
   listAdminUsers,
   updateAdminTicketStatus,
   type AdminTicket,
   type AdminUser,
+  type DashboardStats,
 } from "@/lib/admin-api";
 import { adminNav } from "@/lib/dashboard-nav";
 import { DASHBOARD_MODULES, RBAC_PERMISSIONS } from "@/lib/dashboard-access";
@@ -52,6 +54,7 @@ export default function AdminDashboardPage() {
   const { hasPermission, isLoading: isPermissionLoading } = useRbacPermissions();
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -67,15 +70,21 @@ export default function AdminDashboardPage() {
       setPageError("");
 
       try {
-        const [ticketRows, userRows] = await Promise.all([
+        const canLoadTicketStats = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
+        const canLoadUsers = hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission);
+        const [stats, ticketRows, userRows] = await Promise.all([
+          canLoadTicketStats
+            ? getDashboardStats()
+            : Promise.resolve(null),
           hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission)
             ? listAdminTickets({ sort_by: "created_at", sort_desc: true })
             : Promise.resolve([]),
-          hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission)
+          canLoadUsers && !canLoadTicketStats
             ? listAdminUsers({ sort_by: "created_at", sort_desc: true })
             : Promise.resolve([]),
         ]);
         if (!isMounted) return;
+        setDashboardStats(stats);
         setTickets(ticketRows);
         setUsers(userRows);
       } catch {
@@ -134,27 +143,30 @@ export default function AdminDashboardPage() {
   const ticketSummary = useMemo(() => {
     const summary = {
       total: tickets.length,
-      open: 0,
-      submitted: 0,
-      resolved: 0,
-      inProgress: 0,
-      highPriority: 0,
+      open: dashboardStats?.current_queue.open_cases ?? 0,
+      submitted: dashboardStats?.pipeline.submitted ?? 0,
+      resolved: dashboardStats?.pipeline.resolved ?? 0,
+      inProgress: dashboardStats?.pipeline.in_progress ?? 0,
+      highPriority: dashboardStats?.current_queue.high_priority ?? 0,
+      staffAdminUsers: dashboardStats?.current_queue.staff_admin_users ?? users.length,
       recentTickets: [...tickets]
         .sort((a, b) => ticketCreatedTime(b) - ticketCreatedTime(a))
         .slice(0, 5),
     };
 
-    for (const ticket of tickets) {
-      const isOpen = ticket.status !== "RESOLVED";
-      if (isOpen) summary.open += 1;
-      if (ticket.status === "SUBMITTED") summary.submitted += 1;
-      if (ticket.status === "RESOLVED") summary.resolved += 1;
-      if (ticket.status === "IN_PROGRESS") summary.inProgress += 1;
-      if (ticket.priority === "HIGH" && isOpen) summary.highPriority += 1;
+    if (!dashboardStats) {
+      for (const ticket of tickets) {
+        const isOpen = ticket.status !== "RESOLVED";
+        if (isOpen) summary.open += 1;
+        if (ticket.status === "SUBMITTED") summary.submitted += 1;
+        if (ticket.status === "RESOLVED") summary.resolved += 1;
+        if (ticket.status === "IN_PROGRESS") summary.inProgress += 1;
+        if (ticket.priority === "HIGH" && isOpen) summary.highPriority += 1;
+      }
     }
 
     return summary;
-  }, [tickets]);
+  }, [dashboardStats, tickets, users.length]);
 
   const hasOverviewModules = canViewTickets || canViewUsers;
 
@@ -196,19 +208,19 @@ export default function AdminDashboardPage() {
     {
       label: "Submitted",
       value: ticketSummary.submitted,
-      width: barWidth(ticketSummary.submitted, ticketSummary.total),
+      width: barWidth(ticketSummary.submitted, ticketSummary.submitted + ticketSummary.inProgress + ticketSummary.resolved),
       className: "bg-slate-500",
     },
     {
       label: "In progress",
       value: ticketSummary.inProgress,
-      width: barWidth(ticketSummary.inProgress, ticketSummary.total),
+      width: barWidth(ticketSummary.inProgress, ticketSummary.submitted + ticketSummary.inProgress + ticketSummary.resolved),
       className: "bg-amber-400",
     },
     {
       label: "Resolved",
       value: ticketSummary.resolved,
-      width: barWidth(ticketSummary.resolved, ticketSummary.total),
+      width: barWidth(ticketSummary.resolved, ticketSummary.submitted + ticketSummary.inProgress + ticketSummary.resolved),
       className: "bg-emerald-500",
     },
   ];
@@ -229,7 +241,7 @@ export default function AdminDashboardPage() {
       icon: <UsersRound className="h-5 w-5 text-teal-600" />,
       bg: "bg-teal-50 border-teal-100",
       label: DASHBOARD_MODULES.userManagement.label,
-      sub: `${users.length} staff/admin users`,
+      sub: `${ticketSummary.staffAdminUsers} staff/admin users`,
     });
   }
 
@@ -272,12 +284,12 @@ export default function AdminDashboardPage() {
                   </p>
                   <div className="mt-2 flex items-end gap-3">
                     <p className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                      {isLoading ? "..." : canViewTickets ? ticketSummary.open : users.length}
+                      {isLoading ? "..." : canViewTickets ? ticketSummary.open : ticketSummary.staffAdminUsers}
                     </p>
                     <p className="pb-2 text-sm text-slate-500">
                       {canViewTickets
                         ? `open case${ticketSummary.open === 1 ? "" : "s"}`
-                        : `staff/admin user${users.length === 1 ? "" : "s"}`}
+                        : `staff/admin user${ticketSummary.staffAdminUsers === 1 ? "" : "s"}`}
                     </p>
                   </div>
                 </div>
@@ -294,7 +306,7 @@ export default function AdminDashboardPage() {
                   <div className="border-l-4 border-teal-400 bg-teal-50 px-4 py-3">
                     <p className="text-xs font-medium text-teal-700">Staff/Admin users</p>
                     <p className="mt-1 text-2xl font-semibold text-teal-900">
-                      {isLoading ? "..." : canViewUsers ? users.length : "-"}
+                      {isLoading ? "..." : canViewUsers ? ticketSummary.staffAdminUsers : "-"}
                     </p>
                   </div>
                 </div>
@@ -370,8 +382,8 @@ export default function AdminDashboardPage() {
                     <div>
                       <p className="text-sm font-medium text-teal-700">Access coverage</p>
                       <p className="mt-1 text-2xl font-semibold text-teal-950">
-                        {isLoading ? "..." : users.length} staff/admin user
-                        {users.length === 1 ? "" : "s"}
+                        {isLoading ? "..." : ticketSummary.staffAdminUsers} staff/admin user
+                        {ticketSummary.staffAdminUsers === 1 ? "" : "s"}
                       </p>
                       <p className="mt-1 text-sm text-teal-700">
                         Manage campus response coverage from user management.
