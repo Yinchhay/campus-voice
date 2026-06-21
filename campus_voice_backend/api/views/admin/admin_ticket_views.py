@@ -125,3 +125,120 @@ class AdminTicketDetailView(APIView):
         
         logger.info(f"Ticket {public_ticket_id} deleted by {request.user.email}")
         return Response({'message': 'Ticket deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminTicketExportView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [HasResourcePermission]
+    resource = 'ticket'
+    action_override = 'export'
+
+    def get(self, request):
+        filters = request.query_params.get('filters', '')
+        date_range = request.query_params.get('date_range', 'all').lower()
+        sort_by = request.query_params.get('sort_by', 'created_at')
+        sort_desc = request.query_params.get('sort_desc', 'true').lower() == 'true'
+        status_filter = request.query_params.get('status')
+        priority_filter = request.query_params.get('priority')
+        category_filter = request.query_params.get('category')
+
+        tickets = Ticket.objects.select_related('category', 'submitted_by').all()
+
+        if date_range == 'week':
+            tickets = tickets.filter(created_at__gte=timezone.now() - timedelta(days=7))
+        elif date_range == 'month':
+            tickets = tickets.filter(created_at__gte=timezone.now() - timedelta(days=30))
+
+        if status_filter:
+            tickets = tickets.filter(status=status_filter)
+
+        if priority_filter:
+            tickets = tickets.filter(priority=priority_filter)
+
+        if category_filter:
+            tickets = tickets.filter(category_id=category_filter)
+
+        if filters:
+            tickets = tickets.filter(
+                Q(title__icontains=filters) |
+                Q(public_ticket_id__icontains=filters) |
+                Q(description__icontains=filters)
+            )
+
+        allowed_sort_fields = ['created_at', 'updated_at', 'status']
+        if sort_by not in allowed_sort_fields:
+            sort_by = 'created_at'
+
+        order_field = f'-{sort_by}' if sort_desc else sort_by
+        tickets = tickets.order_by(order_field)
+
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill
+        from openpyxl.utils import get_column_letter
+        from django.http import HttpResponse
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Tickets"
+
+        headers = [
+            "Ticket ID",
+            "Title",
+            "Description",
+            "Category",
+            "Priority",
+            "Status",
+            "Submitted By",
+            "Anonymous?",
+            "Date Created",
+            "Date Resolved"
+        ]
+        ws.append(headers)
+
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.font = header_font
+            cell.fill = header_fill
+
+        for ticket in tickets:
+            if ticket.is_anonymous:
+                submitted_by = "Anonymous"
+            else:
+                submitted_by = ticket.submitted_by.email if ticket.submitted_by else "None"
+
+            created_at_str = ticket.created_at.strftime("%Y-%m-%d %H:%M:%S") if ticket.created_at else ""
+            resolved_at_str = ticket.resolved_at.strftime("%Y-%m-%d %H:%M:%S") if ticket.resolved_at else ""
+
+            row = [
+                ticket.public_ticket_id,
+                ticket.title,
+                ticket.description,
+                ticket.category.name if ticket.category else "",
+                ticket.get_priority_display(),
+                ticket.get_status_display(),
+                submitted_by,
+                "Yes" if ticket.is_anonymous else "No",
+                created_at_str,
+                resolved_at_str
+            ]
+            ws.append(row)
+
+        for col in ws.columns:
+            max_len = 0
+            col_letter = get_column_letter(col[0].column)
+            for cell in col:
+                val_str = str(cell.value or "")
+                if len(val_str) > max_len:
+                    max_len = min(len(val_str), 50)
+            ws.column_dimensions[col_letter].width = max(max_len + 3, 10)
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="tickets_export.xlsx"'
+        wb.save(response)
+        return response
+
