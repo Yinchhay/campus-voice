@@ -169,6 +169,24 @@ export type AdminProfanityWord = {
   created_at: string;
 };
 
+export type DashboardStats = {
+  current_queue: {
+    open_cases: number;
+    high_priority: number;
+    staff_admin_users: number;
+  };
+  overview: {
+    submitted: number;
+    in_progress: number;
+    high_priority: number;
+  };
+  pipeline: {
+    submitted: number;
+    in_progress: number;
+    resolved: number;
+  };
+};
+
 export type ChangePasswordPayload = {
   current_password: string;
   new_password: string;
@@ -180,6 +198,11 @@ export async function getCurrentStaffAccount() {
   const { id: _id, ...account } = response.data.user;
   void _id;
   return account;
+}
+
+export async function getDashboardStats() {
+  const response = await api.get<DashboardStats>("/admin/dashboard");
+  return response.data;
 }
 
 export async function listAdminCategories(params: ListQueryParams = {}) {
