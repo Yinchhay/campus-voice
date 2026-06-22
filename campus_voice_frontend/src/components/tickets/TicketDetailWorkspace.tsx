@@ -202,6 +202,39 @@ function meetingLocationText(slot: MeetingSlot) {
     .join(", ");
 }
 
+function meetingSlotStatus(slot: MeetingSlot) {
+  if (slot.student_booking?.cancelled_at) return "Cancelled";
+  if (slot.student_booking) return "Booked";
+  return "Available";
+}
+
+function meetingSlotCardClass(status: ReturnType<typeof meetingSlotStatus>) {
+  if (status === "Booked") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-900";
+  }
+  if (status === "Cancelled") {
+    return "border-red-200 bg-red-50 text-red-900";
+  }
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function meetingSlotBadgeClass(status: ReturnType<typeof meetingSlotStatus>) {
+  if (status === "Booked") {
+    return "border-emerald-200 bg-white text-emerald-700";
+  }
+  if (status === "Cancelled") {
+    return "border-red-200 bg-white text-red-700";
+  }
+  return "border-blue-200 bg-blue-50 text-blue-700";
+}
+
+function meetingSlotNoteClass(status: ReturnType<typeof meetingSlotStatus>) {
+  if (status === "Booked") {
+    return "border-emerald-200 bg-white text-emerald-700";
+  }
+  return "border-red-200 bg-white text-red-700";
+}
+
 type TicketDetailWorkspaceProps = {
   ticketId: string;
   roleName: string;
@@ -1180,37 +1213,34 @@ export function TicketDetailWorkspace({
                         {date}
                       </p>
                       {slots.map((slot) => {
-                        const isBooked = Boolean(slot.student_booking);
+                        const slotStatus = meetingSlotStatus(slot);
+                        const isCancelled = slotStatus === "Cancelled";
                         return (
                           <div
                             key={slot.id}
-                            className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700"
+                            className={`rounded-xl border p-3 text-xs ${meetingSlotCardClass(slotStatus)}`}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 space-y-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                   {meetingTypeIcon[slot.meeting_type]}
-                                  <span className="font-medium text-slate-900">
+                                  <span className="font-medium">
                                     {meetingTypeLabel[slot.meeting_type]}
                                   </span>
                                   <span
-                                    className={`rounded-full border px-2 py-0.5 ${
-                                      isBooked
-                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                        : "border-blue-200 bg-blue-50 text-blue-700"
-                                    }`}
+                                    className={`rounded-full border px-2 py-0.5 ${meetingSlotBadgeClass(slotStatus)}`}
                                   >
-                                    {isBooked ? "Booked" : "Available"}
+                                    {slotStatus}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
+                                  <CalendarClock className="h-3.5 w-3.5 opacity-70" />
                                   <span>
                                     {formatTime(slot.start_time)} -{" "}
                                     {formatTime(slot.end_time)}
                                   </span>
                                 </div>
-                                <p className="text-slate-500">
+                                <p className="opacity-80">
                                   {meetingLocationText(slot)}
                                 </p>
                                 {slot.meeting_link && (
@@ -1218,18 +1248,22 @@ export function TicketDetailWorkspace({
                                     href={slot.meeting_link}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex text-blue-600 hover:underline"
+                                    className="inline-flex font-medium text-blue-700 hover:underline"
                                   >
                                     Meeting link
                                   </a>
                                 )}
                                 {slot.student_booking && (
-                                  <p className="rounded-lg border border-emerald-100 bg-white px-2 py-1 text-emerald-700">
-                                    Student confirmed this slot.
+                                  <p
+                                    className={`rounded-lg border px-2 py-1 ${meetingSlotNoteClass(slotStatus)}`}
+                                  >
+                                    {isCancelled
+                                      ? "Student cancelled this slot."
+                                      : "Student confirmed this slot."}
                                   </p>
                                 )}
                               </div>
-                              {!isBooked && (
+                              {!slot.student_booking && (
                                 <div className="flex shrink-0 gap-1">
                                   <button
                                     type="button"
