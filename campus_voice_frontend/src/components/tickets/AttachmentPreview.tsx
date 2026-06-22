@@ -42,6 +42,7 @@ export function AttachmentPreview({
   const [localFileUrl, setLocalFileUrl] = useState<string | null>(null);
   const name = file?.name ?? (attachment ? attachmentName(attachment) : "Attachment");
   const href = attachment ? attachmentHref(attachment) : localFileUrl;
+  const previewHref = href ?? undefined;
   const isImage = file
     ? file.type.startsWith("image/")
     : attachment
@@ -75,9 +76,11 @@ export function AttachmentPreview({
   useEffect(() => {
     if (!isOpen || isImage || !href) return;
 
+    const fileHref = href;
+
     if (file) {
       setFileError(null);
-      setFilePreviewUrl(href);
+      setFilePreviewUrl(fileHref);
       return;
     }
 
@@ -90,7 +93,7 @@ export function AttachmentPreview({
       setFilePreviewUrl(null);
 
       try {
-        const response = await fetch(href, {
+        const response = await fetch(fileHref, {
           credentials: "include",
           signal: controller.signal,
         });
@@ -139,7 +142,7 @@ export function AttachmentPreview({
               }`}
             >
               <img
-                src={href}
+                src={previewHref}
                 alt={name}
                 className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]"
               />
@@ -202,7 +205,7 @@ export function AttachmentPreview({
               {isImage && isPreviewUrlReady ? (
                 <div className="flex h-full items-center justify-center p-4">
                   <img
-                    src={href}
+                    src={previewHref}
                     alt={name}
                     className="max-h-full max-w-full rounded-xl object-contain shadow-sm"
                   />
