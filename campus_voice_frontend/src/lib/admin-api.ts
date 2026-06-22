@@ -1,6 +1,7 @@
 import api from "@/lib/axios";
 import {
   deleteStaffTicket,
+  downloadTicketExportExcel,
   getStaffTicket,
   listStaffTickets,
   listStaffTicketsPage,
@@ -257,6 +258,8 @@ export async function updateAdminTicketStatus(ticketId: string, status: TicketSt
 export async function deleteAdminTicket(ticketId: string) {
   return deleteStaffTicket(ticketId);
 }
+
+export { downloadTicketExportExcel };
 
 export async function listAdminUsers(params: ListQueryParams = {}) {
   const response = await api.get<AdminUser[] | PaginatedResponse<AdminUser>>(
