@@ -10,6 +10,7 @@ import {
   BarChart3,
   CheckCircle2,
   Clock,
+  Download,
   FileText,
   Inbox,
   TriangleAlert,
@@ -19,11 +20,13 @@ import { DashboardTicketStatusSelect } from "@/components/tickets/DashboardTicke
 import { DASHBOARD_MODULES, RBAC_PERMISSIONS } from "@/lib/dashboard-access";
 import { getDashboardStats, type DashboardStats } from "@/lib/admin-api";
 import {
+  downloadTicketExportExcel,
   listStaffTickets,
   updateStaffTicketStatus,
   type StaffTicket,
 } from "@/lib/staff-api";
 import { staffNav } from "@/lib/dashboard-nav";
+import { formatPriorityLabel } from "@/lib/priority";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
 
@@ -95,6 +98,8 @@ export default function StaffDashboardPage() {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
 
@@ -140,6 +145,22 @@ export default function StaffDashboardPage() {
     DASHBOARD_MODULES.ticketOverview.requiredPermission,
   );
   const canUpdateTickets = hasPermission(RBAC_PERMISSIONS.ticket.update);
+  const canExportTickets = hasPermission(RBAC_PERMISSIONS.ticket.export);
+
+  async function handleExportTickets() {
+    if (isExporting) return;
+
+    setIsExporting(true);
+    setExportError(null);
+
+    try {
+      await downloadTicketExportExcel();
+    } catch (error) {
+      setExportError(extractApiError(error, "Failed to export tickets."));
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   async function handleRecentTicketStatusChange(
     ticketId: string,
@@ -212,7 +233,7 @@ export default function StaffDashboardPage() {
     return summary;
   }, [dashboardStats, tickets]);
 
-  const hasOverviewModules = canViewTickets;
+  const hasOverviewModules = canViewTickets || canExportTickets;
 
   const largestFocusValue = Math.max(
     ticketSummary.submitted,
@@ -281,16 +302,34 @@ export default function StaffDashboardPage() {
                   Overview
                 </h2>
               </div>
-              {canViewTickets && (
-                <span className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
-                  {isLoading
-                    ? "Loading queue"
-                    : `${ticketSummary.highPriority} urgent case${
-                        ticketSummary.highPriority === 1 ? "" : "s"
-                      }`}
-                </span>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {canViewTickets && (
+                  <span className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+                    {isLoading
+                      ? "Loading queue"
+                      : `${ticketSummary.highPriority} urgent case${
+                          ticketSummary.highPriority === 1 ? "" : "s"
+                        }`}
+                  </span>
+                )}
+                {canExportTickets && (
+                  <button
+                    type="button"
+                    onClick={handleExportTickets}
+                    disabled={isExporting}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-blue-200 hover:text-[#1E3A8A] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {isExporting ? "Exporting" : "Export Excel"}
+                  </button>
+                )}
+              </div>
             </div>
+            {exportError && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {exportError}
+              </p>
+            )}
           </div>
 
           {hasOverviewModules ? (
@@ -476,7 +515,7 @@ export default function StaffDashboardPage() {
                           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${priorityBadgeClass[ticket.priority]}`}
                         >
                           {priorityIcon[ticket.priority]}
-                          {ticket.priority}
+                          {formatPriorityLabel(ticket.priority)}
                         </span>
                       </div>
                       <p className="mt-1.5 truncate text-sm font-medium text-slate-900">

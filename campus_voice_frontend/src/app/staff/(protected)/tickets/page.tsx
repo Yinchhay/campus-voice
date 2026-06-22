@@ -16,6 +16,7 @@ import {
 import { PaginationControls } from "@/components/common/PaginationControls";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
+import { formatPriorityLabel } from "@/lib/priority";
 import { listStaffTicketsPage, type StaffTicket } from "@/lib/staff-api";
 import { staffNav } from "@/lib/dashboard-nav";
 import { useRbacPermissions } from "@/lib/rbac";
@@ -369,7 +370,7 @@ export default function StaffTicketsPage() {
                       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${priorityBadgeClass[ticket.priority]}`}
                     >
                       {priorityIcon[ticket.priority]}
-                      {ticket.priority}
+                      {formatPriorityLabel(ticket.priority)}
                     </span>
                     <span
                       className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadgeClass[ticket.status]}`}

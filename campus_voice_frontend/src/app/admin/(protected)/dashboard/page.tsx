@@ -7,6 +7,7 @@ import {
   Activity,
   ArrowRight,
   Clock,
+  Download,
   FileText,
   ShieldCheck,
   TicketCheck,
@@ -16,6 +17,7 @@ import {
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { DashboardTicketStatusSelect } from "@/components/tickets/DashboardTicketStatusSelect";
 import {
+  downloadTicketExportExcel,
   getDashboardStats,
   listAdminTickets,
   listAdminUsers,
@@ -57,6 +59,8 @@ export default function AdminDashboardPage() {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
 
@@ -104,6 +108,22 @@ export default function AdminDashboardPage() {
   const canViewTickets = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
   const canViewUsers = hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission);
   const canUpdateTickets = hasPermission(RBAC_PERMISSIONS.ticket.update);
+  const canExportTickets = hasPermission(RBAC_PERMISSIONS.ticket.export);
+
+  async function handleExportTickets() {
+    if (isExporting) return;
+
+    setIsExporting(true);
+    setExportError(null);
+
+    try {
+      await downloadTicketExportExcel();
+    } catch {
+      setExportError("Failed to export tickets.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   async function handleRecentTicketStatusChange(
     ticketId: string,
@@ -168,7 +188,7 @@ export default function AdminDashboardPage() {
     return summary;
   }, [dashboardStats, tickets, users.length]);
 
-  const hasOverviewModules = canViewTickets || canViewUsers;
+  const hasOverviewModules = canViewTickets || canViewUsers || canExportTickets;
 
   const largestWorkloadValue = Math.max(
     ticketSummary.open,
@@ -267,12 +287,30 @@ export default function AdminDashboardPage() {
                 <ShieldCheck className="h-5 w-5 text-emerald-600" />
                 <h2 className="text-lg font-semibold text-slate-900">Platform Overview</h2>
               </div>
-              {canViewTickets && (
-                <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                  {isLoading ? "Loading queue" : `${ticketSummary.open} submitted cases`}
-                </span>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {canViewTickets && (
+                  <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                    {isLoading ? "Loading queue" : `${ticketSummary.open} submitted cases`}
+                  </span>
+                )}
+                {canExportTickets && (
+                  <button
+                    type="button"
+                    onClick={handleExportTickets}
+                    disabled={isExporting}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-blue-200 hover:text-[#1E3A8A] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {isExporting ? "Exporting" : "Export Excel"}
+                  </button>
+                )}
+              </div>
             </div>
+            {exportError && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {exportError}
+              </p>
+            )}
           </div>
 
           {hasOverviewModules ? (

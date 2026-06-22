@@ -186,6 +186,29 @@ export async function deleteStaffTicket(ticketId: string) {
   await api.delete(`/admin/tickets/${ticketId}`);
 }
 
+function filenameFromContentDisposition(headerValue?: string) {
+  const filenameMatch = headerValue?.match(/filename="?([^"]+)"?/i);
+  return filenameMatch?.[1] ?? "tickets_export.xlsx";
+}
+
+export async function downloadTicketExportExcel() {
+  const response = await api.get<Blob>("/admin/tickets/export/excel", {
+    responseType: "blob",
+  });
+  const filename = filenameFromContentDisposition(
+    response.headers["content-disposition"],
+  );
+  const objectUrl = URL.createObjectURL(response.data);
+  const link = document.createElement("a");
+
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export async function getTicketResolution(ticketId: string) {
   const response = await api.get<StaffTicketResolution>(
     `/admin/tickets/${ticketId}/resolution`,

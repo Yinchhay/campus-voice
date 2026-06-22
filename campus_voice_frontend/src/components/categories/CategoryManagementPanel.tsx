@@ -25,6 +25,7 @@ import {
   type CategoryPayload,
 } from "@/lib/admin-api";
 import { RBAC_PERMISSIONS } from "@/lib/dashboard-access";
+import { formatPriorityLabel } from "@/lib/priority";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { Category, CategoryIssueType, TicketPriority } from "@/lib/types";
 
@@ -591,7 +592,7 @@ export function CategoryManagementPanel() {
                       <span
                         className={`inline-block w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${priorityBadge[cat.priority_level]}`}
                       >
-                        {cat.priority_level}
+                        {formatPriorityLabel(cat.priority_level)}
                       </span>
                     )}
                   </div>
