@@ -24,6 +24,7 @@ import {
   type StaffTicket,
 } from "@/lib/staff-api";
 import { staffNav } from "@/lib/dashboard-nav";
+import { formatPriorityLabel } from "@/lib/priority";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
 
@@ -476,7 +477,7 @@ export default function StaffDashboardPage() {
                           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${priorityBadgeClass[ticket.priority]}`}
                         >
                           {priorityIcon[ticket.priority]}
-                          {ticket.priority}
+                          {formatPriorityLabel(ticket.priority)}
                         </span>
                       </div>
                       <p className="mt-1.5 truncate text-sm font-medium text-slate-900">

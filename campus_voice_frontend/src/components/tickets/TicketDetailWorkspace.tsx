@@ -25,6 +25,7 @@ import {
 import { RoleDashboardShell, type DashboardNavItem } from "@/components/layout/RoleDashboardShell";
 import { AttachmentPreview } from "@/components/tickets/AttachmentPreview";
 import { TicketDeleteDialog } from "@/components/tickets/TicketDeleteDialog";
+import { formatPriorityLabel } from "@/lib/priority";
 import {
   createAdminTicketMeetingSlots,
   createStaffTicketResolution,
@@ -743,7 +744,7 @@ export function TicketDetailWorkspace({
                 <span
                   className={`rounded-full border px-2.5 py-1 text-xs font-medium ${priorityBadgeClass[currentPriority]}`}
                 >
-                  {currentPriority}
+                  {formatPriorityLabel(currentPriority)}
                 </span>
                 {ticket.attachments.length > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">

@@ -19,6 +19,7 @@ import {
   type AdminTicket,
 } from "@/lib/admin-api";
 import { adminNav } from "@/lib/dashboard-nav";
+import { formatPriorityLabel } from "@/lib/priority";
 import type { Category, TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -358,7 +359,7 @@ export default function AdminTicketsPage() {
                         className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium sm:hidden ${priorityBadgeClass[ticket.priority]}`}
                       >
                         {priorityIcon[ticket.priority]}
-                        {ticket.priority}
+                        {formatPriorityLabel(ticket.priority)}
                       </span>
                       <span
                         className={`rounded-full border px-2 py-0.5 text-xs font-medium sm:hidden ${statusBadgeClass[ticket.status]}`}
@@ -392,7 +393,7 @@ export default function AdminTicketsPage() {
                     className={`hidden w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium sm:inline-flex ${priorityBadgeClass[ticket.priority]}`}
                   >
                     {priorityIcon[ticket.priority]}
-                    {ticket.priority}
+                    {formatPriorityLabel(ticket.priority)}
                   </span>
 
                   <span
