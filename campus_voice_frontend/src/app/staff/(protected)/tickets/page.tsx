@@ -357,9 +357,9 @@ export default function StaffTicketsPage() {
               type="button"
               onClick={handleExportTickets}
               disabled={isExporting}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-blue-200 hover:text-[#1E3A8A] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#107C41] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0d6b38] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-4 w-4" />
               {isExporting ? "Exporting" : "Export Excel"}
             </button>
           )}
