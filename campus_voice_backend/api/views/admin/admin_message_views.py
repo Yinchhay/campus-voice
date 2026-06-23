@@ -6,6 +6,8 @@ from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from api.permissions import HasResourcePermission
 from django.db import transaction
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 from api.utils import get_admin_ticket
 from api.models import Ticket
@@ -62,6 +64,21 @@ class AdminMessageView(APIView):
                 f"Staff reply on {ticket.public_ticket_id} "
                 f"by {request.user.email}"
             )
+
+            # Broadcast live update
+            try:
+                channel_layer = get_channel_layer()
+                if channel_layer:
+                    async_to_sync(channel_layer.group_send)(
+                        f"ticket_{ticket.id}",
+                        {
+                            "type": "chat_message",
+                            "message_id": message.id
+                        }
+                    )
+            except Exception as e:
+                logger.error(f"Error broadcasting staff message: {e}")
+
             return Response(
                 AdminMessageSerializer(message).data,
                 status=status.HTTP_201_CREATED

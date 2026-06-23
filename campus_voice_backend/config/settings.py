@@ -32,6 +32,7 @@ ALLOWED_EMAIL_DOMAIN = config('ALLOWED_EMAIL_DOMAIN', default='@paragoniu.edu.kh
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,6 +44,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "oauth2_provider",
     "anymail",
+    "channels",
     
     "api",
 ]
@@ -77,6 +79,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 
 # Database
@@ -107,6 +110,16 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
+}
+
+# Channel Layers for WebSockets
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [config('REDIS_URL', default='redis://localhost:6379/1')],
+        },
+    },
 }
 
 # Celery Configuration
