@@ -6,14 +6,21 @@ from api.serializers import PublicMessageSerializer, AdminMessageSerializer
 
 @database_sync_to_async
 def can_access_ticket(user, ticket_id):
+    print(f"[WS Chat] Checking access for user: {user} on ticket_id: {ticket_id}")
     if user.is_anonymous:
+        print("[WS Chat] Access denied: User is anonymous")
         return False
     try:
         ticket = Ticket.objects.get(id=ticket_id)
+        print(f"[WS Chat] Found ticket: {ticket.public_ticket_id}, submitted_by: {ticket.submitted_by}")
         if user.role in [User.Role.STAFF, User.Role.ADMIN]:
+            print(f"[WS Chat] Access granted: User has role {user.role}")
             return True
-        return ticket.submitted_by == user
-    except Exception:
+        allowed = ticket.submitted_by == user
+        print(f"[WS Chat] Access evaluation: {allowed}")
+        return allowed
+    except Exception as e:
+        print(f"[WS Chat] Access check failed with exception: {e}")
         return False
 
 class TicketChatConsumer(AsyncWebsocketConsumer):

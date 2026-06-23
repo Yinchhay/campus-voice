@@ -7,13 +7,21 @@ from channels.middleware import BaseMiddleware
 
 User = get_user_model()
 
+import logging
+logger = logging.getLogger(__name__)
+
 @database_sync_to_async
 def get_user_from_token(token_string):
     try:
+        print(f"[WS Auth] Decoding token: {token_string[:15]}...")
         access_token = AccessToken(token_string)
         user_id = access_token['user_id']
-        return User.objects.get(id=user_id)
-    except Exception:
+        print(f"[WS Auth] Token user_id found: {user_id}")
+        user = User.objects.get(id=user_id)
+        print(f"[WS Auth] Authenticated user: {user.email}")
+        return user
+    except Exception as e:
+        print(f"[WS Auth] Failed token decoding: {e}")
         return AnonymousUser()
 
 class JWTAuthMiddleware(BaseMiddleware):
