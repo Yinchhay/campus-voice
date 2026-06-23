@@ -8,6 +8,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock,
+  Download,
   Filter,
   Paperclip,
   Search,
@@ -15,9 +16,13 @@ import {
 } from "lucide-react";
 import { PaginationControls } from "@/components/common/PaginationControls";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
-import { DASHBOARD_MODULES } from "@/lib/dashboard-access";
+import { DASHBOARD_MODULES, RBAC_PERMISSIONS } from "@/lib/dashboard-access";
 import { formatPriorityLabel } from "@/lib/priority";
-import { listStaffTicketsPage, type StaffTicket } from "@/lib/staff-api";
+import {
+  downloadTicketExportExcel,
+  listStaffTicketsPage,
+  type StaffTicket,
+} from "@/lib/staff-api";
 import { staffNav } from "@/lib/dashboard-nav";
 import { useRbacPermissions } from "@/lib/rbac";
 import type { TicketPriority, TicketStatus } from "@/lib/types";
@@ -122,6 +127,8 @@ export default function StaffTicketsPage() {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "ALL">("ALL");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "ALL">("ALL");
   const [categoryFilter, setCategoryFilter] = useState<number | "ALL">("ALL");
@@ -209,6 +216,24 @@ export default function StaffTicketsPage() {
       ).sort((a, b) => a.name.localeCompare(b.name)),
     [tickets],
   );
+
+  const canExportTickets =
+    !isPermissionLoading && hasPermission(RBAC_PERMISSIONS.ticket.export);
+
+  async function handleExportTickets() {
+    if (isExporting) return;
+
+    setIsExporting(true);
+    setExportError(null);
+
+    try {
+      await downloadTicketExportExcel();
+    } catch (error) {
+      setExportError(extractApiError(error, "Failed to export tickets."));
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   return (
     <RoleDashboardShell
@@ -316,16 +341,35 @@ export default function StaffTicketsPage() {
         </div>
 
         {/* ── Result count ─────────────────────────────────── */}
-        <p className="text-sm text-slate-500">
-          {isLoading ? (
-            "Loading tickets..."
-          ) : (
-            <>
-              Showing <span className="font-medium text-slate-800">{filtered.length}</span> ticket
-              {filtered.length !== 1 ? "s" : ""}
-            </>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-500">
+            {isLoading ? (
+              "Loading tickets..."
+            ) : (
+              <>
+                Showing <span className="font-medium text-slate-800">{filtered.length}</span> ticket
+                {filtered.length !== 1 ? "s" : ""}
+              </>
+            )}
+          </p>
+          {canExportTickets && (
+            <button
+              type="button"
+              onClick={handleExportTickets}
+              disabled={isExporting}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-blue-200 hover:text-[#1E3A8A] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {isExporting ? "Exporting" : "Export Excel"}
+            </button>
           )}
-        </p>
+        </div>
+
+        {exportError && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {exportError}
+          </p>
+        )}
 
         {/* ── Ticket rows ──────────────────────────────────── */}
         <div className="space-y-2">

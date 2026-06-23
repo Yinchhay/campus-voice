@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   CalendarClock,
   CheckCircle2,
-  ExternalLink,
   MapPin,
   TriangleAlert,
   Video,
@@ -229,10 +228,10 @@ export function BookingsPage({
                           href={meetingLink}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:underline"
+                          className="inline-flex max-w-full items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-medium text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
                         >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          Join meeting
+                          <Video className="h-4 w-4 shrink-0" />
+                          <span className="truncate">Join meeting</span>
                         </a>
                       )}
                     </div>

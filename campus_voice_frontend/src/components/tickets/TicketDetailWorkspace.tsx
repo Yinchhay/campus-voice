@@ -1248,9 +1248,10 @@ export function TicketDetailWorkspace({
                                     href={slot.meeting_link}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex font-medium text-blue-700 hover:underline"
+                                    className="inline-flex max-w-full items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 font-medium text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
                                   >
-                                    Meeting link
+                                    <Video className="h-4 w-4 shrink-0" />
+                                    <span className="truncate">Join meeting</span>
                                   </a>
                                 )}
                                 {slot.student_booking && (

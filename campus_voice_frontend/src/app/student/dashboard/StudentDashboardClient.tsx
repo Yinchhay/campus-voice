@@ -12,6 +12,7 @@ import {
   Plus,
   ShieldCheck,
   TriangleAlert,
+  UserCheck,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useMemo, useState } from "react";
@@ -61,6 +62,24 @@ const columns: ColumnConfig[] = [
 const INITIAL_VISIBLE_TICKETS = 5;
 const LOAD_MORE_STEP = 5;
 
+function IdentityBadge({ isAnonymous }: { isAnonymous: boolean }) {
+  if (isAnonymous) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+        <ShieldCheck className="h-3 w-3" />
+        Anonymous
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+      <UserCheck className="h-3 w-3" />
+      Visible to staff
+    </span>
+  );
+}
+
 function TicketCard({ ticket }: { ticket: StudentTicket }) {
   return (
     <article className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
@@ -68,6 +87,7 @@ function TicketCard({ ticket }: { ticket: StudentTicket }) {
         <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500">
           {ticket.category_name}
         </span>
+        <IdentityBadge isAnonymous={ticket.is_anonymous} />
         {ticket.has_media && (
           <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-500">
             <Paperclip className="h-3 w-3" />
@@ -143,15 +163,15 @@ export function StudentDashboardClient({
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700">
                 <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                Verified anonymous reporting
+                Verified report tracking
               </div>
               <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
                 My Reports Dashboard
               </h1>
               <p className="mt-3 max-w-2xl text-slate-600">
-                Track the progress of your submitted reports. Your identity is
-                authenticated to prevent spam while report content stays
-                anonymous to staff.
+                Track the progress of your submitted reports and confirm which
+                ones were sent anonymously or with your student identity visible
+                to staff.
               </p>
             </div>
 
