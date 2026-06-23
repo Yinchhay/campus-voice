@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
+  Download,
   Filter,
   Paperclip,
   Search,
@@ -14,12 +15,15 @@ import {
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { PaginationControls } from "@/components/common/PaginationControls";
 import {
+  downloadTicketExportExcel,
   listAdminCategories,
   listAdminTicketsPage,
   type AdminTicket,
 } from "@/lib/admin-api";
 import { adminNav } from "@/lib/dashboard-nav";
+import { RBAC_PERMISSIONS } from "@/lib/dashboard-access";
 import { formatPriorityLabel } from "@/lib/priority";
+import { useRbacPermissions } from "@/lib/rbac";
 import type { Category, TicketPriority, TicketStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -79,10 +83,13 @@ function ticketSortTime(ticket: AdminTicket) {
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminTicketsPage() {
+  const { hasPermission, isLoading: isPermissionLoading } = useRbacPermissions();
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "ALL">("ALL");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "ALL">("ALL");
   const [categoryFilter, setCategoryFilter] = useState<number | "ALL">("ALL");
@@ -160,6 +167,24 @@ export default function AdminTicketsPage() {
 
   function categoryName(id: number) {
     return categoryById.get(id) ?? "Unknown";
+  }
+
+  const canExportTickets =
+    !isPermissionLoading && hasPermission(RBAC_PERMISSIONS.ticket.export);
+
+  async function handleExportTickets() {
+    if (isExporting) return;
+
+    setIsExporting(true);
+    setExportError(null);
+
+    try {
+      await downloadTicketExportExcel();
+    } catch {
+      setExportError("Failed to export tickets.");
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   const statusCounts = useMemo(() => {
@@ -312,10 +337,29 @@ export default function AdminTicketsPage() {
         </div>
 
         {/* Result count */}
-        <p className="text-sm text-slate-500">
-          Showing <span className="font-medium text-slate-800">{filtered.length}</span> ticket
-          {filtered.length !== 1 ? "s" : ""}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-500">
+            Showing <span className="font-medium text-slate-800">{filtered.length}</span> ticket
+            {filtered.length !== 1 ? "s" : ""}
+          </p>
+          {canExportTickets && (
+            <button
+              type="button"
+              onClick={handleExportTickets}
+              disabled={isExporting}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-blue-200 hover:text-[#1E3A8A] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {isExporting ? "Exporting" : "Export Excel"}
+            </button>
+          )}
+        </div>
+
+        {exportError && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {exportError}
+          </p>
+        )}
 
         {/* ── Ticket rows ──────────────────────────────────── */}
         <div className="space-y-2 sm:overflow-hidden sm:rounded-2xl sm:border sm:border-slate-200 sm:bg-white sm:shadow-sm">
