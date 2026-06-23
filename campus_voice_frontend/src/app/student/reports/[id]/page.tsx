@@ -15,6 +15,7 @@ import {
   Send,
   ShieldCheck,
   TriangleAlert,
+  UserCheck,
   Video,
   X,
 } from "lucide-react";
@@ -192,6 +193,24 @@ function StatusStepper({ status }: { status: TicketStatus }) {
         );
       })}
     </ol>
+  );
+}
+
+function IdentityBadge({ isAnonymous }: { isAnonymous: boolean }) {
+  if (isAnonymous) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+        <ShieldCheck className="h-3.5 w-3.5" />
+        Anonymous report
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+      <UserCheck className="h-3.5 w-3.5" />
+      Identity visible to staff
+    </span>
   );
 }
 
@@ -554,19 +573,15 @@ export default function StudentReportDetailPage({
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
           {/* ── Ticket Header ──────────────────────────────────── */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-start-1">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-              Report content is anonymous to staff
-            </div>
-
-            {ticket.has_media && (
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <IdentityBadge isAnonymous={ticket.is_anonymous} />
+              {ticket.has_media && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
                   <Paperclip className="h-3 w-3" />
                   Has attachment
                 </span>
-              </div>
-            )}
+              )}
+            </div>
 
             <h1 className="mt-4 text-xl font-semibold text-slate-900">
               {ticket.title}
@@ -826,8 +841,9 @@ export default function StudentReportDetailPage({
                   </p>
                 )}
                 <p className="mt-2 text-xs text-slate-400">
-                  Messages are anonymous. Do not include personally identifying
-                  information.
+                  {ticket.is_anonymous
+                    ? "Messages follow this report's anonymous setting. Do not include personally identifying information."
+                    : "Messages are linked to your non-anonymous report and may be visible to staff."}
                 </p>
               </div>
             ) : (
