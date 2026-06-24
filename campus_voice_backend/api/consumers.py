@@ -1,4 +1,5 @@
 import json
+from django.core.serializers.json import DjangoJSONEncoder
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from api.models import Ticket, User, Message
@@ -68,4 +69,4 @@ class TicketChatConsumer(AsyncWebsocketConsumer):
         message_data = await self.get_serialized_message(message_id)
         if message_data:
             # Send message to WebSocket
-            await self.send(text_data=json.dumps(message_data))
+            await self.send(text_data=json.dumps(message_data, cls=DjangoJSONEncoder))
