@@ -48,6 +48,13 @@ dev-setup:
 createsuperuser:
 	docker compose -f docker-compose.dev.yml exec backend python manage.py createsuperuser
 
+create-admin:
+	@read -p "Email: " email; \
+	read -p "Username: " username; \
+	read -sp "Password: " password; echo; \
+	docker compose -f docker-compose.dev.yml exec backend python manage.py create_admin \
+		--email $$email --username $$username --password $$password
+
 prod-setup:
 	make prod-build
 
@@ -80,3 +87,10 @@ prod-db-shell:
 prod-db-seed:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend python manage.py seed_categories
 	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend python manage.py seed_rbac
+
+prod-create-admin:
+	@read -p "Email: " email; \
+	read -p "Username: " username; \
+	read -sp "Password: " password; echo; \
+	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend python manage.py create_admin \
+		--email $$email --username $$username --password $$password

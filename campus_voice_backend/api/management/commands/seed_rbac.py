@@ -1,10 +1,5 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth.hashers import make_password
 from api.models import Permission, AdminRole, UserRole
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
-
 
 PREDEFINED_PERMISSIONS = [
     # Ticket
@@ -102,13 +97,8 @@ ROLES = [
     },
 ]
 
-
-SUPERADMIN_EMAIL    = 'superadmin2@gmail.com'
-SUPERADMIN_PASSWORD = 'Admin@1234'
-
-
 class Command(BaseCommand):
-    help = 'Seed RBAC permissions, roles, and superadmin user'
+    help = 'Seed RBAC permissions, roles'
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Starting RBAC seeding...'))
@@ -131,7 +121,6 @@ class Command(BaseCommand):
 
         # ── Roles ─────────────────────────────────────────────────────────────
         self.stdout.write('\nSeeding roles...')
-        role_objects = {}
         for role_data in ROLES:
             role, created = AdminRole.objects.get_or_create(
                 name=role_data['name'],
@@ -142,7 +131,6 @@ class Command(BaseCommand):
             )
             status_label = 'Created' if created else 'Already exists'
             self.stdout.write(f'  {status_label}: {role.name}')
-            role_objects[role.name] = role
 
             # Assign permissions
             for resource, action in role_data['permissions']:
@@ -156,38 +144,5 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f'    → {len(role_data["permissions"])} permissions assigned'
                 )
-
-        # ── Superadmin user ───────────────────────────────────────────────────
-        self.stdout.write('\nSeeding superadmin user...')
-        superadmin_user, user_created = User.objects.get_or_create(
-            email=SUPERADMIN_EMAIL,
-            defaults={
-                'username': 'Super2',
-                'first_name':  'Super',
-                'last_name':   'Admin',
-                'password':    make_password(SUPERADMIN_PASSWORD),
-                'role':        User.Role.ADMIN,
-                'is_staff':    True,
-                'is_active':   True,
-            },
-        )
-        if user_created:
-            self.stdout.write(
-                self.style.SUCCESS(f'  Created superadmin: {SUPERADMIN_EMAIL}')
-            )
-            self.stdout.write(
-                self.style.WARNING(f'  Password: {SUPERADMIN_PASSWORD} — change this after first login!')
-            )
-        else:
-            self.stdout.write(f'  Already exists: {SUPERADMIN_EMAIL}')
-
-        super_admin_role = role_objects.get('Admin')
-        if super_admin_role:
-            _, assigned = UserRole.objects.get_or_create(
-                user=superadmin_user,
-                role=super_admin_role,
-            )
-            if assigned:
-                self.stdout.write('  Assigned Admin role to superadmin user')
 
         self.stdout.write(self.style.SUCCESS('\nRBAC seeding completed!'))
