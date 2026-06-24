@@ -221,6 +221,7 @@ function IdentityBadge({ isAnonymous }: { isAnonymous: boolean }) {
 function MeetingSection({
   slots,
   confirmedBooking,
+  cancelledBookings,
   isLoading,
   error,
   confirmingSlotId,
@@ -228,6 +229,7 @@ function MeetingSection({
 }: {
   slots: MeetingSlot[];
   confirmedBooking: StudentMeetingBooking | null;
+  cancelledBookings: StudentMeetingBooking[];
   isLoading: boolean;
   error: string | null;
   confirmingSlotId: number | null;
@@ -262,7 +264,7 @@ function MeetingSection({
         )}
       </div>
 
-        <div className="space-y-3 p-5">
+        <div className="space-y-4 p-5">
           {isLoading && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
               Loading meeting details...
@@ -325,47 +327,99 @@ function MeetingSection({
                   key={slot.id}
                   className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
                 >
-                  <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_6.75rem]">
-                    <div className="min-w-0 space-y-3">
-                      <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-3">
-                        <span className="mt-0.5 flex h-5 w-5 items-center justify-center text-slate-400">
-                          {meetingTypeIcon[slot.meeting_type]}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-medium leading-5 text-slate-800">
-                            {meetingTypeLabel[slot.meeting_type]}
+                  <div className="grid gap-4">
+                    <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-3">
+                      <span className="mt-0.5 flex h-5 w-5 items-center justify-center text-blue-500">
+                        {meetingTypeIcon[slot.meeting_type]}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-medium leading-5 text-slate-800">
+                          {meetingTypeLabel[slot.meeting_type]}
+                        </p>
+                        {slot.location_or_details && (
+                          <p className="mt-1 break-words text-xs leading-5 text-slate-500">
+                            {slot.location_or_details}
                           </p>
-                          {slot.location_or_details && (
-                            <p className="mt-0.5 break-words text-slate-500">
-                              {slot.location_or_details}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-3">
-                        <CalendarClock className="mt-0.5 h-5 w-5 text-slate-400" />
-                        <div className="min-w-0">
-                          <p className="font-medium leading-5 text-slate-800">
-                            {formatDate(slot.start_time)}
-                          </p>
-                          <p className="mt-1 whitespace-nowrap text-slate-500">
-                            {formatTime(slot.start_time)} -{" "}
-                            {formatTime(slot.end_time)}
-                          </p>
-                        </div>
+                        )}
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-3">
+                      <CalendarClock className="mt-0.5 h-5 w-5 text-slate-400" />
+                      <div className="min-w-0">
+                        <p className="font-medium leading-5 text-slate-800">
+                          {formatDate(slot.start_time)}
+                        </p>
+                        <p className="mt-1 text-slate-500">
+                          {formatTime(slot.start_time)} -{" "}
+                          {formatTime(slot.end_time)}
+                        </p>
+                      </div>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => onConfirm(slot)}
                       disabled={confirmingSlotId === slot.id}
-                      className="inline-flex h-9 w-full items-center justify-center self-center rounded-lg border border-[#1E3A8A]/25 bg-white px-3 text-xs font-medium text-[#1E3A8A] transition hover:border-[#1E3A8A] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-[#1E3A8A]/25 bg-white px-3 text-sm font-medium text-[#1E3A8A] transition hover:border-[#1E3A8A] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {confirmingSlotId === slot.id ? "Booking" : "Book"}
                     </button>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {cancelledBookings.length > 0 && (
+            <div className="space-y-3 border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Cancellation History
+                </h3>
+                <span className="text-xs text-slate-400">
+                  {cancelledBookings.length} record
+                  {cancelledBookings.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {cancelledBookings.map((booking) => {
+                  const start = getBookingMeetingStart(booking);
+                  const cancelledAt = booking.cancelled_at;
+
+                  return (
+                    <div
+                      key={booking.id}
+                      className="rounded-xl border border-red-100 bg-red-50/50 px-4 py-3 text-sm text-slate-700"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
+                          {booking.public_ticket_id ?? "Booking"}
+                        </span>
+                        <span className="rounded-full border border-red-200 bg-white px-2 py-0.5 text-xs font-medium text-red-700">
+                          Cancelled
+                        </span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3">
+                        <CalendarClock className="mt-0.5 h-4 w-4 text-red-300" />
+                        <div className="min-w-0">
+                          {start && (
+                            <p className="font-medium text-slate-700">
+                              {formatDate(start)}, {formatTime(start)}
+                            </p>
+                          )}
+                          {cancelledAt && (
+                            <p className="mt-1 text-xs text-slate-500">
+                              Cancelled {formatDateTime(cancelledAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -396,6 +450,9 @@ export default function StudentReportDetailPage({
   const [meetingSlots, setMeetingSlots] = useState<MeetingSlot[]>([]);
   const [confirmedBooking, setConfirmedBooking] =
     useState<StudentMeetingBooking | null>(null);
+  const [cancelledBookings, setCancelledBookings] = useState<
+    StudentMeetingBooking[]
+  >([]);
   const [isLoadingMeetings, setIsLoadingMeetings] = useState(false);
   const [meetingError, setMeetingError] = useState<string | null>(null);
   const [confirmingSlotId, setConfirmingSlotId] = useState<number | null>(null);
@@ -438,6 +495,13 @@ export default function StudentReportDetailPage({
             bookings.find(
               (booking) => booking.ticket === data.id && !booking.cancelled_at,
             ) ?? null;
+          const cancelled = bookings
+            .filter((booking) => booking.ticket === data.id && booking.cancelled_at)
+            .sort(
+              (a, b) =>
+                new Date(b.cancelled_at ?? 0).getTime() -
+                new Date(a.cancelled_at ?? 0).getTime(),
+            );
 
           if (isMounted) {
             setMeetingSlots(
@@ -446,6 +510,7 @@ export default function StudentReportDetailPage({
                 : slots,
             );
             setConfirmedBooking(activeBooking);
+            setCancelledBookings(cancelled);
           }
         } catch (error) {
           if (isMounted) {
@@ -713,6 +778,7 @@ export default function StudentReportDetailPage({
             <MeetingSection
               slots={meetingSlots}
               confirmedBooking={confirmedBooking}
+              cancelledBookings={cancelledBookings}
               isLoading={isLoadingMeetings}
               error={meetingError}
               confirmingSlotId={confirmingSlotId}
