@@ -29,6 +29,10 @@ import {
   type StudentTicket,
   type StudentTicketMessage,
 } from "@/lib/student-api";
+import {
+  appendUniqueTicketMessage,
+  connectTicketMessageSocket,
+} from "@/lib/ticket-websocket";
 import type {
   MeetingSlot,
   MeetingType,
@@ -396,6 +400,21 @@ export default function StudentReportDetailPage({
   const [meetingError, setMeetingError] = useState<string | null>(null);
   const [confirmingSlotId, setConfirmingSlotId] = useState<number | null>(null);
 
+  function appendMessage(message: StudentTicketMessage) {
+    setTicket((current) =>
+      current
+        ? {
+            ...current,
+            messages: appendUniqueTicketMessage(
+              current.messages ?? [],
+              message,
+            ),
+          }
+        : current,
+    );
+    setLocalMessages((current) => appendUniqueTicketMessage(current, message));
+  }
+
   useEffect(() => {
     let isMounted = true;
 
@@ -454,16 +473,52 @@ export default function StudentReportDetailPage({
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!ticket?.id) return;
+
+    let socket: WebSocket | null = null;
+    let isCancelled = false;
+
+    connectTicketMessageSocket<StudentTicketMessage>({
+      ticketId: ticket.id,
+      onMessage: (message) => {
+        appendMessage(message);
+      },
+      onError: (message) => {
+        console.warn(message);
+      },
+    }).then((connectedSocket) => {
+      if (isCancelled) {
+        connectedSocket?.close();
+        return;
+      }
+
+      socket = connectedSocket;
+    });
+
+    return () => {
+      isCancelled = true;
+      socket?.close();
+    };
+  }, [ticket?.id]);
+
   const serverMessages = useMemo(
     () =>
-      (ticket?.messages ?? []).sort(
+      [...(ticket?.messages ?? [])].sort(
         (a, b) =>
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       ),
     [ticket?.messages],
   );
 
-  const allMessages = [...serverMessages, ...localMessages];
+  const allMessages = useMemo(
+    () =>
+      [...serverMessages, ...localMessages].reduce<StudentTicketMessage[]>(
+        (messages, message) => appendUniqueTicketMessage(messages, message),
+        [],
+      ),
+    [serverMessages, localMessages],
+  );
 
   async function handleSend() {
     const text = replyText.trim();
@@ -478,7 +533,7 @@ export default function StudentReportDetailPage({
         text,
         messageAttachment,
       );
-      setLocalMessages((prev) => [...prev, message]);
+      appendMessage(message);
       setReplyText("");
       setMessageAttachment(null);
       if (messageFileInputRef.current) messageFileInputRef.current.value = "";
@@ -702,7 +757,7 @@ export default function StudentReportDetailPage({
               </span>
             </div>
 
-            <div className="space-y-1 px-6 py-4">
+            <div className="space-y-1 px-6 py-4" aria-live="polite">
               {allMessages.length === 0 ? (
                 <div className="py-10 text-center text-sm text-slate-400">
                   No messages yet. Staff will respond here once they begin

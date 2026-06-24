@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/ws/:path*",
+        destination: `${backendOrigin}/ws/:path*`,
+      },
+      {
         source: "/api/:path((?!auth(?:/|$)).*)",
         destination: `${backendOrigin}/api/:path*`,
       },
