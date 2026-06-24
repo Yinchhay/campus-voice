@@ -193,7 +193,10 @@ class StudentCancelMeetingView(APIView):
             f"for ticket {ticket_id}"
         )
         return Response(
-            {'message': 'Meeting booking cancelled'},
+            {
+                'message': 'Meeting booking cancelled',
+                'booking': StudentMeetingBookingDetailSerializer(booking).data,
+            },
             status=status.HTTP_200_OK
         )
 
@@ -204,10 +207,9 @@ class StudentMyBookingsView(APIView):
     def get(self, request):
         bookings = StudentMeetingBooking.objects.filter(
             student=request.user,
-            cancelled_at__isnull=True
         ).select_related(
             'meeting_slot', 'meeting_slot__staff_member', 'ticket'
-        ).order_by('-scheduled_time')
+        ).order_by('-booked_at')
         
         serializer = StudentMeetingBookingDetailSerializer(bookings, many=True)
         
