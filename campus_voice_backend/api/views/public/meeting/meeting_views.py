@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from api.models import Ticket, MeetingSlot, StudentMeetingBooking, GoogleCalendarToken
@@ -43,6 +43,8 @@ class StudentMeetingSlotsView(APIView):
             ticket=ticket,
             is_available=True,
             start_time__gt=timezone.now()  # Only future slots
+        ).exclude(
+            student_booking__student=request.user
         ).select_related('staff_member')
         serializer = MeetingSlotSerializer(slots, many=True)
         
@@ -86,6 +88,11 @@ class StudentConfirmMeetingView(APIView):
                 {'error': 'This meeting slot has already passed'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        if StudentMeetingBooking.objects.filter(meeting_slot=slot).exists():
+            return Response(
+                {'error': 'This meeting slot is no longer available.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         # Check if student already has an active booking for this ticket
         existing_booking = StudentMeetingBooking.objects.filter(
             ticket=ticket,
@@ -99,13 +106,20 @@ class StudentConfirmMeetingView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         # Create the booking
-        booking = StudentMeetingBooking.objects.create(
-            meeting_slot=slot,
-            ticket=ticket,
-            student=request.user,
-            scheduled_time=slot.start_time,
-            is_confirmed=True,
-        )
+        try:
+            with transaction.atomic():
+                booking = StudentMeetingBooking.objects.create(
+                    meeting_slot=slot,
+                    ticket=ticket,
+                    student=request.user,
+                    scheduled_time=slot.start_time,
+                    is_confirmed=True,
+                )
+        except IntegrityError:
+            return Response(
+                {'error': 'This meeting slot is no longer available.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         # Mark the slot as unavailable
         slot.is_available = False
         slot.save(update_fields=['is_available', 'updated_at'])
