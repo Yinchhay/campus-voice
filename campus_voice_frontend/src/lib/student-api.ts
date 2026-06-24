@@ -210,7 +210,10 @@ export async function cancelStudentTicketMeetingBooking(
   ticketId: string,
   bookingId: number,
 ) {
-  const response = await api.post<{ message: string }>(
+  const response = await api.post<{
+    message: string;
+    booking: StudentMeetingBooking;
+  }>(
     `/v1/tickets/${ticketId}/bookings/${bookingId}/cancel`,
   );
   return response.data;

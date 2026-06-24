@@ -41,6 +41,10 @@ import {
 } from "@/lib/staff-api";
 import { RBAC_PERMISSIONS } from "@/lib/dashboard-access";
 import { useRbacPermissions } from "@/lib/rbac";
+import {
+  appendUniqueTicketMessage,
+  connectTicketMessageSocket,
+} from "@/lib/ticket-websocket";
 import type {
   CampusLocation,
   MeetingSlot,
@@ -260,6 +264,8 @@ export function TicketDetailWorkspace({
 
   const resolutionFileInputRef = useRef<HTMLInputElement | null>(null);
   const messageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageThreadRef = useRef<HTMLDivElement | null>(null);
+  const shouldStickToLatestRef = useRef(true);
 
   const [ticket, setTicket] = useState<StaffTicket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -302,6 +308,18 @@ export function TicketDetailWorkspace({
   const [meetingEnd, setMeetingEnd] = useState("");
   const canUpdateTicket = hasPermission(RBAC_PERMISSIONS.ticket.update);
   const canDeleteTicket = hasPermission(RBAC_PERMISSIONS.ticket.delete);
+
+  function appendMessage(message: StaffTicketMessage) {
+    setTicket((current) =>
+      current
+        ? {
+            ...current,
+            messages: appendUniqueTicketMessage(current.messages, message),
+          }
+        : current,
+    );
+    setLocalMessages((current) => appendUniqueTicketMessage(current, message));
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -349,6 +367,35 @@ export function TicketDetailWorkspace({
     };
   }, [ticketId]);
 
+  useEffect(() => {
+    if (!ticket?.id) return;
+
+    let socket: WebSocket | null = null;
+    let isCancelled = false;
+
+    connectTicketMessageSocket<StaffTicketMessage>({
+      ticketId: ticket.id,
+      onMessage: (message) => {
+        appendMessage(message);
+      },
+      onError: (message) => {
+        console.warn(message);
+      },
+    }).then((connectedSocket) => {
+      if (isCancelled) {
+        connectedSocket?.close();
+        return;
+      }
+
+      socket = connectedSocket;
+    });
+
+    return () => {
+      isCancelled = true;
+      socket?.close();
+    };
+  }, [ticket?.id]);
+
   const serverMessages = useMemo(
     () =>
       [...(ticket?.messages ?? [])].sort(
@@ -360,9 +407,31 @@ export function TicketDetailWorkspace({
 
   const allMessages = useMemo(() => {
     const combined = [...serverMessages, ...localMessages];
-    const unique = new Map(combined.map(msg => [msg.id, msg]));
-    return Array.from(unique.values());
+    return combined.reduce<StaffTicketMessage[]>(
+      (messages, message) => appendUniqueTicketMessage(messages, message),
+      [],
+    );
   }, [serverMessages, localMessages]);
+
+  useEffect(() => {
+    const thread = messageThreadRef.current;
+    if (!thread || !shouldStickToLatestRef.current) return;
+
+    const frame = requestAnimationFrame(() => {
+      thread.scrollTop = thread.scrollHeight;
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [allMessages.length]);
+
+  function handleMessageThreadScroll(
+    event: React.UIEvent<HTMLDivElement>,
+  ) {
+    const thread = event.currentTarget;
+    const distanceFromBottom =
+      thread.scrollHeight - thread.scrollTop - thread.clientHeight;
+    shouldStickToLatestRef.current = distanceFromBottom < 120;
+  }
 
   const groupedMeetingSlots = useMemo(
     () => groupMeetingSlotsByDate(meetingSlots),
@@ -455,14 +524,18 @@ export function TicketDetailWorkspace({
         text,
         replyAttachment,
       );
-      setLocalMessages((prev) => [...prev, message]);
+      shouldStickToLatestRef.current = true;
+      appendMessage(message);
       setReplyText("");
       setReplyAttachment(null);
       if (messageFileInputRef.current) messageFileInputRef.current.value = "";
 
       if (currentStatus === "SUBMITTED" && canUpdateTicket) {
         const updatedTicket = await updateStaffTicketStatus(ticket.id, "IN_PROGRESS");
-        setTicket(updatedTicket);
+        setTicket((current) => ({
+          ...updatedTicket,
+          messages: current?.messages ?? updatedTicket.messages,
+        }));
         setCurrentStatus(updatedTicket.status);
         setCurrentPriority(updatedTicket.priority);
       }
@@ -855,7 +928,12 @@ export function TicketDetailWorkspace({
                 </span>
               </div>
 
-              <div className="space-y-1 px-6 py-4">
+              <div
+                ref={messageThreadRef}
+                onScroll={handleMessageThreadScroll}
+                className="max-h-[min(64vh,42rem)] space-y-1 overflow-y-auto overscroll-contain px-6 py-4 scroll-smooth [scrollbar-gutter:stable]"
+                aria-live="polite"
+              >
                 {allMessages.length === 0 ? (
                   <div className="py-10 text-center text-sm text-slate-400">
                     No messages yet. Use the box below to send the first

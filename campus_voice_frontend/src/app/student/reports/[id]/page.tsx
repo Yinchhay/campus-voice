@@ -29,6 +29,10 @@ import {
   type StudentTicket,
   type StudentTicketMessage,
 } from "@/lib/student-api";
+import {
+  appendUniqueTicketMessage,
+  connectTicketMessageSocket,
+} from "@/lib/ticket-websocket";
 import type {
   MeetingSlot,
   MeetingType,
@@ -152,7 +156,10 @@ function extractApiError(error: unknown, fallback: string) {
   if (!axios.isAxiosError(error)) return fallback;
 
   const data = error.response?.data;
-  if (typeof data === "string") return data;
+  if (typeof data === "string") {
+    if (data.trim().startsWith("<!DOCTYPE html")) return fallback;
+    return data;
+  }
   if (data && typeof data === "object") {
     if ("error" in data && typeof data.error === "string") return data.error;
     if ("detail" in data && typeof data.detail === "string") return data.detail;
@@ -217,6 +224,7 @@ function IdentityBadge({ isAnonymous }: { isAnonymous: boolean }) {
 function MeetingSection({
   slots,
   confirmedBooking,
+  cancelledBookings,
   isLoading,
   error,
   confirmingSlotId,
@@ -224,6 +232,7 @@ function MeetingSection({
 }: {
   slots: MeetingSlot[];
   confirmedBooking: StudentMeetingBooking | null;
+  cancelledBookings: StudentMeetingBooking[];
   isLoading: boolean;
   error: string | null;
   confirmingSlotId: number | null;
@@ -258,7 +267,7 @@ function MeetingSection({
         )}
       </div>
 
-        <div className="space-y-3 p-5">
+        <div className="space-y-4 p-5">
           {isLoading && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
               Loading meeting details...
@@ -321,47 +330,99 @@ function MeetingSection({
                   key={slot.id}
                   className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
                 >
-                  <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_6.75rem]">
-                    <div className="min-w-0 space-y-3">
-                      <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-3">
-                        <span className="mt-0.5 flex h-5 w-5 items-center justify-center text-slate-400">
-                          {meetingTypeIcon[slot.meeting_type]}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-medium leading-5 text-slate-800">
-                            {meetingTypeLabel[slot.meeting_type]}
+                  <div className="grid gap-4">
+                    <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-3">
+                      <span className="mt-0.5 flex h-5 w-5 items-center justify-center text-blue-500">
+                        {meetingTypeIcon[slot.meeting_type]}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-medium leading-5 text-slate-800">
+                          {meetingTypeLabel[slot.meeting_type]}
+                        </p>
+                        {slot.location_or_details && (
+                          <p className="mt-1 break-words text-xs leading-5 text-slate-500">
+                            {slot.location_or_details}
                           </p>
-                          {slot.location_or_details && (
-                            <p className="mt-0.5 break-words text-slate-500">
-                              {slot.location_or_details}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-3">
-                        <CalendarClock className="mt-0.5 h-5 w-5 text-slate-400" />
-                        <div className="min-w-0">
-                          <p className="font-medium leading-5 text-slate-800">
-                            {formatDate(slot.start_time)}
-                          </p>
-                          <p className="mt-1 whitespace-nowrap text-slate-500">
-                            {formatTime(slot.start_time)} -{" "}
-                            {formatTime(slot.end_time)}
-                          </p>
-                        </div>
+                        )}
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-3">
+                      <CalendarClock className="mt-0.5 h-5 w-5 text-slate-400" />
+                      <div className="min-w-0">
+                        <p className="font-medium leading-5 text-slate-800">
+                          {formatDate(slot.start_time)}
+                        </p>
+                        <p className="mt-1 text-slate-500">
+                          {formatTime(slot.start_time)} -{" "}
+                          {formatTime(slot.end_time)}
+                        </p>
+                      </div>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => onConfirm(slot)}
                       disabled={confirmingSlotId === slot.id}
-                      className="inline-flex h-9 w-full items-center justify-center self-center rounded-lg border border-[#1E3A8A]/25 bg-white px-3 text-xs font-medium text-[#1E3A8A] transition hover:border-[#1E3A8A] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-[#1E3A8A]/25 bg-white px-3 text-sm font-medium text-[#1E3A8A] transition hover:border-[#1E3A8A] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {confirmingSlotId === slot.id ? "Booking" : "Book"}
                     </button>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {cancelledBookings.length > 0 && (
+            <div className="space-y-3 border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Cancellation History
+                </h3>
+                <span className="text-xs text-slate-400">
+                  {cancelledBookings.length} record
+                  {cancelledBookings.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {cancelledBookings.map((booking) => {
+                  const start = getBookingMeetingStart(booking);
+                  const cancelledAt = booking.cancelled_at;
+
+                  return (
+                    <div
+                      key={booking.id}
+                      className="rounded-xl border border-red-100 bg-red-50/50 px-4 py-3 text-sm text-slate-700"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
+                          {booking.public_ticket_id ?? "Booking"}
+                        </span>
+                        <span className="rounded-full border border-red-200 bg-white px-2 py-0.5 text-xs font-medium text-red-700">
+                          Cancelled
+                        </span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3">
+                        <CalendarClock className="mt-0.5 h-4 w-4 text-red-300" />
+                        <div className="min-w-0">
+                          {start && (
+                            <p className="font-medium text-slate-700">
+                              {formatDate(start)}, {formatTime(start)}
+                            </p>
+                          )}
+                          {cancelledAt && (
+                            <p className="mt-1 text-xs text-slate-500">
+                              Cancelled {formatDateTime(cancelledAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -379,6 +440,8 @@ export default function StudentReportDetailPage({
 }) {
   const { id } = use(params);
   const messageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageThreadRef = useRef<HTMLDivElement | null>(null);
+  const shouldStickToLatestRef = useRef(true);
   const [ticket, setTicket] = useState<StudentTicket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -392,9 +455,27 @@ export default function StudentReportDetailPage({
   const [meetingSlots, setMeetingSlots] = useState<MeetingSlot[]>([]);
   const [confirmedBooking, setConfirmedBooking] =
     useState<StudentMeetingBooking | null>(null);
+  const [cancelledBookings, setCancelledBookings] = useState<
+    StudentMeetingBooking[]
+  >([]);
   const [isLoadingMeetings, setIsLoadingMeetings] = useState(false);
   const [meetingError, setMeetingError] = useState<string | null>(null);
   const [confirmingSlotId, setConfirmingSlotId] = useState<number | null>(null);
+
+  function appendMessage(message: StudentTicketMessage) {
+    setTicket((current) =>
+      current
+        ? {
+            ...current,
+            messages: appendUniqueTicketMessage(
+              current.messages ?? [],
+              message,
+            ),
+          }
+        : current,
+    );
+    setLocalMessages((current) => appendUniqueTicketMessage(current, message));
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -419,14 +500,24 @@ export default function StudentReportDetailPage({
             bookings.find(
               (booking) => booking.ticket === data.id && !booking.cancelled_at,
             ) ?? null;
+          const cancelled = bookings
+            .filter((booking) => booking.ticket === data.id && booking.cancelled_at)
+            .sort(
+              (a, b) =>
+                new Date(b.cancelled_at ?? 0).getTime() -
+                new Date(a.cancelled_at ?? 0).getTime(),
+            );
+          const unavailableSlotIds = new Set([
+            ...cancelled.map((booking) => booking.meeting_slot),
+            ...(activeBooking ? [activeBooking.meeting_slot] : []),
+          ]);
 
           if (isMounted) {
             setMeetingSlots(
-              activeBooking
-                ? slots.filter((slot) => slot.id !== activeBooking.meeting_slot)
-                : slots,
+              slots.filter((slot) => !unavailableSlotIds.has(slot.id)),
             );
             setConfirmedBooking(activeBooking);
+            setCancelledBookings(cancelled);
           }
         } catch (error) {
           if (isMounted) {
@@ -454,16 +545,72 @@ export default function StudentReportDetailPage({
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!ticket?.id) return;
+
+    let socket: WebSocket | null = null;
+    let isCancelled = false;
+
+    connectTicketMessageSocket<StudentTicketMessage>({
+      ticketId: ticket.id,
+      onMessage: (message) => {
+        appendMessage(message);
+      },
+      onError: (message) => {
+        console.warn(message);
+      },
+    }).then((connectedSocket) => {
+      if (isCancelled) {
+        connectedSocket?.close();
+        return;
+      }
+
+      socket = connectedSocket;
+    });
+
+    return () => {
+      isCancelled = true;
+      socket?.close();
+    };
+  }, [ticket?.id]);
+
   const serverMessages = useMemo(
     () =>
-      (ticket?.messages ?? []).sort(
+      [...(ticket?.messages ?? [])].sort(
         (a, b) =>
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       ),
     [ticket?.messages],
   );
 
-  const allMessages = [...serverMessages, ...localMessages];
+  const allMessages = useMemo(
+    () =>
+      [...serverMessages, ...localMessages].reduce<StudentTicketMessage[]>(
+        (messages, message) => appendUniqueTicketMessage(messages, message),
+        [],
+      ),
+    [serverMessages, localMessages],
+  );
+
+  useEffect(() => {
+    const thread = messageThreadRef.current;
+    if (!thread || !shouldStickToLatestRef.current) return;
+
+    const frame = requestAnimationFrame(() => {
+      thread.scrollTop = thread.scrollHeight;
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [allMessages.length]);
+
+  function handleMessageThreadScroll(
+    event: React.UIEvent<HTMLDivElement>,
+  ) {
+    const thread = event.currentTarget;
+    const distanceFromBottom =
+      thread.scrollHeight - thread.scrollTop - thread.clientHeight;
+    shouldStickToLatestRef.current = distanceFromBottom < 120;
+  }
 
   async function handleSend() {
     const text = replyText.trim();
@@ -478,7 +625,8 @@ export default function StudentReportDetailPage({
         text,
         messageAttachment,
       );
-      setLocalMessages((prev) => [...prev, message]);
+      shouldStickToLatestRef.current = true;
+      appendMessage(message);
       setReplyText("");
       setMessageAttachment(null);
       if (messageFileInputRef.current) messageFileInputRef.current.value = "";
@@ -658,6 +806,7 @@ export default function StudentReportDetailPage({
             <MeetingSection
               slots={meetingSlots}
               confirmedBooking={confirmedBooking}
+              cancelledBookings={cancelledBookings}
               isLoading={isLoadingMeetings}
               error={meetingError}
               confirmingSlotId={confirmingSlotId}
@@ -702,7 +851,12 @@ export default function StudentReportDetailPage({
               </span>
             </div>
 
-            <div className="space-y-1 px-6 py-4">
+            <div
+              ref={messageThreadRef}
+              onScroll={handleMessageThreadScroll}
+              className="max-h-[min(64vh,42rem)] space-y-1 overflow-y-auto overscroll-contain px-6 py-4 scroll-smooth [scrollbar-gutter:stable]"
+              aria-live="polite"
+            >
               {allMessages.length === 0 ? (
                 <div className="py-10 text-center text-sm text-slate-400">
                   No messages yet. Staff will respond here once they begin
