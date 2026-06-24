@@ -437,6 +437,8 @@ export default function StudentReportDetailPage({
 }) {
   const { id } = use(params);
   const messageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageThreadRef = useRef<HTMLDivElement | null>(null);
+  const shouldStickToLatestRef = useRef(true);
   const [ticket, setTicket] = useState<StudentTicket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -585,6 +587,26 @@ export default function StudentReportDetailPage({
     [serverMessages, localMessages],
   );
 
+  useEffect(() => {
+    const thread = messageThreadRef.current;
+    if (!thread || !shouldStickToLatestRef.current) return;
+
+    const frame = requestAnimationFrame(() => {
+      thread.scrollTop = thread.scrollHeight;
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [allMessages.length]);
+
+  function handleMessageThreadScroll(
+    event: React.UIEvent<HTMLDivElement>,
+  ) {
+    const thread = event.currentTarget;
+    const distanceFromBottom =
+      thread.scrollHeight - thread.scrollTop - thread.clientHeight;
+    shouldStickToLatestRef.current = distanceFromBottom < 120;
+  }
+
   async function handleSend() {
     const text = replyText.trim();
     if (!ticket || (!text && !messageAttachment) || isSendingMessage) return;
@@ -598,6 +620,7 @@ export default function StudentReportDetailPage({
         text,
         messageAttachment,
       );
+      shouldStickToLatestRef.current = true;
       appendMessage(message);
       setReplyText("");
       setMessageAttachment(null);
@@ -823,7 +846,12 @@ export default function StudentReportDetailPage({
               </span>
             </div>
 
-            <div className="space-y-1 px-6 py-4" aria-live="polite">
+            <div
+              ref={messageThreadRef}
+              onScroll={handleMessageThreadScroll}
+              className="max-h-[min(64vh,42rem)] space-y-1 overflow-y-auto overscroll-contain px-6 py-4 scroll-smooth [scrollbar-gutter:stable]"
+              aria-live="polite"
+            >
               {allMessages.length === 0 ? (
                 <div className="py-10 text-center text-sm text-slate-400">
                   No messages yet. Staff will respond here once they begin
