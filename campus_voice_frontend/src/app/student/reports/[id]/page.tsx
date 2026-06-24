@@ -156,7 +156,10 @@ function extractApiError(error: unknown, fallback: string) {
   if (!axios.isAxiosError(error)) return fallback;
 
   const data = error.response?.data;
-  if (typeof data === "string") return data;
+  if (typeof data === "string") {
+    if (data.trim().startsWith("<!DOCTYPE html")) return fallback;
+    return data;
+  }
   if (data && typeof data === "object") {
     if ("error" in data && typeof data.error === "string") return data.error;
     if ("detail" in data && typeof data.detail === "string") return data.detail;
@@ -504,12 +507,14 @@ export default function StudentReportDetailPage({
                 new Date(b.cancelled_at ?? 0).getTime() -
                 new Date(a.cancelled_at ?? 0).getTime(),
             );
+          const unavailableSlotIds = new Set([
+            ...cancelled.map((booking) => booking.meeting_slot),
+            ...(activeBooking ? [activeBooking.meeting_slot] : []),
+          ]);
 
           if (isMounted) {
             setMeetingSlots(
-              activeBooking
-                ? slots.filter((slot) => slot.id !== activeBooking.meeting_slot)
-                : slots,
+              slots.filter((slot) => !unavailableSlotIds.has(slot.id)),
             );
             setConfirmedBooking(activeBooking);
             setCancelledBookings(cancelled);
