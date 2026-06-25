@@ -420,9 +420,8 @@ export function TicketDetailWorkspace({
 
     // Double rAF ensures the browser has finished layout before we measure
     // scrollHeight, so the initial load always starts at the latest message.
-    let outerFrame: number;
     let innerFrame: number;
-    outerFrame = requestAnimationFrame(() => {
+    const outerFrame = requestAnimationFrame(() => {
       innerFrame = requestAnimationFrame(() => {
         thread.scrollTop = thread.scrollHeight;
       });

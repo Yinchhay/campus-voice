@@ -50,6 +50,8 @@ const priorityIcon: Record<TicketPriority, React.ReactNode> = {
   LOW: <CheckCircle2 className="h-3.5 w-3.5" />,
 };
 
+type TicketStatusFilter = TicketStatus | "OPEN" | "ALL";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -90,7 +92,7 @@ export default function AdminTicketsPage() {
   const [pageError, setPageError] = useState("");
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | "ALL">("ALL");
+  const [statusFilter, setStatusFilter] = useState<TicketStatusFilter>("OPEN");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "ALL">("ALL");
   const [categoryFilter, setCategoryFilter] = useState<number | "ALL">("ALL");
   const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeFilter>("ALL");
@@ -112,6 +114,7 @@ export default function AdminTicketsPage() {
             page,
             page_size: pageSize,
             filters: search.trim() || undefined,
+            status: statusFilter === "ALL" ? undefined : statusFilter,
             date_range: dateRangeFilter.toLowerCase(),
             sort_by: "created_at",
             sort_desc: true,
@@ -134,14 +137,20 @@ export default function AdminTicketsPage() {
     return () => {
       isMounted = false;
     };
-  }, [dateRangeFilter, page, pageSize, search]);
+  }, [dateRangeFilter, page, pageSize, search, statusFilter]);
 
   const filtered = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
     return tickets
       .filter((t) => {
-        if (statusFilter !== "ALL" && t.status !== statusFilter) return false;
+        if (statusFilter === "OPEN" && t.status === "RESOLVED") return false;
+        if (
+          statusFilter !== "OPEN" &&
+          statusFilter !== "ALL" &&
+          t.status !== statusFilter
+        )
+          return false;
         if (priorityFilter !== "ALL" && t.priority !== priorityFilter) return false;
         if (categoryFilter !== "ALL" && t.category_id !== categoryFilter) return false;
         if (normalizedSearch) {
@@ -188,7 +197,8 @@ export default function AdminTicketsPage() {
   }
 
   const statusCounts = useMemo(() => {
-    const counts: Record<TicketStatus | "ALL", number> = {
+    const counts: Record<TicketStatusFilter, number> = {
+      OPEN: 0,
       ALL: tickets.length,
       SUBMITTED: 0,
       IN_PROGRESS: 0,
@@ -196,13 +206,15 @@ export default function AdminTicketsPage() {
     };
 
     for (const ticket of tickets) {
+      if (ticket.status !== "RESOLVED") counts.OPEN += 1;
       counts[ticket.status] += 1;
     }
 
     return counts;
   }, [tickets]);
 
-  const statusTabs: Array<{ key: TicketStatus | "ALL"; label: string; count: number }> = [
+  const statusTabs: Array<{ key: TicketStatusFilter; label: string; count: number }> = [
+    { key: "OPEN", label: "Open", count: statusCounts.OPEN },
     { key: "ALL", label: "All", count: statusCounts.ALL },
     {
       key: "SUBMITTED",
