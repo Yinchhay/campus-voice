@@ -30,7 +30,10 @@ import type { TicketPriority, TicketStatus } from "@/lib/types";
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const statusTabs: Array<{ key: TicketStatus | "ALL"; label: string }> = [
+type TicketStatusFilter = TicketStatus | "OPEN" | "ALL";
+
+const statusTabs: Array<{ key: TicketStatusFilter; label: string }> = [
+  { key: "OPEN", label: "Open" },
   { key: "ALL", label: "All" },
   { key: "SUBMITTED", label: "Submitted" },
   { key: "IN_PROGRESS", label: "In Progress" },
@@ -129,7 +132,7 @@ export default function StaffTicketsPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | "ALL">("ALL");
+  const [statusFilter, setStatusFilter] = useState<TicketStatusFilter>("OPEN");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "ALL">("ALL");
   const [categoryFilter, setCategoryFilter] = useState<number | "ALL">("ALL");
   const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeFilter>("ALL");
@@ -159,6 +162,7 @@ export default function StaffTicketsPage() {
           page,
           page_size: pageSize,
           filters: search.trim() || undefined,
+          status: statusFilter === "ALL" ? undefined : statusFilter,
           date_range: dateRangeFilter.toLowerCase(),
           sort_by: "created_at",
           sort_desc: true,
@@ -179,12 +183,18 @@ export default function StaffTicketsPage() {
     return () => {
       isMounted = false;
     };
-  }, [dateRangeFilter, hasPermission, isPermissionLoading, page, pageSize, router, search]);
+  }, [dateRangeFilter, hasPermission, isPermissionLoading, page, pageSize, router, search, statusFilter]);
 
   const filtered = useMemo(() => {
     return tickets
       .filter((t) => {
-        if (statusFilter !== "ALL" && t.status !== statusFilter) return false;
+        if (statusFilter === "OPEN" && t.status === "RESOLVED") return false;
+        if (
+          statusFilter !== "OPEN" &&
+          statusFilter !== "ALL" &&
+          t.status !== statusFilter
+        )
+          return false;
         if (priorityFilter !== "ALL" && t.priority !== priorityFilter) return false;
         if (categoryFilter !== "ALL" && t.category_id !== categoryFilter) return false;
         if (search) {

@@ -9,6 +9,7 @@ export type ListQueryParams = {
   page?: number;
   page_size?: number;
   filters?: string;
+  status?: string;
   sort_by?: string;
   sort_desc?: boolean;
   date_range?: string;

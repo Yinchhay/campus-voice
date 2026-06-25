@@ -266,6 +266,7 @@ export function TicketDetailWorkspace({
   const messageFileInputRef = useRef<HTMLInputElement | null>(null);
   const messageThreadRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToLatestRef = useRef(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   const [ticket, setTicket] = useState<StaffTicket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -417,12 +418,28 @@ export function TicketDetailWorkspace({
     const thread = messageThreadRef.current;
     if (!thread || !shouldStickToLatestRef.current) return;
 
-    const frame = requestAnimationFrame(() => {
-      thread.scrollTop = thread.scrollHeight;
+    // Double rAF ensures the browser has finished layout before we measure
+    // scrollHeight, so the initial load always starts at the latest message.
+    let innerFrame: number;
+    const outerFrame = requestAnimationFrame(() => {
+      innerFrame = requestAnimationFrame(() => {
+        thread.scrollTop = thread.scrollHeight;
+      });
     });
 
-    return () => cancelAnimationFrame(frame);
-  }, [allMessages.length]);
+    return () => {
+      cancelAnimationFrame(outerFrame);
+      cancelAnimationFrame(innerFrame);
+    };
+  }, [allMessages.length, ticket?.id]);
+
+  function scrollToLatest() {
+    const thread = messageThreadRef.current;
+    if (!thread) return;
+    shouldStickToLatestRef.current = true;
+    thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" });
+    setShowScrollButton(false);
+  }
 
   function handleMessageThreadScroll(
     event: React.UIEvent<HTMLDivElement>,
@@ -430,7 +447,9 @@ export function TicketDetailWorkspace({
     const thread = event.currentTarget;
     const distanceFromBottom =
       thread.scrollHeight - thread.scrollTop - thread.clientHeight;
-    shouldStickToLatestRef.current = distanceFromBottom < 120;
+    const atBottom = distanceFromBottom < 120;
+    shouldStickToLatestRef.current = atBottom;
+    setShowScrollButton(!atBottom);
   }
 
   const groupedMeetingSlots = useMemo(
@@ -928,6 +947,7 @@ export function TicketDetailWorkspace({
                 </span>
               </div>
 
+            <div className="relative">
               <div
                 ref={messageThreadRef}
                 onScroll={handleMessageThreadScroll}
@@ -987,6 +1007,24 @@ export function TicketDetailWorkspace({
                   })
                 )}
               </div>
+
+              {/* Scroll-to-latest button */}
+              {showScrollButton && (
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={scrollToLatest}
+                    aria-label="Scroll to latest message"
+                    className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white shadow-lg ring-4 ring-[#1E3A8A]/20 transition hover:bg-[#1e40af] hover:shadow-xl active:scale-95"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                      <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                    </svg>
+                    Latest
+                  </button>
+                </div>
+              )}
+            </div>
 
               {/* Reply box */}
               {currentStatus === "RESOLVED" ? (
