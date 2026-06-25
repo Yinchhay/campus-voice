@@ -27,11 +27,18 @@ class AdminTicketListView(APIView):
     
     def get(self, request):
         filters = request.query_params.get('filters', '')
+        status_filter = request.query_params.get('status')
         date_range = request.query_params.get('date_range', 'all').lower()
         sort_by = request.query_params.get('sort_by', 'created_at')
         sort_desc = request.query_params.get('sort_desc', 'true').lower() == 'true'
 
         tickets = Ticket.objects.select_related('category').prefetch_related('attachments').all()
+
+        if status_filter and status_filter.upper() != 'ALL':
+            if status_filter.upper() == 'OPEN':
+                tickets = tickets.exclude(status=Ticket.Status.RESOLVED)
+            elif status_filter in Ticket.Status.values:
+                tickets = tickets.filter(status=status_filter)
 
         if date_range == 'week':
             tickets = tickets.filter(created_at__gte=timezone.now() - timedelta(days=7))
@@ -241,4 +248,3 @@ class AdminTicketExportView(APIView):
         response["Content-Disposition"] = 'attachment; filename="tickets_export.xlsx"'
         wb.save(response)
         return response
-
