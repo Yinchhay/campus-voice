@@ -10,6 +10,8 @@ from django.db import transaction
 from django.utils import timezone
 from api.models import Ticket, Category
 
+from django.db.models import Q
+from api.utils import generate_author_hash
 from api.serializers import PublicTicketSerializer, PublicTicketDetailSerializer
 from api.tasks import send_new_ticket_notification_task
 
@@ -19,7 +21,10 @@ class TicketListView(APIView):
     permission_classes=[IsAuthenticated]
     
     def get(self, request):
-        tickets = Ticket.objects.filter(submitted_by=request.user).select_related('category').prefetch_related('attachments')
+        user_hash = generate_author_hash(request.user.id)
+        tickets = Ticket.objects.filter(
+            Q(submitted_by=request.user) | Q(author_hash=user_hash)
+        ).select_related('category').prefetch_related('attachments')
         serializer = PublicTicketSerializer(tickets, many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -41,10 +46,19 @@ class TicketListView(APIView):
         if serializer.is_valid():
             try:
                 category = Category.objects.get(id=category_id)
-                ticket = serializer.save(
-                    submitted_by=request.user,
-                    priority=category.priority_level
-                )
+                is_anon = serializer.validated_data.get('is_anonymous', False)
+                
+                if is_anon:
+                    ticket = serializer.save(
+                        submitted_by=None,
+                        author_hash=generate_author_hash(request.user.id),
+                        priority=category.priority_level
+                    )
+                else:
+                    ticket = serializer.save(
+                        submitted_by=request.user,
+                        priority=category.priority_level
+                    )
                 
                 if ticket.priority == Ticket.Priority.HIGH:
                     send_new_ticket_notification_task.delay(ticket.id)
@@ -70,7 +84,7 @@ class TicketDetailView(APIView):
                     'messages__attachment',
                     'resolution__attachments',
                 ).get(id=ticket_id)
-            if ticket.submitted_by != request.user:
+            if ticket.submitted_by != request.user and ticket.author_hash != generate_author_hash(request.user.id):
                 return Response(
                     {'error': 'You do not have permission to view this ticket'},
                     status=status.HTTP_403_FORBIDDEN

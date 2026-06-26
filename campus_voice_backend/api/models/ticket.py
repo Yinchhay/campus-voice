@@ -35,6 +35,7 @@ class Ticket(models.Model):
     )
 
     public_ticket_id = models.CharField(max_length=20, unique=True, editable=False)
+    author_hash = models.CharField(max_length=64, null=True, blank=True, db_index=True)
     is_anonymous = models.BooleanField(default=False, help_text="If True, submitter identity is hidden from admins")
     resolved_at = models.DateTimeField(null=True, blank=True)
     # Timestamps

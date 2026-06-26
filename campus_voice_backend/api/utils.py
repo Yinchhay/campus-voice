@@ -1,5 +1,7 @@
 import re
-
+import hmac
+import hashlib
+from django.conf import settings
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import status
@@ -21,10 +23,22 @@ def get_paginated_response(queryset, request, serializer_class):
     serializer = serializer_class(paginated, many=True)
     return paginator.get_paginated_response(serializer.data)
 
+def generate_author_hash(user_id):
+    if not user_id:
+        return None
+    msg = str(user_id).encode('utf-8')
+    key = settings.ANONYMOUS_IDENTITY_KEY.encode('utf-8')
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()
+
 def get_ticket(ticket_id, user):
     """Reusable ticket lookup for student-owned tickets."""
+    from django.db.models import Q
     try:
-        ticket = Ticket.objects.get(id=ticket_id, submitted_by=user)
+        user_hash = generate_author_hash(user.id)
+        ticket = Ticket.objects.get(
+            Q(id=ticket_id) & 
+            (Q(submitted_by=user) | Q(author_hash=user_hash))
+        )
         return ticket, None
     except Ticket.DoesNotExist:
         return None, Response(

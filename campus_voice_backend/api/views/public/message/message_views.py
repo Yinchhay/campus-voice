@@ -46,15 +46,17 @@ class MessageView(APIView):
             context={'request': request}  # needed for file upload in create()
         )
         if serializer.is_valid():
+            sender = None if ticket.is_anonymous else request.user
             message = serializer.save(
                 ticket=ticket,
-                sender=request.user,
+                sender=sender,
                 is_staff_message=False,
             )    
 
+            email_log = "Anonymous" if ticket.is_anonymous else request.user.email
             logger.info(
                 f"Student Message on {ticket.public_ticket_id} "
-                f"by {request.user.email}"
+                f"by {email_log}"
             )
 
             # Broadcast live update
