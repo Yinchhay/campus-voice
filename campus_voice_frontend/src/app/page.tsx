@@ -70,6 +70,34 @@ const trustPoints = [
   },
 ];
 
+function GoogleMark() {
+  return (
+    <span
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white shadow-sm"
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 24 24" className="h-4.5 w-4.5">
+        <path
+          fill="#4285F4"
+          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+        />
+        <path
+          fill="#34A853"
+          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        />
+        <path
+          fill="#FBBC05"
+          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+        />
+        <path
+          fill="#EA4335"
+          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"
+        />
+      </svg>
+    </span>
+  );
+}
+
 export default async function Home() {
   const session = await auth();
   const role = normalizeCampusVoiceRole(session?.user?.role);
@@ -79,8 +107,8 @@ export default async function Home() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f6f7f3] text-[#12201d]">
-      <nav className="sticky top-0 z-50 border-b border-[#12201d]/10 bg-[#f6f7f3]/90 backdrop-blur-xl">
+    <main className="min-h-screen overflow-hidden bg-white text-[#12201d]">
+      <nav className="sticky top-0 z-50 border-b border-[#12201d]/10 bg-white shadow-[0_1px_18px_rgba(18,32,29,0.06)]">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link
             href="/"
@@ -115,9 +143,10 @@ export default async function Home() {
               <button
                 type="submit"
                 id="nav-get-started"
-                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#ffb000] px-5 py-2.5 text-sm font-bold text-[#1b1606] shadow-[0_12px_30px_rgba(255,176,0,0.35)] transition hover:-translate-y-0.5 hover:bg-[#ffc247] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1E3A8A]"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#ffb000] py-1.5 pl-1.5 pr-5 text-sm font-bold text-[#1b1606] shadow-[0_12px_30px_rgba(255,176,0,0.35)] transition hover:-translate-y-0.5 hover:bg-[#ffc247] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1E3A8A]"
               >
-                Get Started
+                <GoogleMark />
+                Sign in
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
             </form>
@@ -126,7 +155,7 @@ export default async function Home() {
       </nav>
 
       <section className="relative border-b border-[#12201d]/10">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_15%_20%,rgba(255,176,0,0.22),transparent_28%),radial-gradient(circle_at_85%_10%,rgba(20,184,166,0.18),transparent_30%),linear-gradient(135deg,#f6f7f3_0%,#fffaf0_58%,#eef7f4_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_15%_20%,rgba(255,176,0,0.18),transparent_28%),radial-gradient(circle_at_85%_10%,rgba(20,184,166,0.13),transparent_30%),linear-gradient(135deg,#ffffff_0%,#ffffff_58%,#f8fbff_100%)]" />
         <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-20">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#12201d]/10 bg-white/70 px-4 py-2 text-sm font-semibold text-[#43534d] shadow-sm">
@@ -149,9 +178,10 @@ export default async function Home() {
                 <button
                   type="submit"
                   id="hero-get-started"
-                  className="inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-full bg-[#1E3A8A] px-7 py-4 text-base font-bold text-white shadow-[0_18px_45px_rgba(30,58,138,0.28)] transition hover:-translate-y-0.5 hover:bg-[#2447a7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ffb000] sm:w-auto"
+                  className="inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-full bg-[#1E3A8A] py-3 pl-3 pr-7 text-base font-bold text-white shadow-[0_18px_45px_rgba(30,58,138,0.28)] transition hover:-translate-y-0.5 hover:bg-[#2447a7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ffb000] sm:w-auto"
                 >
-                  Get Started
+                  <GoogleMark />
+                  Sign in with Paragon Google
                   <ArrowRight className="h-5 w-5" aria-hidden="true" />
                 </button>
               </form>
@@ -161,6 +191,20 @@ export default async function Home() {
               >
                 Learn more
               </a>
+            </div>
+            <div className="mt-4 flex max-w-2xl items-start gap-3 rounded-2xl border border-[#1E3A8A]/15 bg-white/65 p-4 text-sm leading-6 text-[#43534d] shadow-sm">
+              <ShieldCheck
+                className="mt-0.5 h-5 w-5 shrink-0 text-[#1E3A8A]"
+                aria-hidden="true"
+              />
+              <p>
+                You will need your official{" "}
+                <span className="font-bold text-[#12201d]">
+                  Paragon Google account
+                </span>{" "}
+                to access Campus Voice. Personal Gmail accounts are not used for
+                student reports.
+              </p>
             </div>
 
             <div className="mt-12 grid max-w-3xl gap-3 sm:grid-cols-3">
@@ -184,7 +228,7 @@ export default async function Home() {
             <div className="absolute -left-4 top-10 h-24 w-24 rounded-full bg-[#ffb000]/25 blur-2xl" />
             <div className="absolute -right-8 bottom-14 h-32 w-32 rounded-full bg-[#14b8a6]/20 blur-3xl" />
             <div className="relative rounded-[2rem] border border-[#12201d]/10 bg-[#10231f] p-3 shadow-[0_30px_80px_rgba(18,32,29,0.28)]">
-              <div className="rounded-[1.45rem] bg-[#f8faf7] p-4 sm:p-5">
+              <div className="rounded-[1.45rem] bg-white p-4 sm:p-5">
                 <div className="flex items-center justify-between border-b border-[#12201d]/10 pb-4">
                   <div>
                     <p className="text-xs font-bold uppercase text-[#688079]">
@@ -371,17 +415,23 @@ export default async function Home() {
               Make student feedback easier to submit and harder to overlook.
             </h2>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[#5c6b65]">
-              Sign in with your Paragon account to access a reporting workflow
-              designed for accessibility, transparency, and accountable service
-              response.
+              Sign in with your Paragon Google account to access a reporting
+              workflow designed for accessibility, transparency, and accountable
+              service response.
             </p>
+            <div className="mt-6 inline-flex max-w-xl items-center gap-3 rounded-2xl bg-[#eef3ff] px-4 py-3 text-sm font-semibold text-[#1E3A8A]">
+              <LockKeyhole className="h-5 w-5 shrink-0" aria-hidden="true" />
+              Only official Paragon International University Google accounts can
+              continue.
+            </div>
             <form action={signInWithGoogle}>
               <button
                 type="submit"
                 id="cta-get-started"
-                className="mt-8 inline-flex min-h-14 items-center justify-center gap-3 rounded-full bg-[#ffb000] px-7 py-4 text-base font-black text-[#1b1606] shadow-[0_18px_45px_rgba(255,176,0,0.35)] transition hover:-translate-y-0.5 hover:bg-[#ffc247] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1E3A8A]"
+                className="mt-8 inline-flex min-h-14 items-center justify-center gap-3 rounded-full bg-[#ffb000] py-3 pl-3 pr-7 text-base font-black text-[#1b1606] shadow-[0_18px_45px_rgba(255,176,0,0.35)] transition hover:-translate-y-0.5 hover:bg-[#ffc247] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1E3A8A]"
               >
-                Get Started
+                <GoogleMark />
+                Continue with Google
                 <ArrowRight className="h-5 w-5" aria-hidden="true" />
               </button>
             </form>
@@ -414,7 +464,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-[#12201d]/10 bg-[#f6f7f3]">
+      <footer className="border-t border-[#12201d]/10 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm font-medium text-[#5c6b65] sm:flex-row sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <Image
