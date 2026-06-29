@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import axios from "axios";
+import { DeleteConfirmDialog } from "@/components/common/DeleteConfirmDialog";
 import { PaginationControls } from "@/components/common/PaginationControls";
 import {
   createAdminRole,
@@ -296,6 +297,9 @@ export function RoleManagementPanel() {
   const [editingRole, setEditingRole] = useState<AdminRoleDetail | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [rolePendingDelete, setRolePendingDelete] =
+    useState<AdminRoleDetail | null>(null);
+  const [deleteDialogError, setDeleteDialogError] = useState("");
 
   const canCreate = hasPermission(RBAC_PERMISSIONS.role.create);
   const canUpdate = hasPermission(RBAC_PERMISSIONS.role.update);
@@ -363,17 +367,19 @@ export function RoleManagementPanel() {
 
   async function handleDelete(role: AdminRoleDetail) {
     if (role.is_superadmin) return;
-    const confirmed = window.confirm(`Delete role "${role.name}"?`);
-    if (!confirmed) return;
 
     setDeletingId(role.id);
     setPageError("");
+    setDeleteDialogError("");
     try {
       await deleteAdminRole(role.id);
       setRoles((prev) => prev.filter((row) => row.id !== role.id));
       setTotalRoles((prev) => Math.max(0, prev - 1));
+      setRolePendingDelete(null);
     } catch (error) {
-      setPageError(extractApiError(error, "Failed to delete role."));
+      const message = extractApiError(error, "Failed to delete role.");
+      setDeleteDialogError(message);
+      setPageError(message);
     } finally {
       setDeletingId(null);
     }
@@ -469,7 +475,10 @@ export function RoleManagementPanel() {
                     {canDelete && (
                       <button
                         type="button"
-                        onClick={() => handleDelete(role)}
+                        onClick={() => {
+                          setDeleteDialogError("");
+                          setRolePendingDelete(role);
+                        }}
                         disabled={role.is_superadmin || deletingId === role.id}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-red-200 bg-white text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                         title={role.is_superadmin ? "Superadmin roles cannot be deleted" : "Delete role"}
@@ -536,6 +545,23 @@ export function RoleManagementPanel() {
           canManagePermissions={canViewPermissions}
           onClose={() => setEditingRole(null)}
           onSave={(form) => handleSaveRole(form, editingRole)}
+        />
+      )}
+      {rolePendingDelete && (
+        <DeleteConfirmDialog
+          title="Delete role?"
+          description="This removes the role from the dashboard. Users assigned to this role may lose those permissions."
+          itemLabel={rolePendingDelete.name}
+          isDeleting={deletingId === rolePendingDelete.id}
+          error={deleteDialogError}
+          confirmLabel="Delete Role"
+          onClose={() => {
+            if (deletingId === null) {
+              setDeleteDialogError("");
+              setRolePendingDelete(null);
+            }
+          }}
+          onConfirm={() => void handleDelete(rolePendingDelete)}
         />
       )}
     </>

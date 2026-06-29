@@ -161,10 +161,6 @@ export function StudentDashboardClient({
         <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700">
-                <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                Verified report tracking
-              </div>
               <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
                 My Reports Dashboard
               </h1>

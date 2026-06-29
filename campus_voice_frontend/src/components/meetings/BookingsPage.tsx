@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   MapPin,
   TriangleAlert,
+  UserRound,
   Video,
 } from "lucide-react";
 import { RoleDashboardShell, type DashboardNavItem } from "@/components/layout/RoleDashboardShell";
@@ -38,12 +39,14 @@ function isOnlineMeeting(booking: StudentMeetingBooking) {
 function bookingStatus(booking: StudentMeetingBooking) {
   if (booking.cancelled_at) return "Cancelled";
   if (booking.meeting_completed) return "Completed";
+  if (isMeetingInProgress(booking)) return "In Progress";
   if (booking.is_confirmed) return "Confirmed";
   return "Pending";
 }
 
 function statusClass(status: string) {
   if (status === "Completed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "In Progress") return "border-amber-200 bg-amber-50 text-amber-700";
   if (status === "Confirmed") return "border-blue-200 bg-blue-50 text-blue-700";
   if (status === "Cancelled") return "border-red-200 bg-red-50 text-red-700";
   return "border-slate-200 bg-slate-50 text-slate-600";
@@ -51,6 +54,33 @@ function statusClass(status: string) {
 
 function ticketLabel(booking: StudentMeetingBooking) {
   return booking.public_ticket_id || booking.ticket;
+}
+
+function meetingCreatorName(booking: StudentMeetingBooking) {
+  const name = booking.meeting_details?.staff_name?.trim();
+  return name || "Unknown staff";
+}
+
+function isMeetingInProgress(booking: StudentMeetingBooking) {
+  const start = Date.parse(
+    booking.meeting_details?.start_time ?? booking.scheduled_time,
+  );
+  const end = Date.parse(
+    booking.meeting_details?.end_time ?? booking.scheduled_time,
+  );
+
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
+
+  const now = Date.now();
+  return now >= start && now <= end;
+}
+
+function canMarkComplete(booking: StudentMeetingBooking) {
+  return (
+    !booking.meeting_completed &&
+    !booking.cancelled_at &&
+    (booking.is_confirmed || isMeetingInProgress(booking))
+  );
 }
 
 export function BookingsPage({
@@ -218,6 +248,15 @@ export function BookingsPage({
                         )}
                         <span>{meetingTypeLabel(booking)}</span>
                       </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <UserRound className="h-4 w-4 text-slate-400" />
+                        <span>
+                          Created by{" "}
+                          <span className="font-medium text-slate-700">
+                            {meetingCreatorName(booking)}
+                          </span>
+                        </span>
+                      </div>
                       {details?.location_or_details && (
                         <p className="text-xs text-slate-500">
                           {details.location_or_details}
@@ -239,25 +278,23 @@ export function BookingsPage({
                     <div className="flex flex-col items-start gap-2 lg:items-end">
                       <Link
                         href={`${ticketBasePath}/${booking.ticket}`}
-                        className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                        className="inline-flex h-9 w-36 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
                       >
                         View ticket
                       </Link>
-                      {booking.is_confirmed &&
-                        !booking.meeting_completed &&
-                        !booking.cancelled_at && (
-                          <button
-                            type="button"
-                            onClick={() => handleComplete(booking)}
-                            disabled={completingId === booking.id}
-                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            {completingId === booking.id
-                              ? "Completing..."
-                              : "Mark complete"}
-                          </button>
-                        )}
+                      {canMarkComplete(booking) && (
+                        <button
+                          type="button"
+                          onClick={() => handleComplete(booking)}
+                          disabled={completingId === booking.id}
+                          className="inline-flex h-9 w-36 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {completingId === booking.id
+                            ? "Completing..."
+                            : "Mark complete"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

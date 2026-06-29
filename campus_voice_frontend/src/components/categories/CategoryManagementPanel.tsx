@@ -16,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import axios from "axios";
+import { DeleteConfirmDialog } from "@/components/common/DeleteConfirmDialog";
 import { PaginationControls } from "@/components/common/PaginationControls";
 import {
   createAdminCategory,
@@ -113,6 +114,9 @@ export function CategoryManagementPanel() {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [categoryPendingDelete, setCategoryPendingDelete] =
+    useState<Category | null>(null);
+  const [deleteDialogError, setDeleteDialogError] = useState("");
 
   const loadCategories = useCallback(async () => {
     setIsLoading(true);
@@ -239,14 +243,9 @@ export function CategoryManagementPanel() {
   }
 
   async function handleDelete(category: Category) {
-    const confirmed = window.confirm(
-      `Delete "${category.name}"? This cannot be undone.`,
-    );
-
-    if (!confirmed) return;
-
     setDeletingId(category.id);
     setPageError("");
+    setDeleteDialogError("");
     try {
       await deleteAdminCategory(category.id);
       setRows((prev) => prev.filter((row) => row.id !== category.id));
@@ -254,8 +253,11 @@ export function CategoryManagementPanel() {
       if (editingId === category.id) {
         cancelEditing();
       }
+      setCategoryPendingDelete(null);
     } catch (error) {
-      setPageError(extractDeleteCategoryError(error, category.name));
+      const message = extractDeleteCategoryError(error, category.name);
+      setDeleteDialogError(message);
+      setPageError(message);
     } finally {
       setDeletingId(null);
     }
@@ -665,7 +667,10 @@ export function CategoryManagementPanel() {
                         {canDelete && (
                           <button
                             type="button"
-                            onClick={() => void handleDelete(cat)}
+                            onClick={() => {
+                              setDeleteDialogError("");
+                              setCategoryPendingDelete(cat);
+                            }}
                             disabled={isDeleting || isToggling}
                             title="Delete"
                             className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -696,6 +701,23 @@ export function CategoryManagementPanel() {
             setPage(1);
           }}
         />
+        {categoryPendingDelete && (
+          <DeleteConfirmDialog
+            title="Delete category?"
+            description="This removes the category from the dashboard. This cannot be undone."
+            itemLabel={categoryPendingDelete.name}
+            isDeleting={deletingId === categoryPendingDelete.id}
+            error={deleteDialogError}
+            confirmLabel="Delete Category"
+            onClose={() => {
+              if (deletingId === null) {
+                setDeleteDialogError("");
+                setCategoryPendingDelete(null);
+              }
+            }}
+            onConfirm={() => void handleDelete(categoryPendingDelete)}
+          />
+        )}
       </div>
     </div>
   );
