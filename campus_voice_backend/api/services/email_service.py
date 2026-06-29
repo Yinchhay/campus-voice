@@ -186,3 +186,61 @@ def send_new_meeting_booking_notification_to_admin(booking):
             exc_info=True
         )
 
+
+def send_meeting_confirmed_notification_to_student(booking):
+    """
+    Send meeting confirmation email to the student who booked it.
+    Only sends if the ticket is NOT anonymous (student revealed their identity).
+    """
+    ticket = booking.ticket
+
+    # Only send to students who revealed their identity
+    if ticket.is_anonymous:
+        logger.info(
+            f"Skipping student meeting confirmation email for "
+            f"{ticket.public_ticket_id} — ticket is anonymous."
+        )
+        return
+
+    student = booking.student
+    if not student or not student.email:
+        logger.warning(
+            f"Ticket {ticket.public_ticket_id} booking has no student or email. "
+            f"Skipping meeting confirmation notification."
+        )
+        return
+
+    slot = booking.meeting_slot
+    student_name = student.get_full_name() or student.username or student.email
+
+    subject = f"[Campus Voice] Meeting Confirmed for Ticket {ticket.public_ticket_id}"
+
+    context = {
+        'ticket': ticket,
+        'booking': booking,
+        'slot': slot,
+        'student_name': student_name,
+    }
+
+    html_message = render_to_string('emails/meeting_confirmed_student.html', context)
+    plain_message = strip_tags(html_message)
+
+    try:
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[student.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        logger.info(
+            f"Meeting confirmation email sent to {student.email} "
+            f"for ticket {ticket.public_ticket_id}"
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to send meeting confirmation to {student.email} "
+            f"for ticket {ticket.public_ticket_id}: {str(e)}",
+            exc_info=True
+        )

@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from api.models import Ticket, MeetingSlot, StudentMeetingBooking, GoogleCalendarToken
@@ -14,24 +15,26 @@ from api.serializers import (
     StudentMeetingBookingDetailSerializer,
 )
 from api.services.google_calendar_service import create_calendar_event
-from api.tasks import send_meeting_booking_notification_task
+from api.tasks import send_meeting_booking_notification_task, send_meeting_confirmed_to_student_task
+from api.utils import generate_author_hash
 
 logger = logging.getLogger(__name__)
 
 
 class StudentMeetingSlotsView(APIView):
     """
-    GET - Student views available meeting slots for their ticket.
+    Student views available meeting slots for their ticket.
     Only shows non-expired, available slots.
     """
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, ticket_id):
+        user_hash = generate_author_hash(request.user.id)
         try:
             ticket = Ticket.objects.get(
-                id=ticket_id,
-                submitted_by=request.user
+                Q(id=ticket_id) &
+                (Q(submitted_by=request.user) | Q(author_hash=user_hash))
             )
         except Ticket.DoesNotExist:
             return Response(
@@ -44,26 +47,24 @@ class StudentMeetingSlotsView(APIView):
             is_available=True,
             start_time__gt=timezone.now()  # Only future slots
         ).exclude(
-            student_booking__student=request.user
+            Q(student_booking__student=request.user) |
+            Q(student_booking__author_hash=user_hash)
         ).select_related('staff_member')
         serializer = MeetingSlotSerializer(slots, many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class StudentConfirmMeetingView(APIView):
-    """
-    POST - Student confirms/books a meeting slot.
-    This is the key action — the student picks one of the admin's offered slots.
-    """
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
     @transaction.atomic
     def post(self, request, ticket_id, slot_id):
+        user_hash = generate_author_hash(request.user.id)
         try:
             ticket = Ticket.objects.get(
-                id=ticket_id,
-                submitted_by=request.user
+                Q(id=ticket_id) &
+                (Q(submitted_by=request.user) | Q(author_hash=user_hash))
             )
         except Ticket.DoesNotExist:
             return Response(
@@ -96,8 +97,9 @@ class StudentConfirmMeetingView(APIView):
         # Check if student already has an active booking for this ticket
         existing_booking = StudentMeetingBooking.objects.filter(
             ticket=ticket,
-            student=request.user,
             cancelled_at__isnull=True
+        ).filter(
+            Q(student=request.user) | Q(author_hash=user_hash)
         ).exists()
         if existing_booking:
             return Response(
@@ -106,15 +108,27 @@ class StudentConfirmMeetingView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         # Create the booking
+        # For anonymous tickets: store hash only, no direct student FK
+        # For non-anonymous tickets: store student FK as normal
         try:
             with transaction.atomic():
-                booking = StudentMeetingBooking.objects.create(
-                    meeting_slot=slot,
-                    ticket=ticket,
-                    student=request.user,
-                    scheduled_time=slot.start_time,
-                    is_confirmed=True,
-                )
+                if ticket.is_anonymous:
+                    booking = StudentMeetingBooking.objects.create(
+                        meeting_slot=slot,
+                        ticket=ticket,
+                        student=None,
+                        author_hash=user_hash,
+                        scheduled_time=slot.start_time,
+                        is_confirmed=True,
+                    )
+                else:
+                    booking = StudentMeetingBooking.objects.create(
+                        meeting_slot=slot,
+                        ticket=ticket,
+                        student=request.user,
+                        scheduled_time=slot.start_time,
+                        is_confirmed=True,
+                    )
         except IntegrityError:
             return Response(
                 {'error': 'This meeting slot is no longer available.'},
@@ -155,6 +169,9 @@ class StudentConfirmMeetingView(APIView):
         # Send notification email to admin about confirmed meeting
         send_meeting_booking_notification_task.delay(booking.id)
         
+        # Send confirmation email to student (only if non-anonymous)
+        send_meeting_confirmed_to_student_task.delay(booking.id)
+        
         return Response({
             'message': 'Meeting confirmed successfully!',
             'booking': StudentMeetingBookingDetailSerializer(booking).data,
@@ -166,13 +183,15 @@ class StudentCancelMeetingView(APIView):
     permission_classes = [IsAuthenticated]
     @transaction.atomic
     def post(self, request, ticket_id, booking_id):
+        user_hash = generate_author_hash(request.user.id)
         try:
             booking = StudentMeetingBooking.objects.select_related(
                 'meeting_slot'
+            ).filter(
+                Q(student=request.user) | Q(author_hash=user_hash)
             ).get(
                 id=booking_id,
                 ticket_id=ticket_id,
-                student=request.user,
                 cancelled_at__isnull=True
             )
         except StudentMeetingBooking.DoesNotExist:
@@ -219,8 +238,9 @@ class StudentMyBookingsView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
+        user_hash = generate_author_hash(request.user.id)
         bookings = StudentMeetingBooking.objects.filter(
-            student=request.user,
+            Q(student=request.user) | Q(author_hash=user_hash)
         ).select_related(
             'meeting_slot', 'meeting_slot__staff_member', 'ticket'
         ).order_by('-booked_at')

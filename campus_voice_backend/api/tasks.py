@@ -5,6 +5,7 @@ from api.services.email_service import (
     send_new_ticket_notification_to_admin,
     send_ticket_resolved_notification_to_student,
     send_new_meeting_booking_notification_to_admin,
+    send_meeting_confirmed_notification_to_student,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,4 +48,19 @@ def send_meeting_booking_notification_task(self, booking_id):
         logger.info(f"[Celery] Sent meeting booking notification for booking {booking_id}")
     except Exception as exc:
         logger.error(f"[Celery] Failed to send meeting notification for booking_id={booking_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_meeting_confirmed_to_student_task(self, booking_id):
+    """Send meeting confirmation email to student (non-anonymous only)."""
+    try:
+        from api.models import StudentMeetingBooking
+        booking = StudentMeetingBooking.objects.select_related(
+            'ticket', 'student', 'meeting_slot'
+        ).get(id=booking_id)
+        send_meeting_confirmed_notification_to_student(booking)
+        logger.info(f"[Celery] Sent meeting confirmation to student for booking {booking_id}")
+    except Exception as exc:
+        logger.error(f"[Celery] Failed to send student meeting confirmation for booking_id={booking_id}: {exc}")
         raise self.retry(exc=exc)
