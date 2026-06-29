@@ -10,7 +10,7 @@ from django.core.cache import cache
 class AdminProfanityWordListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [HasResourcePermission]
-    resource = 'setting'
+    resource = 'profanity'
     
     def get(self, request):
         words = ProfanityWord.objects.all()
@@ -31,7 +31,7 @@ class AdminProfanityWordListView(APIView):
 class AdminProfanityWordDetailView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [HasResourcePermission]
-    resource = 'setting'
+    resource = 'profanity'
     
     def delete(self, request, word_id):
         try:

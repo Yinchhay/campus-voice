@@ -45,6 +45,11 @@ PREDEFINED_PERMISSIONS = [
     ('setting',    'update', 'Can update settings'),
     ('setting',    'delete', 'Can delete settings'),
     
+    # Profanity management
+    ('profanity',  'view',   'Can view profanity words'),
+    ('profanity',  'create', 'Can add profanity words'),
+    ('profanity',  'delete', 'Can delete profanity words'),
+    
     # Meeting
     ('meeting',    'view',   'Can view meetings'),
     ('meeting',    'create', 'Can create meeting slots'),
