@@ -19,6 +19,7 @@ import {
   XCircle,
 } from "lucide-react";
 import axios from "axios";
+import { DeleteConfirmDialog } from "@/components/common/DeleteConfirmDialog";
 import { PaginationControls } from "@/components/common/PaginationControls";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import {
@@ -693,6 +694,10 @@ export default function AdminUsersPage() {
   const [pageError, setPageError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [userPendingDelete, setUserPendingDelete] = useState<AdminUser | null>(
+    null,
+  );
+  const [deleteDialogError, setDeleteDialogError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [roleUser, setRoleUser] = useState<AdminUser | null>(null);
 
@@ -788,19 +793,18 @@ export default function AdminUsersPage() {
   }
 
   async function handleDeleteUser(user: AdminUser) {
-    const confirmed = window.confirm(
-      `Delete ${user.email}? This cannot be undone.`,
-    );
-    if (!confirmed) return;
-
     setDeletingId(user.id);
     setPageError("");
+    setDeleteDialogError("");
     try {
       await deleteAdminUser(user.id);
       setUsers((prev) => prev.filter((row) => row.id !== user.id));
       setTotalUsers((prev) => Math.max(0, prev - 1));
+      setUserPendingDelete(null);
     } catch (error) {
-      setPageError(extractApiError(error, "Failed to delete user."));
+      const message = extractApiError(error, "Failed to delete user.");
+      setDeleteDialogError(message);
+      setPageError(message);
     } finally {
       setDeletingId(null);
     }
@@ -1075,7 +1079,10 @@ export default function AdminUsersPage() {
                       {hasPermission(RBAC_PERMISSIONS.user.delete) && (
                         <button
                           type="button"
-                          onClick={() => handleDeleteUser(user)}
+                          onClick={() => {
+                            setDeleteDialogError("");
+                            setUserPendingDelete(user);
+                          }}
                           disabled={
                             deletingId === user.id || updatingId === user.id
                           }
@@ -1124,6 +1131,23 @@ export default function AdminUsersPage() {
           roles={roles}
           onClose={() => setRoleUser(null)}
           onSave={(roleIds) => handleUpdateUserRoles(roleUser, roleIds)}
+        />
+      )}
+      {userPendingDelete && (
+        <DeleteConfirmDialog
+          title="Delete user?"
+          description="This removes the user account and cannot be undone."
+          itemLabel={userPendingDelete.email}
+          isDeleting={deletingId === userPendingDelete.id}
+          error={deleteDialogError}
+          confirmLabel="Delete User"
+          onClose={() => {
+            if (deletingId === null) {
+              setDeleteDialogError("");
+              setUserPendingDelete(null);
+            }
+          }}
+          onConfirm={() => void handleDeleteUser(userPendingDelete)}
         />
       )}
     </RoleDashboardShell>

@@ -309,6 +309,7 @@ export function TicketDetailWorkspace({
   const [meetingEnd, setMeetingEnd] = useState("");
   const canUpdateTicket = hasPermission(RBAC_PERMISSIONS.ticket.update);
   const canDeleteTicket = hasPermission(RBAC_PERMISSIONS.ticket.delete);
+  const isAnonymousTicket = Boolean(ticket?.is_anonymous);
 
   function appendMessage(message: StaffTicketMessage) {
     setTicket((current) =>
@@ -397,6 +398,13 @@ export function TicketDetailWorkspace({
     };
   }, [ticket?.id]);
 
+  useEffect(() => {
+    if (ticket?.is_anonymous && meetingType === "ONLINE") {
+      setMeetingType("IN_PERSON");
+      setMeetingLink("");
+    }
+  }, [meetingType, ticket?.is_anonymous]);
+
   const serverMessages = useMemo(
     () =>
       [...(ticket?.messages ?? [])].sort(
@@ -452,9 +460,21 @@ export function TicketDetailWorkspace({
     setShowScrollButton(!atBottom);
   }
 
-  const groupedMeetingSlots = useMemo(
-    () => groupMeetingSlotsByDate(meetingSlots),
+  const activeMeetingSlots = useMemo(
+    () => meetingSlots.filter((slot) => !slot.student_booking?.cancelled_at),
     [meetingSlots],
+  );
+  const cancelledMeetingSlots = useMemo(
+    () => meetingSlots.filter((slot) => slot.student_booking?.cancelled_at),
+    [meetingSlots],
+  );
+  const groupedActiveMeetingSlots = useMemo(
+    () => groupMeetingSlotsByDate(activeMeetingSlots),
+    [activeMeetingSlots],
+  );
+  const groupedCancelledMeetingSlots = useMemo(
+    () => groupMeetingSlotsByDate(cancelledMeetingSlots),
+    [cancelledMeetingSlots],
   );
   const meetingDate = meetingStart.slice(0, 10);
   const meetingStartTime = meetingStart.slice(11, 16);
@@ -482,6 +502,10 @@ export function TicketDetailWorkspace({
 
   function openNewMeetingForm() {
     setMeetingError(null);
+    if (isAnonymousTicket) {
+      setMeetingType("IN_PERSON");
+      setMeetingLink("");
+    }
     if (!meetingStart || !meetingEnd) {
       const defaultStart = getDefaultMeetingStart();
       setMeetingStart(defaultStart);
@@ -683,7 +707,7 @@ export function TicketDetailWorkspace({
   }
 
   function resetMeetingForm() {
-    setMeetingType("ONLINE");
+    setMeetingType(isAnonymousTicket ? "IN_PERSON" : "ONLINE");
     setMeetingCampus("MAIN");
     setMeetingRoom("");
     setMeetingLink("");
@@ -696,10 +720,10 @@ export function TicketDetailWorkspace({
   function handleEditMeeting(slot: MeetingSlot) {
     setMeetingError(null);
     setEditingMeetingId(slot.id);
-    setMeetingType(slot.meeting_type);
+    setMeetingType(isAnonymousTicket ? "IN_PERSON" : slot.meeting_type);
     setMeetingCampus(slot.campus_location);
     setMeetingRoom(slot.room_number ?? "");
-    setMeetingLink(slot.meeting_link ?? "");
+    setMeetingLink(isAnonymousTicket ? "" : slot.meeting_link ?? "");
     setMeetingLocation(slot.location_or_details ?? "");
     setMeetingStart(toDateTimeLocalValue(slot.start_time));
     setMeetingEnd(toDateTimeLocalValue(slot.end_time));
@@ -737,15 +761,23 @@ export function TicketDetailWorkspace({
       return;
     }
 
+    const effectiveMeetingType: MeetingType = isAnonymousTicket
+      ? "IN_PERSON"
+      : meetingType;
+
     const payload = {
       start_time: startIso,
       end_time: endIso,
-      meeting_type: meetingType,
+      meeting_type: effectiveMeetingType,
       campus_location: meetingCampus,
-      room_number: meetingType === "IN_PERSON" ? meetingRoom.trim() || null : null,
+      room_number:
+        effectiveMeetingType === "IN_PERSON" ? meetingRoom.trim() || null : null,
       location_or_details:
-        meetingType === "IN_PERSON" ? meetingLocation.trim() || null : null,
-      meeting_link: meetingType === "ONLINE" ? meetingLink.trim() || null : null,
+        effectiveMeetingType === "IN_PERSON"
+          ? meetingLocation.trim() || null
+          : null,
+      meeting_link:
+        effectiveMeetingType === "ONLINE" ? meetingLink.trim() || null : null,
     };
 
     try {
@@ -762,6 +794,82 @@ export function TicketDetailWorkspace({
     } finally {
       setIsSavingMeeting(false);
     }
+  }
+
+  function renderMeetingSlotCard(slot: MeetingSlot) {
+    const slotStatus = meetingSlotStatus(slot);
+    const isCancelled = slotStatus === "Cancelled";
+
+    return (
+      <div
+        key={slot.id}
+        className={`rounded-xl border p-3 text-xs ${meetingSlotCardClass(slotStatus)}`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {meetingTypeIcon[slot.meeting_type]}
+              <span className="font-medium">
+                {meetingTypeLabel[slot.meeting_type]}
+              </span>
+              <span
+                className={`rounded-full border px-2 py-0.5 ${meetingSlotBadgeClass(slotStatus)}`}
+              >
+                {slotStatus}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-3.5 w-3.5 opacity-70" />
+              <span>
+                {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
+              </span>
+            </div>
+            <p className="opacity-80">{meetingLocationText(slot)}</p>
+            {slot.meeting_link && (
+              <a
+                href={slot.meeting_link}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex max-w-full items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 font-medium text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
+              >
+                <Video className="h-4 w-4 shrink-0" />
+                <span className="truncate">Join meeting</span>
+              </a>
+            )}
+            {slot.student_booking && (
+              <p
+                className={`rounded-lg border px-2 py-1 ${meetingSlotNoteClass(slotStatus)}`}
+              >
+                {isCancelled
+                  ? "Student cancelled this slot."
+                  : "Student confirmed this slot."}
+              </p>
+            )}
+          </div>
+          {!slot.student_booking && (
+            <div className="flex shrink-0 gap-1">
+              <button
+                type="button"
+                onClick={() => handleEditMeeting(slot)}
+                className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-blue-200 hover:text-blue-700"
+                aria-label="Edit meeting slot"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteMeeting(slot)}
+                disabled={deletingMeetingId === slot.id}
+                className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-red-200 hover:text-red-700 disabled:opacity-50"
+                aria-label="Delete meeting slot"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (isLoading) {
@@ -1321,100 +1429,24 @@ export function TicketDetailWorkspace({
                 </p>
               )}
 
-              {Object.entries(groupedMeetingSlots).length > 0 && (
+              {Object.entries(groupedActiveMeetingSlots).length > 0 && (
                 <div className="space-y-3">
-                  {Object.entries(groupedMeetingSlots).map(([date, slots]) => (
+                  {Object.entries(groupedActiveMeetingSlots).map(([date, slots]) => (
                     <div key={date} className="space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                         {date}
                       </p>
-                      {slots.map((slot) => {
-                        const slotStatus = meetingSlotStatus(slot);
-                        const isCancelled = slotStatus === "Cancelled";
-                        return (
-                          <div
-                            key={slot.id}
-                            className={`rounded-xl border p-3 text-xs ${meetingSlotCardClass(slotStatus)}`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0 space-y-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  {meetingTypeIcon[slot.meeting_type]}
-                                  <span className="font-medium">
-                                    {meetingTypeLabel[slot.meeting_type]}
-                                  </span>
-                                  <span
-                                    className={`rounded-full border px-2 py-0.5 ${meetingSlotBadgeClass(slotStatus)}`}
-                                  >
-                                    {slotStatus}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <CalendarClock className="h-3.5 w-3.5 opacity-70" />
-                                  <span>
-                                    {formatTime(slot.start_time)} -{" "}
-                                    {formatTime(slot.end_time)}
-                                  </span>
-                                </div>
-                                <p className="opacity-80">
-                                  {meetingLocationText(slot)}
-                                </p>
-                                {slot.meeting_link && (
-                                  <a
-                                    href={slot.meeting_link}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex max-w-full items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 font-medium text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
-                                  >
-                                    <Video className="h-4 w-4 shrink-0" />
-                                    <span className="truncate">Join meeting</span>
-                                  </a>
-                                )}
-                                {slot.student_booking && (
-                                  <p
-                                    className={`rounded-lg border px-2 py-1 ${meetingSlotNoteClass(slotStatus)}`}
-                                  >
-                                    {isCancelled
-                                      ? "Student cancelled this slot."
-                                      : "Student confirmed this slot."}
-                                  </p>
-                                )}
-                              </div>
-                              {!slot.student_booking && (
-                                <div className="flex shrink-0 gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleEditMeeting(slot)}
-                                    className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-blue-200 hover:text-blue-700"
-                                    aria-label="Edit meeting slot"
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteMeeting(slot)}
-                                    disabled={deletingMeetingId === slot.id}
-                                    className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-red-200 hover:text-red-700 disabled:opacity-50"
-                                    aria-label="Delete meeting slot"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                      {slots.map((slot) => renderMeetingSlotCard(slot))}
                     </div>
                   ))}
                 </div>
               )}
 
               {!isLoadingMeetings &&
-                meetingSlots.length === 0 &&
+                activeMeetingSlots.length === 0 &&
                 !showMeetingForm && (
                   <p className="mt-2 text-xs text-slate-400">
-                    No meeting slots created yet.
+                    No active meeting slots created yet.
                   </p>
                 )}
 
@@ -1433,11 +1465,18 @@ export function TicketDetailWorkspace({
                       onChange={(e) =>
                         setMeetingType(e.target.value as MeetingType)
                       }
+                      disabled={isAnonymousTicket}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#1E3A8A]"
                     >
-                      <option value="ONLINE">Online</option>
                       <option value="IN_PERSON">In-Person</option>
+                      {!isAnonymousTicket && <option value="ONLINE">Online</option>}
                     </select>
+                    {isAnonymousTicket && (
+                      <p className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                        Anonymous tickets can only be scheduled as in-person
+                        meetings.
+                      </p>
+                    )}
                   </div>
 
                   {meetingType === "IN_PERSON" && (
@@ -1635,6 +1674,26 @@ export function TicketDetailWorkspace({
                         ? "Update Slot"
                         : "Create Slot"}
                   </button>
+                </div>
+              )}
+
+              {Object.entries(groupedCancelledMeetingSlots).length > 0 && (
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Cancelled Slots
+                  </h3>
+                  <div className="space-y-3">
+                    {Object.entries(groupedCancelledMeetingSlots).map(
+                      ([date, slots]) => (
+                        <div key={date} className="space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            {date}
+                          </p>
+                          {slots.map((slot) => renderMeetingSlotCard(slot))}
+                        </div>
+                      ),
+                    )}
+                  </div>
                 </div>
               )}
             </div>
