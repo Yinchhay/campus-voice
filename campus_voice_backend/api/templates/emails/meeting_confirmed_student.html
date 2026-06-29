@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Confirmed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            color: #333333;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background-color: #0044cc;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 30px;
+            line-height: 1.6;
+        }
+        .content p {
+            margin: 0 0 15px;
+        }
+        .meeting-details {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-left: 4px solid #0044cc;
+            margin-bottom: 20px;
+        }
+        .meeting-details strong {
+            display: inline-block;
+            width: 130px;
+        }
+        .note {
+            background-color: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .footer {
+            background-color: #f4f4f4;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #777777;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Meeting Confirmed ✅</h1>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <p>Hello {{ student_name }},</p>
+            <p>Your meeting has been successfully booked! Here are the details:</p>
+
+            <div class="meeting-details">
+                <p><strong>Ticket ID:</strong> {{ ticket.public_ticket_id }}</p>
+                <p><strong>Ticket Title:</strong> {{ ticket.title }}</p>
+                <p><strong>Meeting Date:</strong> {{ slot.start_time|date:"F j, Y" }}</p>
+                <p><strong>Meeting Time:</strong> {{ slot.start_time|date:"P" }} — {{ slot.end_time|date:"P" }}</p>
+                <p><strong>Type:</strong> {{ slot.get_meeting_type_display }}</p>
+                {% if slot.meeting_type == 'ONLINE' %}
+                    <p><strong>Meeting Link:</strong> {% if slot.meeting_link %}<a href="{{ slot.meeting_link }}">{{ slot.meeting_link }}</a>{% else %}Will be shared before the meeting{% endif %}</p>
+                {% else %}
+                    <p><strong>Campus:</strong> {{ slot.get_campus_location_display }}</p>
+                    {% if slot.room_number %}<p><strong>Room:</strong> {{ slot.room_number }}</p>{% endif %}
+                    {% if slot.location_or_details %}<p><strong>Location:</strong> {{ slot.location_or_details }}</p>{% endif %}
+                {% endif %}
+            </div>
+
+            <div class="note">
+                ⏰ Please make sure to arrive on time. If you need to cancel, you can do so from the Campus Voice app before the meeting time.
+            </div>
+
+            <p>If you have any questions, feel free to reach out through the Campus Voice platform.</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>&copy; 2026 Campus Voice. All rights reserved.</p>
+            <p>This is an automated notification. Please do not reply to this email.</p>
+        </div>
+    </div>
+
+</body>
+</html>

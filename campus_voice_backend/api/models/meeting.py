@@ -69,6 +69,7 @@ class StudentMeetingBooking(models.Model):
     )
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='meeting_bookings')
     student = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='meeting_bookings')
+    author_hash = models.CharField(max_length=64, null=True, blank=True, db_index=True)
     
     # Meeting details
     scheduled_time = models.DateTimeField()
