@@ -73,19 +73,27 @@ ROLES = [
         'permissions': [
             ('ticket',     'view'),
             ('ticket',     'update'),
+            # Communication
             ('message',    'view'),
             ('message',    'create'),
+            # Resolution
             ('resolution', 'view'),
             ('resolution', 'create'),
             ('resolution', 'update'),
+            # Categories
             ('category',   'view'),
             ('category', 'create'),
             ('category', 'update'),
             ('category', 'delete'),
+            # Meetings
             ('meeting',  'view'),
             ('meeting',  'create'),
             ('meeting',  'update'),
             ('meeting',  'delete'),
+            # Content moderation
+            ('profanity',  'view'),
+            ('profanity',  'create'),
+            ('profanity',  'delete'),
         ],
     },
     {
