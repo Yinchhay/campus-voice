@@ -260,7 +260,7 @@ export function TicketDetailWorkspace({
   unavailableBackLabel = backLabel,
 }: TicketDetailWorkspaceProps) {
   const router = useRouter();
-  const { hasPermission } = useRbacPermissions();
+  const { hasPermission, isLoading: isPermissionLoading } = useRbacPermissions();
 
   const resolutionFileInputRef = useRef<HTMLInputElement | null>(null);
   const messageFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -311,6 +311,13 @@ export function TicketDetailWorkspace({
   const [meetingEnd, setMeetingEnd] = useState("");
   const canUpdateTicket = hasPermission(RBAC_PERMISSIONS.ticket.update);
   const canDeleteTicket = hasPermission(RBAC_PERMISSIONS.ticket.delete);
+  const canCreateMessage = hasPermission(RBAC_PERMISSIONS.message.create);
+  const canCreateResolution = hasPermission(RBAC_PERMISSIONS.resolution.create);
+  const canViewMeetings = hasPermission(RBAC_PERMISSIONS.meeting.view);
+  const canCreateMeeting = hasPermission(RBAC_PERMISSIONS.meeting.create);
+  const canUpdateMeeting = hasPermission(RBAC_PERMISSIONS.meeting.update);
+  const canDeleteMeeting = hasPermission(RBAC_PERMISSIONS.meeting.delete);
+  const canUseTicketActions = canUpdateTicket || canCreateResolution;
   const isAnonymousTicket = Boolean(ticket?.is_anonymous);
 
   function appendMessage(message: StaffTicketMessage) {
@@ -326,6 +333,8 @@ export function TicketDetailWorkspace({
   }
 
   useEffect(() => {
+    if (isPermissionLoading) return;
+
     let isMounted = true;
 
     async function loadTicket() {
@@ -340,18 +349,22 @@ export function TicketDetailWorkspace({
         setCurrentStatus(data.status);
         setCurrentPriority(data.priority);
 
-        setIsLoadingMeetings(true);
-        try {
-          const slots = await listAdminTicketMeetingSlots(data.id);
-          if (isMounted) setMeetingSlots(slots);
-        } catch (error) {
-          if (isMounted) {
-            setMeetingError(
-              extractApiError(error, "Failed to load meeting slots."),
-            );
+        if (canViewMeetings) {
+          setIsLoadingMeetings(true);
+          try {
+            const slots = await listAdminTicketMeetingSlots(data.id);
+            if (isMounted) setMeetingSlots(slots);
+          } catch (error) {
+            if (isMounted) {
+              setMeetingError(
+                extractApiError(error, "Failed to load meeting slots."),
+              );
+            }
+          } finally {
+            if (isMounted) setIsLoadingMeetings(false);
           }
-        } finally {
-          if (isMounted) setIsLoadingMeetings(false);
+        } else {
+          setMeetingSlots([]);
         }
       } catch (error) {
         if (isMounted) {
@@ -369,7 +382,7 @@ export function TicketDetailWorkspace({
     return () => {
       isMounted = false;
     };
-  }, [ticketId]);
+  }, [canViewMeetings, isPermissionLoading, ticketId]);
 
   useEffect(() => {
     if (!ticket?.id) return;
@@ -488,7 +501,7 @@ export function TicketDetailWorkspace({
   const minMeetingDate = toDateTimeInputValue(new Date()).slice(0, 10);
 
   async function refreshMeetingSlots(ticketId = ticket?.id) {
-    if (!ticketId) return;
+    if (!ticketId || !canViewMeetings) return;
     setIsLoadingMeetings(true);
     setMeetingError(null);
 
@@ -503,6 +516,7 @@ export function TicketDetailWorkspace({
   }
 
   function openNewMeetingForm() {
+    if (!canCreateMeeting) return;
     setMeetingError(null);
     if (isAnonymousTicket) {
       setMeetingType("IN_PERSON");
@@ -558,7 +572,12 @@ export function TicketDetailWorkspace({
 
   async function handleSend() {
     const text = replyText.trim();
-    if (!ticket || (!text && !replyAttachment) || isSendingMessage) return;
+    if (
+      !ticket ||
+      !canCreateMessage ||
+      (!text && !replyAttachment) ||
+      isSendingMessage
+    ) return;
 
     setIsSendingMessage(true);
     setMessageError(null);
@@ -643,7 +662,7 @@ export function TicketDetailWorkspace({
   }
 
   function handleResolveClick() {
-    if (!ticket || currentStatus === "RESOLVED" || isResolving) return;
+    if (!ticket || !canCreateResolution || currentStatus === "RESOLVED" || isResolving) return;
     setShowResolutionForm(true);
     setResolutionError(null);
   }
@@ -680,7 +699,7 @@ export function TicketDetailWorkspace({
 
   async function handleResolutionSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!ticket || isResolving) return;
+    if (!ticket || !canCreateResolution || isResolving) return;
 
     const note = resolutionNote.trim();
     if (!note) {
@@ -725,6 +744,7 @@ export function TicketDetailWorkspace({
   }
 
   function handleEditMeeting(slot: MeetingSlot) {
+    if (!canUpdateMeeting) return;
     setMeetingError(null);
     setEditingMeetingId(slot.id);
     setMeetingType(isAnonymousTicket ? "IN_PERSON" : slot.meeting_type);
@@ -738,7 +758,7 @@ export function TicketDetailWorkspace({
   }
 
   async function handleDeleteMeeting(slot: MeetingSlot) {
-    if (!ticket || slot.student_booking || deletingMeetingId) return;
+    if (!ticket || !canDeleteMeeting || slot.student_booking || deletingMeetingId) return;
 
     setDeletingMeetingId(slot.id);
     setMeetingError(null);
@@ -754,7 +774,8 @@ export function TicketDetailWorkspace({
   }
 
   async function handleSaveMeeting() {
-    if (!ticket || !meetingStart || !meetingEnd || isSavingMeeting) return;
+    const canSaveMeeting = editingMeetingId ? canUpdateMeeting : canCreateMeeting;
+    if (!ticket || !canSaveMeeting || !meetingStart || !meetingEnd || isSavingMeeting) return;
 
     setIsSavingMeeting(true);
     setMeetingError(null);
@@ -853,25 +874,29 @@ export function TicketDetailWorkspace({
               </p>
             )}
           </div>
-          {!slot.student_booking && (
+          {!slot.student_booking && (canUpdateMeeting || canDeleteMeeting) && (
             <div className="flex shrink-0 gap-1">
-              <button
-                type="button"
-                onClick={() => handleEditMeeting(slot)}
-                className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-blue-200 hover:text-blue-700"
-                aria-label="Edit meeting slot"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeleteMeeting(slot)}
-                disabled={deletingMeetingId === slot.id}
-                className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-red-200 hover:text-red-700 disabled:opacity-50"
-                aria-label="Delete meeting slot"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              {canUpdateMeeting && (
+                <button
+                  type="button"
+                  onClick={() => handleEditMeeting(slot)}
+                  className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-blue-200 hover:text-blue-700"
+                  aria-label="Edit meeting slot"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {canDeleteMeeting && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMeeting(slot)}
+                  disabled={deletingMeetingId === slot.id}
+                  className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-red-200 hover:text-red-700 disabled:opacity-50"
+                  aria-label="Delete meeting slot"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1155,6 +1180,12 @@ export function TicketDetailWorkspace({
                     resolved.
                   </div>
                 </div>
+              ) : !canCreateMessage ? (
+                <div className="border-t border-slate-100 px-6 py-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                    Your role does not include message create permission.
+                  </div>
+                </div>
               ) : (
                 <div className="border-t border-slate-100 px-6 py-4">
                   <div className="flex items-end gap-3">
@@ -1244,61 +1275,60 @@ export function TicketDetailWorkspace({
 
           {/* ── Right: Action panel ─────────────────────────── */}
           <div className="space-y-4">
-            {/* Status control */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">
-                Update Status
-              </h2>
-              <div className="flex flex-col gap-2">
-                {statusFlow.map((s) => (
+            {canUseTicketActions && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                {canUpdateTicket && (
+                  <>
+                    <h2 className="mb-3 text-sm font-semibold text-slate-900">
+                      Update Status
+                    </h2>
+                    <div className="flex flex-col gap-2">
+                      {statusFlow.map((s) => (
+                        <button
+                          type="button"
+                          key={s}
+                          onClick={() => handleStatusChange(s)}
+                          disabled={updatingStatus !== null || s === currentStatus}
+                          className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
+                            currentStatus === s
+                              ? s === "RESOLVED"
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : s === "IN_PROGRESS"
+                                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                                : "border-slate-300 bg-slate-100 text-slate-700"
+                              : "border-slate-200 bg-white text-slate-600"
+                          } disabled:cursor-not-allowed disabled:opacity-70`}
+                        >
+                          {s === "SUBMITTED" && (
+                            <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
+                          )}
+                          {s === "IN_PROGRESS" && (
+                            <Clock className="mr-2 inline h-3.5 w-3.5" />
+                          )}
+                          {s === "RESOLVED" && (
+                            <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
+                          )}
+                          {updatingStatus === s ? "Updating..." : statusLabel[s]}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {currentStatus !== "RESOLVED" && canCreateResolution && (
                   <button
                     type="button"
-                    key={s}
-                    onClick={() => handleStatusChange(s)}
-                    disabled={!canUpdateTicket || updatingStatus !== null || s === currentStatus}
-                    className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
-                      currentStatus === s
-                        ? s === "RESOLVED"
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : s === "IN_PROGRESS"
-                            ? "border-blue-200 bg-blue-50 text-blue-700"
-                          : "border-slate-300 bg-slate-100 text-slate-700"
-                        : "border-slate-200 bg-white text-slate-600"
-                    } disabled:cursor-not-allowed disabled:opacity-70`}
+                    onClick={handleResolveClick}
+                    disabled={isResolving}
+                    className={`${canUpdateTicket ? "mt-3" : ""} w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50`}
                   >
-                    {s === "SUBMITTED" && (
-                      <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
-                    )}
-                    {s === "IN_PROGRESS" && (
-                      <Clock className="mr-2 inline h-3.5 w-3.5" />
-                    )}
-                    {s === "RESOLVED" && (
-                      <CheckCircle2 className="mr-2 inline h-3.5 w-3.5" />
-                    )}
-                    {updatingStatus === s ? "Updating..." : statusLabel[s]}
+                    Resolve Ticket
                   </button>
-                ))}
-              </div>
-              {!canUpdateTicket && (
-                <p className="mt-3 text-xs text-slate-400">
-                  Your role does not include ticket update permission.
-                </p>
-              )}
-              {currentStatus !== "RESOLVED" && (
-                <button
-                  type="button"
-                  onClick={handleResolveClick}
-                  disabled={isResolving}
-                  className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Resolve Ticket
-                </button>
-              )}
-              {showResolutionForm && currentStatus !== "RESOLVED" && (
-                <form
-                  onSubmit={handleResolutionSubmit}
-                  className="mt-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3"
-                >
+                )}
+                {showResolutionForm && currentStatus !== "RESOLVED" && canCreateResolution && (
+                  <form
+                    onSubmit={handleResolutionSubmit}
+                    className="mt-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3"
+                  >
                   <div>
                     <label
                       htmlFor="resolution-note"
@@ -1388,45 +1418,49 @@ export function TicketDetailWorkspace({
                       Cancel
                     </button>
                   </div>
-                </form>
-              )}
-              {resolutionError && (
-                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {resolutionError}
-                </p>
-              )}
-              {ticketActionError && (
-                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {ticketActionError}
-                </p>
-              )}
-            </div>
+                  </form>
+                )}
+                {resolutionError && (
+                  <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {resolutionError}
+                  </p>
+                )}
+                {ticketActionError && (
+                  <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {ticketActionError}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Meeting slots */}
+            {canViewMeetings && (
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-900">
                   Meeting Slots
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (showMeetingForm) {
-                      resetMeetingForm();
-                      setShowMeetingForm(false);
-                    } else {
-                      openNewMeetingForm();
-                    }
-                  }}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-[#1E3A8A] hover:text-blue-700"
-                >
-                  {showMeetingForm ? (
-                    <X className="h-3.5 w-3.5" />
-                  ) : (
-                    <Plus className="h-3.5 w-3.5" />
+                {canCreateMeeting && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (showMeetingForm) {
+                        resetMeetingForm();
+                        setShowMeetingForm(false);
+                      } else {
+                        openNewMeetingForm();
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-[#1E3A8A] hover:text-blue-700"
+                  >
+                    {showMeetingForm ? (
+                      <X className="h-3.5 w-3.5" />
+                    ) : (
+                      <Plus className="h-3.5 w-3.5" />
+                    )}
+                    {showMeetingForm ? "Cancel" : "Create"}
+                  </button>
                   )}
-                  {showMeetingForm ? "Cancel" : "Create"}
-                </button>
               </div>
 
               {isLoadingMeetings && (
@@ -1462,7 +1496,7 @@ export function TicketDetailWorkspace({
                   </p>
                 )}
 
-              {showMeetingForm && (
+              {showMeetingForm && (editingMeetingId ? canUpdateMeeting : canCreateMeeting) && (
                 <div className="mt-3 space-y-3">
                   <div>
                     <label
@@ -1677,7 +1711,12 @@ export function TicketDetailWorkspace({
                   <button
                     type="button"
                     onClick={handleSaveMeeting}
-                    disabled={!meetingStart || !meetingEnd || isSavingMeeting}
+                    disabled={
+                      !meetingStart ||
+                      !meetingEnd ||
+                      isSavingMeeting ||
+                      (editingMeetingId ? !canUpdateMeeting : !canCreateMeeting)
+                    }
                     className="w-full rounded-xl bg-[#1E3A8A] px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-900 disabled:opacity-40"
                   >
                     {isSavingMeeting
@@ -1709,6 +1748,7 @@ export function TicketDetailWorkspace({
                 </div>
               )}
             </div>
+            )}
 
             {canDeleteTicket && (
               <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">

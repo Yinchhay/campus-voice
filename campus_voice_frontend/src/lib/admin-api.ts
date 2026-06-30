@@ -70,6 +70,7 @@ export type AdminRoleSummary = {
   name: string;
   description: string;
   is_superadmin: boolean;
+  is_active?: boolean;
   permissions?: Array<{
     codename: string;
     resource: string;

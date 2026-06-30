@@ -53,6 +53,7 @@ class AdminRoleListView(APIView):
         serializer = AdminRoleDetailSerializer(data=request.data)
         if serializer.is_valid():
             role = serializer.save()
+            invalidate_permission_cache()
             return Response(
                 AdminRoleDetailSerializer(role).data,
                 status=status.HTTP_201_CREATED
@@ -84,7 +85,8 @@ class AdminRoleDetailView(APIView):
             )
         serializer = AdminRoleDetailSerializer(role, data=request.data, partial=True)
         if serializer.is_valid():
-            role = serializer.save()    
+            role = serializer.save()
+            invalidate_permission_cache()
             return Response(
                 AdminRoleDetailSerializer(role).data,
                 status=status.HTTP_200_OK
@@ -105,6 +107,7 @@ class AdminRoleDetailView(APIView):
             )
         role_name = role.name
         role.delete()
+        invalidate_permission_cache()
         return Response(
             {'message': f'Role "{role_name}" deleted successfully'},
             status=status.HTTP_200_OK
@@ -142,7 +145,7 @@ class AdminUserRoleView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [HasResourcePermission]
     resource = 'role'
-    action = 'update'
+    action_override = 'update'
     
     def get(self, request, user_id):
         
@@ -193,7 +196,7 @@ class AdminRolePermissionsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [HasResourcePermission]
     resource = 'role'
-    action = 'update'
+    action_override = 'update'
     
     def get(self, request, role_id):
         
