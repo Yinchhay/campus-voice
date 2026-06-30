@@ -310,12 +310,12 @@ export async function updateAdminEmailSetting(ticket_notification_email: string)
 }
 
 export async function listAdminProfanityWords() {
-  const response = await api.get<AdminProfanityWord[]>("/admin/profanity-words");
+  const response = await api.get<AdminProfanityWord[]>("/admin/settings/profanity-words");
   return response.data;
 }
 
 export async function createAdminProfanityWord(word: string) {
-  const response = await api.post<AdminProfanityWord>("/admin/profanity-words", {
+  const response = await api.post<AdminProfanityWord>("/admin/settings/profanity-words", {
     word,
   });
   return response.data;
@@ -323,7 +323,7 @@ export async function createAdminProfanityWord(word: string) {
 
 export async function deleteAdminProfanityWord(wordId: number) {
   const response = await api.delete<{ message?: string }>(
-    `/admin/profanity-words/${wordId}`,
+    `/admin/settings/profanity-words/${wordId}`,
   );
   return response.data;
 }
