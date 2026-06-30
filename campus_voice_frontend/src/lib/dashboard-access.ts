@@ -44,6 +44,11 @@ export const RBAC_PERMISSIONS = {
     update: "meeting.update",
     delete: "meeting.delete",
   },
+  profanity: {
+    view: "profanity.view",
+    create: "profanity.create",
+    delete: "profanity.delete",
+  },
 } as const satisfies Record<string, Record<string, PermissionCodename>>;
 
 export const DASHBOARD_MODULES = {
@@ -94,10 +99,20 @@ export const DASHBOARD_MODULES = {
     },
     requiredPermission: RBAC_PERMISSIONS.meeting.view,
   },
+  profanityManagement: {
+    label: "Profanity Management",
+    href: {
+      admin: "/admin/profanity",
+      staff: "/staff/profanity",
+    },
+    requiredPermission: RBAC_PERMISSIONS.profanity.view,
+  },
 } as const;
 
 export const STAFF_LANDING_MODULE_ORDER = [
   DASHBOARD_MODULES.ticketOverview,
   DASHBOARD_MODULES.categoryManagement,
   DASHBOARD_MODULES.roleManagement,
+  DASHBOARD_MODULES.profanityManagement,
+  DASHBOARD_MODULES.bookings,
 ] as const;

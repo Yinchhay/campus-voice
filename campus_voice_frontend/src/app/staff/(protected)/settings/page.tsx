@@ -15,7 +15,6 @@ import { signOut } from "next-auth/react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
 import { ChangePasswordSettings } from "@/components/settings/ChangePasswordSettings";
 import { EmailNotificationSettings } from "@/components/settings/EmailNotificationSettings";
-import { ProfanityWordSettings } from "@/components/settings/ProfanityWordSettings";
 import {
   getCurrentStaffAccount,
   type CurrentStaffAccount,
@@ -336,8 +335,6 @@ export default function StaffSettingsPage() {
         </Section>
 
         <EmailNotificationSettings />
-
-        <ProfanityWordSettings />
 
         {/* ── Google Calendar ───────────────────────────────── */}
         <Section

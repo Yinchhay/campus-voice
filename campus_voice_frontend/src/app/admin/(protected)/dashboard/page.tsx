@@ -9,6 +9,7 @@ import {
   Clock,
   Download,
   FileText,
+  ShieldAlert,
   ShieldCheck,
   TicketCheck,
   TriangleAlert,
@@ -107,6 +108,9 @@ export default function AdminDashboardPage() {
 
   const canViewTickets = hasPermission(DASHBOARD_MODULES.ticketOverview.requiredPermission);
   const canViewUsers = hasPermission(DASHBOARD_MODULES.userManagement.requiredPermission);
+  const canViewProfanity = hasPermission(
+    DASHBOARD_MODULES.profanityManagement.requiredPermission,
+  );
   const canUpdateTickets = hasPermission(RBAC_PERMISSIONS.ticket.update);
   const canExportTickets = hasPermission(RBAC_PERMISSIONS.ticket.export);
 
@@ -262,6 +266,15 @@ export default function AdminDashboardPage() {
       bg: "bg-teal-50 border-teal-100",
       label: DASHBOARD_MODULES.userManagement.label,
       sub: `${ticketSummary.staffAdminUsers} staff/admin users`,
+    });
+  }
+  if (canViewProfanity) {
+    quickLinks.push({
+      href: DASHBOARD_MODULES.profanityManagement.href.admin,
+      icon: <ShieldAlert className="h-5 w-5 text-amber-600" />,
+      bg: "bg-amber-50 border-amber-100",
+      label: DASHBOARD_MODULES.profanityManagement.label,
+      sub: "Moderation word list",
     });
   }
 
