@@ -265,7 +265,9 @@ export function TicketDetailWorkspace({
   const resolutionFileInputRef = useRef<HTMLInputElement | null>(null);
   const messageFileInputRef = useRef<HTMLInputElement | null>(null);
   const messageThreadRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToLatestRef = useRef(true);
+  const isInitialLoadRef = useRef(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
   const [ticket, setTicket] = useState<StaffTicket | null>(null);
@@ -423,23 +425,23 @@ export function TicketDetailWorkspace({
   }, [serverMessages, localMessages]);
 
   useEffect(() => {
-    const thread = messageThreadRef.current;
-    if (!thread || !shouldStickToLatestRef.current) return;
+    isInitialLoadRef.current = true;
+  }, [ticket?.id]);
 
-    // Double rAF ensures the browser has finished layout before we measure
-    // scrollHeight, so the initial load always starts at the latest message.
-    let innerFrame: number;
-    const outerFrame = requestAnimationFrame(() => {
-      innerFrame = requestAnimationFrame(() => {
-        thread.scrollTop = thread.scrollHeight;
-      });
-    });
+  useEffect(() => {
+    if (!bottomRef.current || isLoading) return;
 
-    return () => {
-      cancelAnimationFrame(outerFrame);
-      cancelAnimationFrame(innerFrame);
-    };
-  }, [allMessages.length, ticket?.id]);
+    if (isInitialLoadRef.current || shouldStickToLatestRef.current) {
+      setTimeout(() => {
+        if (bottomRef.current) {
+          bottomRef.current.scrollIntoView({ behavior: "auto", block: "end" });
+          shouldStickToLatestRef.current = true;
+          setShowScrollButton(false);
+        }
+      }, 50);
+      isInitialLoadRef.current = false;
+    }
+  }, [allMessages.length, ticket?.id, isLoading]);
 
   function scrollToLatest() {
     const thread = messageThreadRef.current;
@@ -572,6 +574,11 @@ export function TicketDetailWorkspace({
       setReplyText("");
       setReplyAttachment(null);
       if (messageFileInputRef.current) messageFileInputRef.current.value = "";
+
+      // Give DOM time to update then scroll to the newest message
+      setTimeout(() => {
+        scrollToLatest();
+      }, 50);
 
       if (currentStatus === "SUBMITTED" && canUpdateTicket) {
         const updatedTicket = await updateStaffTicketStatus(ticket.id, "IN_PROGRESS");
@@ -1059,7 +1066,7 @@ export function TicketDetailWorkspace({
               <div
                 ref={messageThreadRef}
                 onScroll={handleMessageThreadScroll}
-                className="max-h-[min(64vh,42rem)] space-y-1 overflow-y-auto overscroll-contain px-6 py-4 scroll-smooth [scrollbar-gutter:stable]"
+                className="flex max-h-[min(64vh,42rem)] flex-col gap-1 overflow-y-auto overscroll-contain px-6 py-4 [scrollbar-gutter:stable]"
                 aria-live="polite"
               >
                 {allMessages.length === 0 ? (
@@ -1068,7 +1075,10 @@ export function TicketDetailWorkspace({
                     response.
                   </div>
                 ) : (
-                  allMessages.map((msg) => {
+                  <>
+                  {/* Spacer pushes messages to the bottom if they don't fill the container */}
+                  <div className="flex-1" />
+                  {allMessages.map((msg) => {
                     const isStaff = msg.is_staff_message;
                     return (
                       <div
@@ -1112,7 +1122,9 @@ export function TicketDetailWorkspace({
                         </div>
                       </div>
                     );
-                  })
+                  })}
+                  <div ref={bottomRef} className="h-1 w-full shrink-0" />
+                  </>
                 )}
               </div>
 

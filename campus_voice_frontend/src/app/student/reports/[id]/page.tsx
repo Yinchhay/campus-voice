@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import axios from "axios";
-import { use, useEffect, useMemo, useRef, useState } from "react";
+import { use, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CalendarClock,
@@ -441,7 +441,9 @@ export default function StudentReportDetailPage({
   const { id } = use(params);
   const messageFileInputRef = useRef<HTMLInputElement | null>(null);
   const messageThreadRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToLatestRef = useRef(true);
+  const isInitialLoadRef = useRef(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [ticket, setTicket] = useState<StudentTicket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -594,27 +596,30 @@ export default function StudentReportDetailPage({
   );
 
   useEffect(() => {
-    const thread = messageThreadRef.current;
-    if (!thread || !shouldStickToLatestRef.current) return;
+    isInitialLoadRef.current = true;
+  }, [ticket?.id]);
 
-    // Double rAF ensures the browser has finished layout before we measure
-    // scrollHeight, so the initial load always starts at the latest message.
-    let innerFrame: number;
-    const outerFrame = requestAnimationFrame(() => {
-      innerFrame = requestAnimationFrame(() => {
-        thread.scrollTop = thread.scrollHeight;
-      });
-    });
+  useEffect(() => {
+    if (!bottomRef.current || isLoading) return;
 
-    return () => {
-      cancelAnimationFrame(outerFrame);
-      cancelAnimationFrame(innerFrame);
-    };
-  }, [allMessages.length, ticket?.id]);
+    if (isInitialLoadRef.current || shouldStickToLatestRef.current) {
+      // Use a tiny timeout to ensure the DOM has painted the latest messages.
+      // This also bypasses any spurious scroll events the browser might fire on load.
+      setTimeout(() => {
+        if (bottomRef.current) {
+          bottomRef.current.scrollIntoView({ behavior: "auto", block: "end" });
+          shouldStickToLatestRef.current = true;
+          setShowScrollButton(false);
+        }
+      }, 50);
+      isInitialLoadRef.current = false;
+    }
+  }, [allMessages.length, ticket?.id, isLoading]);
 
   function scrollToLatest() {
     const thread = messageThreadRef.current;
     if (!thread) return;
+    
     shouldStickToLatestRef.current = true;
     thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" });
     setShowScrollButton(false);
@@ -626,6 +631,7 @@ export default function StudentReportDetailPage({
     const thread = event.currentTarget;
     const distanceFromBottom =
       thread.scrollHeight - thread.scrollTop - thread.clientHeight;
+    // Buffer of 120px to consider it 'at the bottom'
     const atBottom = distanceFromBottom < 120;
     shouldStickToLatestRef.current = atBottom;
     setShowScrollButton(!atBottom);
@@ -649,6 +655,11 @@ export default function StudentReportDetailPage({
       setReplyText("");
       setMessageAttachment(null);
       if (messageFileInputRef.current) messageFileInputRef.current.value = "";
+      
+      // Give DOM time to update then scroll to the newest message
+      setTimeout(() => {
+        scrollToLatest();
+      }, 50);
     } catch (error) {
       setMessageError(extractApiError(error, "Failed to send message."));
     } finally {
@@ -874,7 +885,7 @@ export default function StudentReportDetailPage({
               <div
                 ref={messageThreadRef}
                 onScroll={handleMessageThreadScroll}
-                className="max-h-[min(64vh,42rem)] space-y-1 overflow-y-auto overscroll-contain px-6 py-4 scroll-smooth [scrollbar-gutter:stable]"
+                className="flex max-h-[min(64vh,42rem)] flex-col gap-1 overflow-y-auto overscroll-contain px-6 py-4 [scrollbar-gutter:stable]"
                 aria-live="polite"
               >
               {allMessages.length === 0 ? (
@@ -883,7 +894,10 @@ export default function StudentReportDetailPage({
                   reviewing your report.
                 </div>
               ) : (
-                allMessages.map((msg) => {
+                <>
+                  {/* Spacer pushes messages to the bottom if they don't fill the container */}
+                  <div className="flex-1" />
+                  {allMessages.map((msg) => {
                   const isStaff = msg.is_staff_message;
                   return (
                     <div
@@ -927,7 +941,9 @@ export default function StudentReportDetailPage({
                       </div>
                     </div>
                   );
-                })
+                })}
+                <div ref={bottomRef} className="h-1 w-full shrink-0" />
+                </>
               )}
               </div>
 
