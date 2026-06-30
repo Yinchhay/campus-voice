@@ -442,12 +442,14 @@ export function TicketDetailWorkspace({
   }, [ticket?.id]);
 
   useEffect(() => {
-    if (!bottomRef.current || isLoading) return;
+    const thread = messageThreadRef.current;
+    if (!thread || isLoading) return;
 
     if (isInitialLoadRef.current || shouldStickToLatestRef.current) {
       setTimeout(() => {
-        if (bottomRef.current) {
-          bottomRef.current.scrollIntoView({ behavior: "auto", block: "end" });
+        const currentThread = messageThreadRef.current;
+        if (currentThread) {
+          currentThread.scrollTop = currentThread.scrollHeight;
           shouldStickToLatestRef.current = true;
           setShowScrollButton(false);
         }

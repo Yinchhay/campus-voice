@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import axios from "axios";
-import { use, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CalendarClock,
@@ -600,14 +600,16 @@ export default function StudentReportDetailPage({
   }, [ticket?.id]);
 
   useEffect(() => {
-    if (!bottomRef.current || isLoading) return;
+    const thread = messageThreadRef.current;
+    if (!thread || isLoading) return;
 
     if (isInitialLoadRef.current || shouldStickToLatestRef.current) {
       // Use a tiny timeout to ensure the DOM has painted the latest messages.
       // This also bypasses any spurious scroll events the browser might fire on load.
       setTimeout(() => {
-        if (bottomRef.current) {
-          bottomRef.current.scrollIntoView({ behavior: "auto", block: "end" });
+        const currentThread = messageThreadRef.current;
+        if (currentThread) {
+          currentThread.scrollTop = currentThread.scrollHeight;
           shouldStickToLatestRef.current = true;
           setShowScrollButton(false);
         }
