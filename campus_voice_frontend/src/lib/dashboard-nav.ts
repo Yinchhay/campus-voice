@@ -2,6 +2,7 @@ import {
   CalendarCheck,
   LayoutDashboard,
   ListChecks,
+  ShieldAlert,
   Settings,
   ShieldCheck,
   Tag,
@@ -43,6 +44,12 @@ export const adminNav: DashboardNavItem[] = [
     Icon: CalendarCheck,
     requiredPermission: DASHBOARD_MODULES.bookings.requiredPermission,
   },
+  {
+    label: "Profanity",
+    href: DASHBOARD_MODULES.profanityManagement.href.admin,
+    Icon: ShieldAlert,
+    requiredPermission: DASHBOARD_MODULES.profanityManagement.requiredPermission,
+  },
   { label: "Settings", href: "/admin/settings", Icon: Settings },
 ];
 
@@ -76,6 +83,12 @@ export const staffNav: DashboardNavItem[] = [
     href: DASHBOARD_MODULES.bookings.href.staff,
     Icon: CalendarCheck,
     requiredPermission: DASHBOARD_MODULES.bookings.requiredPermission,
+  },
+  {
+    label: "Profanity",
+    href: DASHBOARD_MODULES.profanityManagement.href.staff,
+    Icon: ShieldAlert,
+    requiredPermission: DASHBOARD_MODULES.profanityManagement.requiredPermission,
   },
   { label: "Settings", href: "/staff/settings", Icon: Settings },
 ];

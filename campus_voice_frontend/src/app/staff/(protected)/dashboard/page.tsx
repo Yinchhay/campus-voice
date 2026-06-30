@@ -13,6 +13,7 @@ import {
   Download,
   FileText,
   Inbox,
+  ShieldAlert,
   TriangleAlert,
 } from "lucide-react";
 import { RoleDashboardShell } from "@/components/layout/RoleDashboardShell";
@@ -143,6 +144,9 @@ export default function StaffDashboardPage() {
 
   const canViewTickets = hasPermission(
     DASHBOARD_MODULES.ticketOverview.requiredPermission,
+  );
+  const canViewProfanity = hasPermission(
+    DASHBOARD_MODULES.profanityManagement.requiredPermission,
   );
   const canUpdateTickets = hasPermission(RBAC_PERMISSIONS.ticket.update);
   const canExportTickets = hasPermission(RBAC_PERMISSIONS.ticket.export);
@@ -435,7 +439,8 @@ export default function StaffDashboardPage() {
           ) : (
             !isLoading && (
               <div className="p-6 text-sm text-slate-500 sm:p-8">
-                No dashboard modules are available for your current permissions.
+                No ticket overview modules are available for your current
+                permissions.
               </div>
             )
           )}
@@ -545,6 +550,26 @@ export default function StaffDashboardPage() {
 
         {/* ── Quick actions ─────────────────────────────────── */}
         <div className="grid gap-4 sm:grid-cols-2">
+          {canViewProfanity && (
+            <Link
+              href={DASHBOARD_MODULES.profanityManagement.href.staff}
+              className="flex items-center gap-4 rounded-2xl border border-amber-100 bg-amber-50 p-5 transition hover:border-amber-200"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+                <ShieldAlert className="h-5 w-5 text-amber-700" />
+              </div>
+              <div>
+                <p className="font-semibold text-amber-950">
+                  Profanity Management
+                </p>
+                <p className="mt-0.5 text-sm text-amber-800">
+                  Maintain moderation words for filtered content
+                </p>
+              </div>
+              <ArrowRight className="ml-auto h-4 w-4 text-amber-500" />
+            </Link>
+          )}
+
           {canViewTickets && (
             <Link
               href="/staff/tickets?filter=HIGH"

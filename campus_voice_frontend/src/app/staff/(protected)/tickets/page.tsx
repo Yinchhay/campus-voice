@@ -145,6 +145,12 @@ export default function StaffTicketsPage() {
         router.replace(DASHBOARD_MODULES.categoryManagement.href.staff);
       } else if (hasPermission(DASHBOARD_MODULES.roleManagement.requiredPermission)) {
         router.replace(DASHBOARD_MODULES.roleManagement.href.staff);
+      } else if (
+        hasPermission(DASHBOARD_MODULES.profanityManagement.requiredPermission)
+      ) {
+        router.replace(DASHBOARD_MODULES.profanityManagement.href.staff);
+      } else if (hasPermission(DASHBOARD_MODULES.bookings.requiredPermission)) {
+        router.replace(DASHBOARD_MODULES.bookings.href.staff);
       } else {
         setIsLoading(false);
       }
