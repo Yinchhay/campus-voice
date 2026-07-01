@@ -973,7 +973,7 @@ export function TicketDetailWorkspace({
 
         <div className="grid gap-5 lg:grid-cols-3">
           {/* ── Left: Ticket info ────────────────────────────── */}
-          <div className="space-y-5 lg:col-span-2">
+          <div className="min-w-0 space-y-5 lg:col-span-2">
             {ticket.resolution && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
                 <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-900">
@@ -1051,12 +1051,12 @@ export function TicketDetailWorkspace({
             </div>
 
             {/* Description */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <FileText className="h-4 w-4 text-slate-400" />
                 Report Description
               </h2>
-              <p className="leading-7 text-sm text-slate-700">
+              <p className="whitespace-pre-wrap leading-7 text-sm text-slate-700 [overflow-wrap:anywhere]">
                 {ticket.description}
               </p>
               {ticket.attachments.length > 0 && (
