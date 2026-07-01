@@ -30,6 +30,7 @@ def user_has_permission(user, resource: str, action: str) -> bool:
     # Staff — check their assigned role permissions
     result = UserRole.objects.filter(
         user=user,
+        role__is_active=True,
         role__permissions__resource=resource,
         role__permissions__action=action,
     ).exists()
@@ -54,7 +55,7 @@ def get_user_permissions(user) -> set:
 
     user_roles = (
         UserRole.objects
-        .filter(user=user)
+        .filter(user=user, role__is_active=True)
         .prefetch_related('role__permissions')
     )
 
@@ -103,6 +104,8 @@ class HasResourcePermission(BasePermission):
             return True
 
         action = getattr(view, 'action_override', None)
+        if not action:
+            action = getattr(view, 'action', None)
         if not action:
             action = METHOD_ACTION_MAP.get(request.method, 'view')
 

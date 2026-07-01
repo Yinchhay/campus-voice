@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
-from api.models import Permission, AdminRole, UserRole
+from api.models import Permission, AdminRole
+from api.permissions import invalidate_permission_cache
 
 PREDEFINED_PERMISSIONS = [
     # Ticket
@@ -135,27 +136,31 @@ class Command(BaseCommand):
         # ── Roles ─────────────────────────────────────────────────────────────
         self.stdout.write('\nSeeding roles...')
         for role_data in ROLES:
-            role, created = AdminRole.objects.get_or_create(
+            role, created = AdminRole.objects.update_or_create(
                 name=role_data['name'],
                 defaults={
                     'description':  role_data['description'],
                     'is_superadmin': role_data['is_superadmin'],
+                    'is_active': True,
                 },
             )
-            status_label = 'Created' if created else 'Already exists'
+            status_label = 'Created' if created else 'Updated'
             self.stdout.write(f'  {status_label}: {role.name}')
 
-            # Assign permissions
-            for resource, action in role_data['permissions']:
-                perm = Permission.objects.filter(
-                    resource=resource, action=action
-                ).first()
-                if perm:
-                    role.permissions.add(perm)
+            permission_filters = [
+                {'resource': resource, 'action': action}
+                for resource, action in role_data['permissions']
+            ]
+            permissions = [
+                Permission.objects.get(**permission_filter)
+                for permission_filter in permission_filters
+            ]
+            role.permissions.set(permissions)
 
             if role_data['permissions']:
                 self.stdout.write(
                     f'    → {len(role_data["permissions"])} permissions assigned'
                 )
 
+        invalidate_permission_cache()
         self.stdout.write(self.style.SUCCESS('\nRBAC seeding completed!'))

@@ -29,7 +29,7 @@ class AdminRoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = AdminRole
-        fields = ['id', 'name', 'description', 'is_superadmin']
+        fields = ['id', 'name', 'description', 'is_superadmin', 'is_active']
 
 
 class AdminRoleDetailSerializer(serializers.ModelSerializer):
@@ -143,10 +143,11 @@ class AdminUserSerializer(serializers.ModelSerializer):
                 'id':           ur.role.id,
                 'name':         ur.role.name,
                 'is_superadmin': ur.role.is_superadmin,
+                'is_active':     ur.role.is_active,
                 'permissions':  [
                     {'codename': p.codename, 'resource': p.resource, 'action': p.action}
                     for p in ur.role.permissions.all()
-                ],
+                ] if ur.role.is_active else [],
             }
             for ur in user_roles
         ]

@@ -14,7 +14,9 @@ export function permissionsForAccount(account: CurrentStaffAccount | null) {
 
   return new Set<PermissionCodename>(
     (account.roles ?? []).flatMap((role) =>
-      (role.permissions ?? []).map((permission) => permission.codename as PermissionCodename),
+      role.is_active === false
+        ? []
+        : (role.permissions ?? []).map((permission) => permission.codename as PermissionCodename),
     ),
   );
 }

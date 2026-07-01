@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import axios from "axios";
-import { use, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CalendarClock,
@@ -600,14 +600,16 @@ export default function StudentReportDetailPage({
   }, [ticket?.id]);
 
   useEffect(() => {
-    if (!bottomRef.current || isLoading) return;
+    const thread = messageThreadRef.current;
+    if (!thread || isLoading) return;
 
     if (isInitialLoadRef.current || shouldStickToLatestRef.current) {
       // Use a tiny timeout to ensure the DOM has painted the latest messages.
       // This also bypasses any spurious scroll events the browser might fire on load.
       setTimeout(() => {
-        if (bottomRef.current) {
-          bottomRef.current.scrollIntoView({ behavior: "auto", block: "end" });
+        const currentThread = messageThreadRef.current;
+        if (currentThread) {
+          currentThread.scrollTop = currentThread.scrollHeight;
           shouldStickToLatestRef.current = true;
           setShowScrollButton(false);
         }
@@ -845,12 +847,14 @@ export default function StudentReportDetailPage({
           </aside>
 
           {/* ── Description ───────────────────────────────────── */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-start-1">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-start-1">
             <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-900">
               <FileText className="h-5 w-5 text-slate-400" />
               Report Description
             </h2>
-            <p className="leading-7 text-slate-700">{ticket.description}</p>
+            <p className="whitespace-pre-wrap leading-7 text-slate-700 [overflow-wrap:anywhere]">
+              {ticket.description}
+            </p>
             {ticket.attachments.length > 0 && (
               <div className="mt-5 space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
