@@ -10,6 +10,7 @@ import {
   Clock,
   Download,
   Filter,
+  ArrowDownUp,
   Paperclip,
   Search,
   TriangleAlert,
@@ -31,6 +32,7 @@ import type { TicketPriority, TicketStatus } from "@/lib/types";
 // Constants
 // ---------------------------------------------------------------------------
 type TicketStatusFilter = TicketStatus | "OPEN" | "ALL";
+type TicketSortMode = "PRIORITY" | "RECENT";
 
 const statusTabs: Array<{ key: TicketStatusFilter; label: string }> = [
   { key: "OPEN", label: "Open" },
@@ -110,6 +112,10 @@ const dateRangeOptions: Array<{ value: DateRangeFilter; label: string }> = [
   { value: "WEEK", label: "Past week" },
   { value: "MONTH", label: "Past month" },
 ];
+const ticketSortOptions: Array<{ value: TicketSortMode; label: string }> = [
+  { value: "PRIORITY", label: "Priority" },
+  { value: "RECENT", label: "Most Recent" },
+];
 
 function ticketSortTime(ticket: StaffTicket) {
   return Date.parse(ticket.created_at ?? ticket.resolved_at ?? "") || 0;
@@ -136,6 +142,7 @@ export default function StaffTicketsPage() {
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "ALL">("ALL");
   const [categoryFilter, setCategoryFilter] = useState<number | "ALL">("ALL");
   const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeFilter>("ALL");
+  const [sortMode, setSortMode] = useState<TicketSortMode>("PRIORITY");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -214,11 +221,17 @@ export default function StaffTicketsPage() {
         return true;
       })
       .sort((a, b) => {
+        if (sortMode === "RECENT") {
+          const dateDiff = ticketSortTime(b) - ticketSortTime(a);
+          if (dateDiff !== 0) return dateDiff;
+          return priorityRank[a.priority] - priorityRank[b.priority];
+        }
+
         const priorityDiff = priorityRank[a.priority] - priorityRank[b.priority];
         if (priorityDiff !== 0) return priorityDiff;
         return ticketSortTime(b) - ticketSortTime(a);
       });
-  }, [tickets, statusFilter, priorityFilter, categoryFilter, search]);
+  }, [tickets, statusFilter, priorityFilter, categoryFilter, search, sortMode]);
 
   const categoryOptions = useMemo(
     () =>
@@ -301,6 +314,32 @@ export default function StaffTicketsPage() {
             })}
 
             <div className="ml-auto flex flex-wrap gap-2">
+              <div
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+                aria-label="Sort tickets"
+              >
+                <ArrowDownUp className="ml-2 h-3.5 w-3.5 text-slate-400" />
+                {ticketSortOptions.map((option) => {
+                  const isActive = sortMode === option.value;
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={isActive}
+                      onClick={() => setSortMode(option.value)}
+                      className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-white text-[#1E3A8A] shadow-sm"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* Priority filter */}
               <div className="relative">
                 <Filter className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
